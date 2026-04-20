@@ -99,3 +99,82 @@ func TestRegisterHandlersReturnsMuxWithKnownTaskTypes(t *testing.T) {
 		t.Fatalf("mux.ProcessTask() error = %v", err)
 	}
 }
+
+func TestArticleInspectQueueBuildsPayload(t *testing.T) {
+	recorder := &enqueueRecorder{}
+	payload := tasks.ArticleInspectTaskPayload{
+		TaskID:        88,
+		OrgID:         100,
+		TriggerSource: "manual",
+		OperatorID:    9,
+		OperatorName:  "alice",
+	}
+
+	info, err := EnqueueArticleInspectTask(recorder, "critical", payload)
+	if err != nil {
+		t.Fatalf("EnqueueArticleInspectTask() error = %v", err)
+	}
+	if info != recorder.info {
+		t.Fatal("EnqueueArticleInspectTask() did not return underlying task info")
+	}
+	if recorder.task == nil {
+		t.Fatal("EnqueueArticleInspectTask() did not enqueue a task")
+	}
+	if recorder.task.Type() != tasks.TypeArticleInspectRunTask {
+		t.Fatalf("task.Type() = %q, want %q", recorder.task.Type(), tasks.TypeArticleInspectRunTask)
+	}
+
+	decoded, err := tasks.DecodeArticleInspectTaskPayload(recorder.task)
+	if err != nil {
+		t.Fatalf("DecodeArticleInspectTaskPayload() error = %v", err)
+	}
+	if decoded != payload {
+		t.Fatalf("payload = %+v, want %+v", decoded, payload)
+	}
+}
+
+func TestArticleInspectQueueHandlerDispatchesExecutor(t *testing.T) {
+	orig := newArticleInspectExecutorFn
+	t.Cleanup(func() {
+		newArticleInspectExecutorFn = orig
+	})
+
+	recorder := &articleInspectExecutorRecorder{}
+	newArticleInspectExecutorFn = func(rt *bootstrap.Runtime) articleInspectExecutor {
+		return recorder
+	}
+
+	mux := RegisterHandlers(&bootstrap.Runtime{
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	task, err := tasks.NewArticleInspectTask(tasks.ArticleInspectTaskPayload{
+		TaskID:        88,
+		OrgID:         100,
+		TriggerSource: "manual",
+	})
+	if err != nil {
+		t.Fatalf("NewArticleInspectTask() error = %v", err)
+	}
+
+	if err := mux.ProcessTask(context.Background(), task); err != nil {
+		t.Fatalf("mux.ProcessTask() error = %v", err)
+	}
+	if recorder.calls != 1 {
+		t.Fatalf("executor calls = %d, want %d", recorder.calls, 1)
+	}
+	if recorder.lastPayload.TaskID != 88 || recorder.lastPayload.OrgID != 100 {
+		t.Fatalf("executor payload = %+v, want task/org 88/100", recorder.lastPayload)
+	}
+}
+
+type articleInspectExecutorRecorder struct {
+	calls       int
+	lastPayload tasks.ArticleInspectTaskPayload
+}
+
+func (r *articleInspectExecutorRecorder) ExecuteTask(ctx context.Context, payload tasks.ArticleInspectTaskPayload) error {
+	r.calls++
+	r.lastPayload = payload
+	return nil
+}

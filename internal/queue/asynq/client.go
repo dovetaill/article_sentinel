@@ -42,6 +42,23 @@ func EnqueueTask(client Enqueuer, queueName string, payload tasks.Payload) (*lib
 	return client.Enqueue(task, libasynq.Queue(queueName))
 }
 
+func EnqueueArticleInspectTask(client Enqueuer, queueName string, payload tasks.ArticleInspectTaskPayload) (*libasynq.TaskInfo, error) {
+	if client == nil {
+		return nil, errors.New("enqueuer is required")
+	}
+
+	task, err := tasks.NewArticleInspectTask(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	queueName = strings.TrimSpace(queueName)
+	if queueName == "" {
+		return client.Enqueue(task)
+	}
+	return client.Enqueue(task, libasynq.Queue(queueName))
+}
+
 func runtimeRedis(rt *bootstrap.Runtime) (*redis.Client, error) {
 	if rt == nil || rt.Resources == nil || rt.Resources.Redis == nil {
 		return nil, errors.New("worker runtime redis is required")

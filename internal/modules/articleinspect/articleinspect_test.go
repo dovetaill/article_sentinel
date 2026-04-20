@@ -2,6 +2,7 @@ package articleinspect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dovetaill/article-sentinel/internal/identity"
+	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -515,6 +517,119 @@ func TestTaskCreation(t *testing.T) {
 	}
 }
 
+func TestArticleInspectWorker(t *testing.T) {
+	t.Run("successful batch updates task counters and status", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedCandidateArticles(t, db)
+		task := seedInspectionTaskForWorker(t, db, []KeywordRule{
+			{
+				ID:            1,
+				Name:          "Alpha",
+				Category:      "policy",
+				MatchType:     MatchTypeContains,
+				RiskLevel:     RiskLevelHigh,
+				SuggestAction: SuggestActionOffline,
+				Scopes:        []string{KeywordScopeTitle},
+			},
+		})
+
+		worker := NewWorker(db)
+		err := worker.ExecuteTask(context.Background(), queuetasks.ArticleInspectTaskPayload{
+			TaskID: task.ID,
+			OrgID:  task.OrgID,
+		})
+		if err != nil {
+			t.Fatalf("ExecuteTask() error = %v", err)
+		}
+
+		var stored InspectionTask
+		if err := db.First(&stored, task.ID).Error; err != nil {
+			t.Fatalf("load task error = %v", err)
+		}
+		if stored.Status != TaskStatusSuccess {
+			t.Fatalf("task.Status = %q, want %q", stored.Status, TaskStatusSuccess)
+		}
+		if stored.TotalScanned != 2 {
+			t.Fatalf("task.TotalScanned = %d, want %d", stored.TotalScanned, 2)
+		}
+		if stored.HitArticles != 1 || stored.HitCount != 1 || stored.FailCount != 0 {
+			t.Fatalf("task counters = hits:%d hit_count:%d fail:%d, want 1/1/0", stored.HitArticles, stored.HitCount, stored.FailCount)
+		}
+
+		var results []InspectionResult
+		if err := db.Where("orgid = ? AND task_id = ?", task.OrgID, task.ID).Find(&results).Error; err != nil {
+			t.Fatalf("load results error = %v", err)
+		}
+		if len(results) != 1 || results[0].ArticleID != 1 {
+			t.Fatalf("results = %#v, want one result for article 1", results)
+		}
+
+		var hits []InspectionResultHit
+		if err := db.Where("orgid = ? AND task_id = ?", task.OrgID, task.ID).Find(&hits).Error; err != nil {
+			t.Fatalf("load hits error = %v", err)
+		}
+		if len(hits) != 1 || hits[0].FieldName != KeywordScopeTitle {
+			t.Fatalf("hits = %#v, want one title hit", hits)
+		}
+	})
+
+	t.Run("mixed batch failures end in partial_success", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedCandidateArticles(t, db)
+		task := seedInspectionTaskForWorker(t, db, []KeywordRule{
+			{
+				ID:            1,
+				Name:          "a",
+				Category:      "policy",
+				MatchType:     MatchTypeContains,
+				RiskLevel:     RiskLevelLow,
+				SuggestAction: SuggestActionProcess,
+				Scopes:        []string{KeywordScopeTitle},
+			},
+		})
+
+		worker := &Worker{
+			db: db,
+			scanner: scannerFunc(func(ctx context.Context, article CandidateArticle, rules []KeywordRule) ([]Hit, error) {
+				if article.ID == 2 {
+					return nil, errors.New("scan failed")
+				}
+				return []Hit{{
+					KeywordID:     rules[0].ID,
+					KeywordText:   rules[0].Name,
+					Category:      rules[0].Category,
+					FieldName:     KeywordScopeTitle,
+					MatchType:     rules[0].MatchType,
+					RiskLevel:     rules[0].RiskLevel,
+					SuggestAction: rules[0].SuggestAction,
+					MatchedText:   "A",
+					Snippet:       "Alpha",
+				}}, nil
+			}),
+			articleRepo: NewArticleRepository(db),
+		}
+
+		err := worker.ExecuteTask(context.Background(), queuetasks.ArticleInspectTaskPayload{
+			TaskID: task.ID,
+			OrgID:  task.OrgID,
+		})
+		if err != nil {
+			t.Fatalf("ExecuteTask() error = %v", err)
+		}
+
+		var stored InspectionTask
+		if err := db.First(&stored, task.ID).Error; err != nil {
+			t.Fatalf("load task error = %v", err)
+		}
+		if stored.Status != TaskStatusPartialSuccess {
+			t.Fatalf("task.Status = %q, want %q", stored.Status, TaskStatusPartialSuccess)
+		}
+		if stored.FailCount != 1 {
+			t.Fatalf("task.FailCount = %d, want %d", stored.FailCount, 1)
+		}
+	})
+}
+
 func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -593,4 +708,54 @@ func extractArticleIDs(items []CandidateArticle) []uint64 {
 
 func timePointer(value time.Time) *time.Time {
 	return &value
+}
+
+func seedInspectionTaskForWorker(t *testing.T, db *gorm.DB, rules []KeywordRule) *InspectionTask {
+	t.Helper()
+
+	start := mustTime(t, "2026-04-20T09:00:00Z")
+	end := mustTime(t, "2026-04-20T13:00:00Z")
+	ruleSnapshot, err := marshalJSON(rules)
+	if err != nil {
+		t.Fatalf("marshal rule snapshot error = %v", err)
+	}
+	requestSnapshot, err := marshalJSON(map[string]any{
+		"orgid":              uint64(100),
+		"publish_time_start": start,
+		"publish_time_end":   end,
+		"include_body":       true,
+	})
+	if err != nil {
+		t.Fatalf("marshal request snapshot error = %v", err)
+	}
+
+	task := &InspectionTask{
+		OrgID:              100,
+		TaskNo:             "inspect-test",
+		Status:             TaskStatusPending,
+		ArticleStateFilter: "9",
+		PublishTimeStart:   timePointer(start),
+		PublishTimeEnd:     timePointer(end),
+		IncludeBody:        true,
+		RequestSnapshot:    requestSnapshot,
+		RuleSnapshot:       ruleSnapshot,
+	}
+	if err := db.Create(task).Error; err != nil {
+		t.Fatalf("create task error = %v", err)
+	}
+	return task
+}
+
+func marshalJSON(value any) (string, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+type scannerFunc func(ctx context.Context, article CandidateArticle, rules []KeywordRule) ([]Hit, error)
+
+func (fn scannerFunc) ScanArticle(ctx context.Context, article CandidateArticle, rules []KeywordRule) ([]Hit, error) {
+	return fn(ctx, article, rules)
 }
