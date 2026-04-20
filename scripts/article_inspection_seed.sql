@@ -1,6 +1,6 @@
 -- Article Sentinel phase-1 demo seed
 -- Import with:
--- mysql -h127.0.0.1 -P3307 -uroot -proot article_sentinel < scripts/article_inspection_seed.sql
+-- mysql -h127.0.0.1 -P3307 -uroot -p"${MYSQL_ROOT_PASSWORD:-root}" article_sentinel < scripts/article_inspection_seed.sql
 
 SET NAMES utf8mb4;
 

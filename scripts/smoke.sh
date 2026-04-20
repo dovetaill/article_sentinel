@@ -14,7 +14,7 @@ SERVER_LOG="/tmp/article-sentinel-smoke-server.log"
 wait_for_mysql() {
   local retries=30
   while (( retries > 0 )); do
-    if docker compose exec -T mysql mysqladmin ping -h127.0.0.1 -uroot -proot --silent >/dev/null 2>&1; then
+    if docker compose exec -T mysql sh -c 'mysqladmin ping -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null 2>&1; then
       return 0
     fi
     retries=$((retries - 1))
@@ -27,7 +27,7 @@ wait_for_mysql() {
 wait_for_redis() {
   local retries=30
   while (( retries > 0 )); do
-    if docker compose exec -T redis redis-cli ping >/dev/null 2>&1; then
+    if docker compose exec -T redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping' >/dev/null 2>&1; then
       return 0
     fi
     retries=$((retries - 1))

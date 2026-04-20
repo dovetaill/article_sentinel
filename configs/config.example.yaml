@@ -12,8 +12,8 @@ http:
   idle_timeout_seconds: 60
 
 redis:
-  addr: 127.0.0.1:6379
-  password: ""
+  addr: 127.0.0.1:6380
+  password: article_sentinel_redis
   db: 0
   pool_size: 10
   min_idle_conns: 2
@@ -23,9 +23,9 @@ database:
   driver: mysql
   mysql:
     host: 127.0.0.1
-    port: 3306
-    user: root
-    password: root
+    port: 3307
+    user: article_sentinel
+    password: article_sentinel
     dbname: article_sentinel
     charset: utf8mb4
     parse_time: true

@@ -125,7 +125,29 @@ article-sentinel/
 
 ## 本地运行
 
-### 1. 启动依赖
+### 1. 准备本地配置
+
+先复制示例配置：
+
+```bash
+cp .env.example .env
+cp configs/config.example.yaml configs/config.local.yaml
+```
+
+说明：
+
+- `.env` 控制 Docker Compose 的 MySQL / Redis 端口、密码、数据库名、业务账号
+- `configs/config.local.yaml` 控制后端连接哪个 MySQL / Redis
+- 如果你改了 `.env` 中的端口或密码，记得同步更新 `configs/config.local.yaml`
+
+`.env.example` 默认值：
+
+- MySQL: `127.0.0.1:3307`
+- Redis: `127.0.0.1:6380`
+- 数据库名: `article_sentinel`
+- MySQL 业务账号: `article_sentinel`
+
+### 2. 启动依赖
 
 ```bash
 make up
@@ -133,21 +155,33 @@ make up
 
 会启动：
 
-- MySQL 8.4
+- MySQL 5.7
 - Redis 7.2
 
-本地默认配置：
+默认由根目录 `.env` 驱动：
 
-- MySQL: `127.0.0.1:3307`
-- Redis: `127.0.0.1:6380`
-- 数据库名: `article_sentinel`
+- `MYSQL_PORT`
+- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_DATABASE`
+- `MYSQL_APP_USER`
+- `MYSQL_APP_PASSWORD`
+- `REDIS_PORT`
+- `REDIS_PASSWORD`
 
 配置文件：
 
 - `docker-compose.yml`
+- `.env`
+- `.env.example`
 - `configs/config.local.yaml`
 
-### 2. 同步数据库结构
+补充说明：
+
+- MySQL `root` 会允许远程登录
+- Compose 还会自动创建一个业务账号，并授予 `MYSQL_DATABASE` 的全部权限
+- MySQL 官方镜像只会在数据目录首次初始化时应用这些账号/密码；如果你改了 `.env` 里的 MySQL 初始化参数，需要重新建卷，例如执行 `docker compose down -v`
+
+### 3. 同步数据库结构
 
 ```bash
 make migrate
@@ -159,7 +193,7 @@ make migrate
 - 一期巡检的显式 MySQL DDL 在 `migrations/20260420_01_article_inspection.sql`
 - 参考快照也放在 `ddl/xt_article_inspection.sql`
 
-### 3. 启动后端 API
+### 4. 启动后端 API
 
 ```bash
 make dev
@@ -174,7 +208,7 @@ make dev
 - `GET /openapi.json`
 - `GET /docs`
 
-### 4. 启动 Worker
+### 5. 启动 Worker
 
 如果你要实际消费异步巡检任务，还需要单独启动 worker：
 
@@ -182,7 +216,7 @@ make dev
 go run ./cmd/worker -config configs/config.local.yaml
 ```
 
-### 5. 启动 Scheduler
+### 6. 启动 Scheduler
 
 如果你需要验证调度入口：
 
@@ -194,7 +228,7 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 
 - `scheduler.enabled: false`
 
-### 6. 启动前端后台
+### 7. 启动前端后台
 
 ```bash
 cd web/admin
@@ -204,7 +238,9 @@ npm run dev
 
 默认访问：`http://127.0.0.1:5173`
 
-### 7. 导入 demo 数据
+### 8. 导入 demo 数据
+
+如果你沿用了 `.env.example` 默认值，可以直接使用 root 导入：
 
 ```bash
 mysql -h127.0.0.1 -P3307 -uroot -proot article_sentinel < scripts/article_inspection_seed.sql
@@ -219,7 +255,21 @@ mysql -h127.0.0.1 -P3307 -uroot -proot article_sentinel < scripts/article_inspec
 - demo 操作日志
 - demo 字段变更日志
 
-### 8. 关闭依赖
+如果你改过 `.env`，请把命令里的端口、密码、数据库名替换成你自己的值。
+
+业务账号也可以直连，并且对业务库拥有全部权限，例如：
+
+```bash
+mysql -h127.0.0.1 -P3307 -uarticle_sentinel -particle_sentinel article_sentinel
+```
+
+Redis 连通性示例：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6380 -a article_sentinel_redis ping
+```
+
+### 9. 关闭依赖
 
 ```bash
 make down
@@ -229,13 +279,15 @@ make down
 
 ### 最短联调路径
 
-1. `make up`
-2. `make migrate`
-3. 导入 `scripts/article_inspection_seed.sql`
-4. 启动 `make dev`
-5. 启动 `go run ./cmd/worker -config configs/config.local.yaml`
-6. 启动 `cd web/admin && npm run dev`
-7. 访问前端页面：
+1. `cp .env.example .env`
+2. `cp configs/config.example.yaml configs/config.local.yaml`
+3. `make up`
+4. `make migrate`
+5. 导入 `scripts/article_inspection_seed.sql`
+6. 启动 `make dev`
+7. 启动 `go run ./cmd/worker -config configs/config.local.yaml`
+8. 启动 `cd web/admin && npm run dev`
+9. 访问前端页面：
    - `/keywords`
    - `/tasks`
    - `/results`
