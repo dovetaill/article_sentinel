@@ -8,6 +8,9 @@ const { Paragraph, Text, Title } = Typography;
 const KeywordsPage = lazy(() => import('./pages/keywords'));
 const TasksPage = lazy(() => import('./pages/tasks'));
 const NewTaskPage = lazy(() => import('./pages/tasks/new'));
+const ResultsPage = lazy(() => import('./pages/results'));
+const LogsPage = lazy(() => import('./pages/logs'));
+const RectifyPage = lazy(() => import('./pages/articles/rectify'));
 
 export type AppRoute = {
   key: string;
@@ -54,6 +57,9 @@ export const appRoutes: AppRoute[] = [
 ];
 
 export function routeForPath(pathname: string): AppRoute {
+  if (pathname.startsWith('/articles/')) {
+    return appRoutes[2];
+  }
   return appRoutes.find((route) => pathname.startsWith(route.path)) ?? appRoutes[0];
 }
 
@@ -107,8 +113,9 @@ export function AppRouteOutlet() {
         <Route path="/keywords" element={<KeywordsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/new" element={<NewTaskPage />} />
-        <Route path="/results" element={<RoutePanel route={appRoutes[2]} />} />
-        <Route path="/logs" element={<RoutePanel route={appRoutes[3]} />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/logs" element={<LogsPage />} />
+        <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
       </Routes>
     </Suspense>
   );
