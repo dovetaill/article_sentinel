@@ -1,0 +1,44 @@
+package scheduler
+
+import (
+	"log/slog"
+
+	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
+	"github.com/dovetaill/article-sentinel/internal/queue/tasks"
+)
+
+// Enqueuer 抽象定时任务的投递行为，便于测试替换。
+type Enqueuer interface {
+	EnqueueRuntimeHeartbeat(payload tasks.Payload) error
+}
+
+type asynqEnqueuer struct {
+	client    queueasynq.Enqueuer
+	queueName string
+}
+
+// NewAsynqEnqueuer 用 Asynq client 适配调度器需要的 enqueue seam。
+func NewAsynqEnqueuer(client queueasynq.Enqueuer, queueName string) Enqueuer {
+	return &asynqEnqueuer{
+		client:    client,
+		queueName: queueName,
+	}
+}
+
+func (e *asynqEnqueuer) EnqueueRuntimeHeartbeat(payload tasks.Payload) error {
+	_, err := queueasynq.EnqueueTask(e.client, e.queueName, payload)
+	return err
+}
+
+// NewRuntimeHeartbeatJob 生成只负责投递队列任务的 cron job。
+func NewRuntimeHeartbeatJob(logger *slog.Logger, enqueuer Enqueuer) func() {
+	return func() {
+		if enqueuer == nil {
+			return
+		}
+
+		if err := enqueuer.EnqueueRuntimeHeartbeat(tasks.Payload{Source: "scheduler"}); err != nil && logger != nil {
+			logger.Error("enqueue scheduled task", "type", tasks.TypeRuntimeHeartbeat, "error", err)
+		}
+	}
+}

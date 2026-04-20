@@ -1,0 +1,67 @@
+# =========================
+# Go 编译与依赖相关
+# =========================
+# 忽略编译后的二进制可执行文件
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+# 忽略 vendor 目录 (如果不使用 go mod vendor，可以保留)
+/vendor/
+# 忽略 Go 工作区文件 (本地多模块开发时使用)
+go.work
+go.work.sum
+coverage.txt
+coverage.out
+
+# =========================
+# 配置文件 (敏感信息防泄漏)
+# =========================
+# 忽略本地真实的配置文件，强烈建议提交一个 config.example.yaml 供其他人参考
+/configs/config.yaml
+/configs/config.local.yaml
+*.env
+*.env.local
+
+# =========================
+# 日志文件 (slog + lumberjack 生成)
+# =========================
+# 忽略所有日志文件和日志目录
+/logs/
+*.log
+*.log.*
+
+# =========================
+# IDE 与编辑器配置
+# =========================
+# JetBrains 系列 (GoLand, IntelliJ等)
+.idea/
+*.iml
+# VS Code
+.vscode/
+# Vim/Neovim
+*.swp
+*.swo
+*~
+# Cursor / Superpowers 产生可能产生的临时设计文件或对话历史
+.cursor/
+.codex/history/
+.worktree/
+.worktrees/
+
+# =========================
+# 操作系统生成文件
+# =========================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
