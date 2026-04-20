@@ -1,0 +1,76 @@
+package articleinspect
+
+const (
+	ArticleStateDeleted      int8 = 0
+	ArticleStateAuditPending int8 = 1
+	ArticleStateAuditBack    int8 = 2
+	ArticleStateDraft        int8 = 3
+	ArticleStateStep         int8 = 5
+	ArticleStateOfflineSync  int8 = 7
+	ArticleStateOffline      int8 = 8
+	ArticleStateOnline       int8 = 9
+)
+
+var ArticleLifecycleStates = map[int8]string{
+	ArticleStateDeleted:      "del",
+	ArticleStateAuditPending: "audit",
+	ArticleStateAuditBack:    "back",
+	ArticleStateDraft:        "draft",
+	ArticleStateStep:         "step",
+	ArticleStateOfflineSync:  "offline_sync",
+	ArticleStateOffline:      "offline",
+	ArticleStateOnline:       "online",
+}
+
+const (
+	MatchTypeContains = "contains"
+	MatchTypeExact    = "exact"
+	MatchTypeRegex    = "regex"
+)
+
+const (
+	KeywordScopeTitle      = "title"
+	KeywordScopeShortTitle = "short_title"
+	KeywordScopeRichTitle  = "rich_title"
+	KeywordScopeKeyword    = "keyword"
+	KeywordScopeDesc       = "desc"
+	KeywordScopeBody       = "body"
+)
+
+const (
+	TaskStatusPending        = "pending"
+	TaskStatusRunning        = "running"
+	TaskStatusSuccess        = "success"
+	TaskStatusFailed         = "failed"
+	TaskStatusPartialSuccess = "partial_success"
+)
+
+const (
+	ResultDispositionPending     = "pending"
+	ResultDispositionIgnored     = "ignored"
+	ResultDispositionProcessed   = "processed"
+	ResultDispositionOfflined    = "offlined"
+	ResultDispositionRepublished = "republished"
+	ResultDispositionFailed      = "failed"
+)
+
+func InspectionTaskStatuses() []string {
+	return []string{
+		TaskStatusPending,
+		TaskStatusRunning,
+		TaskStatusSuccess,
+		TaskStatusFailed,
+		TaskStatusPartialSuccess,
+	}
+}
+
+func InspectionResultDispositionStatuses() []string {
+	return []string{
+		ResultDispositionPending,
+		ResultDispositionIgnored,
+		ResultDispositionProcessed,
+		ResultDispositionOfflined,
+		ResultDispositionRepublished,
+		ResultDispositionFailed,
+	}
+}

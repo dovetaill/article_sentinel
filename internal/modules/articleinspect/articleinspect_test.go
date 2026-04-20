@@ -1,0 +1,93 @@
+package articleinspect
+
+import (
+	"testing"
+)
+
+func TestInspectionModelMetadata(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{name: "keyword table", got: (InspectionKeyword{}).TableName(), want: "xt_article_inspect_keywords"},
+		{name: "keyword scope table", got: (InspectionKeywordScope{}).TableName(), want: "xt_article_inspect_keyword_scopes"},
+		{name: "task table", got: (InspectionTask{}).TableName(), want: "xt_article_inspect_tasks"},
+		{name: "task keyword table", got: (InspectionTaskKeyword{}).TableName(), want: "xt_article_inspect_task_keywords"},
+		{name: "result table", got: (InspectionResult{}).TableName(), want: "xt_article_inspect_results"},
+		{name: "result hit table", got: (InspectionResultHit{}).TableName(), want: "xt_article_inspect_result_hits"},
+		{name: "action table", got: (InspectionAction{}).TableName(), want: "xt_article_inspect_actions"},
+		{name: "field change log table", got: (InspectionFieldChangeLog{}).TableName(), want: "xt_article_inspect_field_change_logs"},
+		{name: "operation log table", got: (InspectionOperationLog{}).TableName(), want: "xt_article_inspect_operation_logs"},
+		{name: "article table", got: (Article{}).TableName(), want: "xt_article"},
+		{name: "article info table", got: (ArticleInfo{}).TableName(), want: "xt_article_info"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("TableName() = %q, want %q", tt.got, tt.want)
+			}
+		})
+	}
+
+	wantArticleStates := map[int8]string{
+		ArticleStateDeleted:      "del",
+		ArticleStateAuditPending: "audit",
+		ArticleStateAuditBack:    "back",
+		ArticleStateDraft:        "draft",
+		ArticleStateStep:         "step",
+		ArticleStateOfflineSync:  "offline_sync",
+		ArticleStateOffline:      "offline",
+		ArticleStateOnline:       "online",
+	}
+	if len(ArticleLifecycleStates) != len(wantArticleStates) {
+		t.Fatalf("ArticleLifecycleStates len = %d, want %d", len(ArticleLifecycleStates), len(wantArticleStates))
+	}
+	for state, want := range wantArticleStates {
+		if got := ArticleLifecycleStates[state]; got != want {
+			t.Fatalf("ArticleLifecycleStates[%d] = %q, want %q", state, got, want)
+		}
+	}
+
+	wantTaskStatuses := []string{
+		TaskStatusPending,
+		TaskStatusRunning,
+		TaskStatusSuccess,
+		TaskStatusFailed,
+		TaskStatusPartialSuccess,
+	}
+	assertExactStringSet(t, InspectionTaskStatuses(), wantTaskStatuses)
+
+	wantResultStatuses := []string{
+		ResultDispositionPending,
+		ResultDispositionIgnored,
+		ResultDispositionProcessed,
+		ResultDispositionOfflined,
+		ResultDispositionRepublished,
+		ResultDispositionFailed,
+	}
+	assertExactStringSet(t, InspectionResultDispositionStatuses(), wantResultStatuses)
+}
+
+func assertExactStringSet(t *testing.T, got []string, want []string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("status count = %d, want %d", len(got), len(want))
+	}
+
+	seen := make(map[string]int, len(got))
+	for _, item := range got {
+		seen[item]++
+	}
+	for _, item := range want {
+		if seen[item] != 1 {
+			t.Fatalf("status %q count = %d, want %d", item, seen[item], 1)
+		}
+		delete(seen, item)
+	}
+	if len(seen) != 0 {
+		t.Fatalf("unexpected extra statuses: %v", seen)
+	}
+}

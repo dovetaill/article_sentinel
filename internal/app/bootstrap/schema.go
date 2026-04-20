@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
 )
 
@@ -12,7 +13,18 @@ type schemaMigrator interface {
 }
 
 func init() {
-	RegisterBusinessModels(postmodule.Post{})
+	RegisterBusinessModels(
+		postmodule.Post{},
+		articleinspectmodule.InspectionKeyword{},
+		articleinspectmodule.InspectionKeywordScope{},
+		articleinspectmodule.InspectionTask{},
+		articleinspectmodule.InspectionTaskKeyword{},
+		articleinspectmodule.InspectionResult{},
+		articleinspectmodule.InspectionResultHit{},
+		articleinspectmodule.InspectionAction{},
+		articleinspectmodule.InspectionOperationLog{},
+		articleinspectmodule.InspectionFieldChangeLog{},
+	)
 }
 
 func RegisterBusinessModels(models ...any) {
