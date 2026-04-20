@@ -1,6 +1,9 @@
 package articleinspect
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -89,5 +92,33 @@ func assertExactStringSet(t *testing.T, got []string, want []string) {
 	}
 	if len(seen) != 0 {
 		t.Fatalf("unexpected extra statuses: %v", seen)
+	}
+}
+
+func TestMigrationFileContainsInspectionTables(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "migrations", "20260420_01_article_inspection.sql")
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", path, err)
+	}
+
+	text := string(content)
+	requiredTables := []string{
+		"xt_article_inspect_keywords",
+		"xt_article_inspect_keyword_scopes",
+		"xt_article_inspect_tasks",
+		"xt_article_inspect_task_keywords",
+		"xt_article_inspect_results",
+		"xt_article_inspect_result_hits",
+		"xt_article_inspect_actions",
+		"xt_article_inspect_field_change_logs",
+		"xt_article_inspect_operation_logs",
+	}
+
+	for _, table := range requiredTables {
+		if !strings.Contains(text, table) {
+			t.Fatalf("migration missing table %q", table)
+		}
 	}
 }

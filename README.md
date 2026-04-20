@@ -25,6 +25,8 @@ make up
 make migrate
 ```
 
+`make migrate` 会通过 starter 的 AutoMigrate 同步当前业务模型；如果需要审阅一期文稿巡检的显式 SQL 结构，也可以直接查看 `migrations/20260420_01_article_inspection.sql`。
+
 ### 3. 启动 API
 
 ```bash
