@@ -10,8 +10,9 @@ export function chunkForModule(id: string): string | undefined {
   if (id.includes('/react-dom/') || id.includes('/react/')) {
     return 'react-vendor';
   }
-  if (id.includes('/@ant-design/pro-')) {
-    return 'pro-vendor';
+  const proChunk = proChunkName(id);
+  if (proChunk) {
+    return proChunk;
   }
   if (id.includes('/@ant-design/icons/')) {
     return 'icons-vendor';
@@ -32,4 +33,12 @@ function antdChunkName(id: string): string | undefined {
     return undefined;
   }
   return `antd-${match[1]}`;
+}
+
+function proChunkName(id: string): string | undefined {
+  const match = id.match(/\/@ant-design\/(pro-[^/]+)\//);
+  if (!match || !match[1]) {
+    return undefined;
+  }
+  return match[1];
 }

@@ -1,7 +1,13 @@
-import { Card, Col, Row, Space, Tag, Typography } from 'antd';
+import { Suspense, lazy } from 'react';
+
+import { Card, Col, Row, Space, Spin, Tag, Typography } from 'antd';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 const { Paragraph, Text, Title } = Typography;
+
+const KeywordsPage = lazy(() => import('./pages/keywords'));
+const TasksPage = lazy(() => import('./pages/tasks'));
+const NewTaskPage = lazy(() => import('./pages/tasks/new'));
 
 export type AppRoute = {
   key: string;
@@ -53,7 +59,7 @@ export function routeForPath(pathname: string): AppRoute {
 
 function RoutePanel({ route }: { route: AppRoute }) {
   return (
-    <Card bordered={false} className="route-panel">
+    <Card variant="borderless" className="route-panel">
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
         <div>
           <Tag color={route.accent}>{route.label}</Tag>
@@ -62,7 +68,7 @@ function RoutePanel({ route }: { route: AppRoute }) {
         </div>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
-            <Card className="route-card" bordered={false}>
+            <Card className="route-card" variant="borderless">
               <Text type="secondary">Ready for the next task batch</Text>
               <Paragraph>
                 This shell intentionally keeps each module lightweight so the upcoming CRUD pages can slot in
@@ -71,7 +77,7 @@ function RoutePanel({ route }: { route: AppRoute }) {
             </Card>
           </Col>
           <Col xs={24} md={12}>
-            <Card className="route-card route-card-accent" bordered={false}>
+            <Card className="route-card route-card-accent" variant="borderless">
               <Text strong>Operator cues</Text>
               <Paragraph>
                 Focused navigation, bold section titles, and space for table-heavy workflows keep the admin UI
@@ -85,13 +91,25 @@ function RoutePanel({ route }: { route: AppRoute }) {
   );
 }
 
+function RouteFallback() {
+  return (
+    <div style={{ padding: '48px 0', textAlign: 'center' }}>
+      <Spin size="large" />
+    </div>
+  );
+}
+
 export function AppRouteOutlet() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/keywords" replace />} />
-      {appRoutes.map((route) => (
-        <Route key={route.key} path={route.path} element={<RoutePanel route={route} />} />
-      ))}
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/keywords" replace />} />
+        <Route path="/keywords" element={<KeywordsPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/tasks/new" element={<NewTaskPage />} />
+        <Route path="/results" element={<RoutePanel route={appRoutes[2]} />} />
+        <Route path="/logs" element={<RoutePanel route={appRoutes[3]} />} />
+      </Routes>
+    </Suspense>
   );
 }
