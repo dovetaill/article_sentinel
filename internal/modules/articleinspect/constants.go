@@ -87,6 +87,21 @@ func InspectionResultDispositionStatuses() []string {
 	}
 }
 
+const (
+	ActionStatusRunning = "running"
+	ActionStatusSuccess = "success"
+	ActionStatusSkipped = "skipped"
+	ActionStatusFailed  = "failed"
+)
+
+const (
+	ActionTypeBatchIgnore  = "batch_ignore"
+	ActionTypeBatchProcess = "batch_process"
+	ActionTypeOffline      = "offline"
+	ActionTypeRectify      = "rectify"
+	ActionTypeRepublish    = "republish"
+)
+
 func InspectionKeywordScopes() []string {
 	return []string{
 		KeywordScopeTitle,

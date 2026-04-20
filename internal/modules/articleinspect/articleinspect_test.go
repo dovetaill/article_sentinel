@@ -698,6 +698,134 @@ func seedCandidateArticles(t *testing.T, db *gorm.DB) {
 	}
 }
 
+func TestLifecycle(t *testing.T) {
+	t.Run("offline transitions 9 to 8", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedLifecycleArticles(t, db)
+		service := NewLifecycleService(db)
+
+		result, err := service.OfflineArticle(context.Background(), OfflineArticleInput{
+			OrgID:      100,
+			ArticleID:  10,
+			OperatorID: 7,
+		})
+		if err != nil {
+			t.Fatalf("OfflineArticle() error = %v", err)
+		}
+		if result.Status != ActionStatusSuccess || result.AfterState != ArticleStateOffline {
+			t.Fatalf("OfflineArticle() = %+v, want success to state %d", result, ArticleStateOffline)
+		}
+
+		var article Article
+		if err := db.First(&article, 10).Error; err != nil {
+			t.Fatalf("load article error = %v", err)
+		}
+		if article.State != ArticleStateOffline {
+			t.Fatalf("article.State = %d, want %d", article.State, ArticleStateOffline)
+		}
+	})
+
+	t.Run("already offline records as skipped", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedLifecycleArticles(t, db)
+		service := NewLifecycleService(db)
+
+		result, err := service.OfflineArticle(context.Background(), OfflineArticleInput{
+			OrgID:      100,
+			ArticleID:  11,
+			OperatorID: 7,
+		})
+		if err != nil {
+			t.Fatalf("OfflineArticle() error = %v", err)
+		}
+		if result.Status != ActionStatusSkipped || result.AfterState != ArticleStateOffline {
+			t.Fatalf("OfflineArticle() = %+v, want skipped at state %d", result, ArticleStateOffline)
+		}
+	})
+
+	t.Run("rectify updates article fields and writes change logs", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedLifecycleArticles(t, db)
+		service := NewLifecycleService(db)
+
+		changes, err := service.UpdateArticleFields(context.Background(), UpdateArticleFieldsInput{
+			OrgID:      100,
+			ArticleID:  12,
+			OperatorID: 7,
+			Fields: EditableArticleFields{
+				Title: "Rectified title",
+				Body:  "updated body for review",
+			},
+		})
+		if err != nil {
+			t.Fatalf("UpdateArticleFields() error = %v", err)
+		}
+		if len(changes) != 2 {
+			t.Fatalf("UpdateArticleFields() change count = %d, want %d", len(changes), 2)
+		}
+
+		var logs []InspectionFieldChangeLog
+		if err := db.Where("orgid = ? AND article_id = ?", 100, 12).Order("field_name ASC").Find(&logs).Error; err != nil {
+			t.Fatalf("load change logs error = %v", err)
+		}
+		if len(logs) != 2 {
+			t.Fatalf("field change logs len = %d, want %d", len(logs), 2)
+		}
+	})
+
+	t.Run("republish defaults from 8 to 1 unless configured otherwise", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedLifecycleArticles(t, db)
+		service := NewLifecycleService(db)
+
+		result, err := service.RepublishArticle(context.Background(), RepublishArticleInput{
+			OrgID:      100,
+			ArticleID:  11,
+			OperatorID: 7,
+		})
+		if err != nil {
+			t.Fatalf("RepublishArticle() error = %v", err)
+		}
+		if result.AfterState != ArticleStateAuditPending {
+			t.Fatalf("RepublishArticle().AfterState = %d, want %d", result.AfterState, ArticleStateAuditPending)
+		}
+	})
+}
+
+func TestBatchAction(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedActionFixtures(t, db)
+	service := NewActionService(db, NewActionRepository(db))
+
+	ignore, err := service.BatchIgnore(context.Background(), BatchActionInput{
+		OrgID:      100,
+		TaskID:     501,
+		ResultIDs:  []uint64{1001, 1002},
+		OperatorID: 7,
+		Reason:     "ignore duplicates",
+	})
+	if err != nil {
+		t.Fatalf("BatchIgnore() error = %v", err)
+	}
+	if ignore.SuccessCount != 1 || ignore.SkipCount != 1 {
+		t.Fatalf("BatchIgnore() summary = %+v, want success 1 skip 1", ignore)
+	}
+
+	processed, err := service.BatchProcess(context.Background(), BatchActionInput{
+		OrgID:      100,
+		TaskID:     501,
+		ResultIDs:  []uint64{1003, 1004},
+		OperatorID: 7,
+		Reason:     "mark done",
+	})
+	if err != nil {
+		t.Fatalf("BatchProcess() error = %v", err)
+	}
+	if processed.SuccessCount != 1 || processed.SkipCount != 1 {
+		t.Fatalf("BatchProcess() summary = %+v, want success 1 skip 1", processed)
+	}
+}
+
 func extractArticleIDs(items []CandidateArticle) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
@@ -758,4 +886,34 @@ type scannerFunc func(ctx context.Context, article CandidateArticle, rules []Key
 
 func (fn scannerFunc) ScanArticle(ctx context.Context, article CandidateArticle, rules []KeywordRule) ([]Hit, error) {
 	return fn(ctx, article, rules)
+}
+
+func seedLifecycleArticles(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	articles := []Article{
+		{ID: 10, OrgID: 100, Title: "Online article", State: ArticleStateOnline},
+		{ID: 11, OrgID: 100, Title: "Offline article", State: ArticleStateOffline},
+		{ID: 12, OrgID: 100, Title: "Needs rectify", State: ArticleStateOffline},
+	}
+	if err := db.Create(&articles).Error; err != nil {
+		t.Fatalf("seed lifecycle articles error = %v", err)
+	}
+	if err := db.Create(&[]ArticleInfo{{ArticleID: 10, Body: "body a"}, {ArticleID: 11, Body: "body b"}, {ArticleID: 12, Body: "body c"}}).Error; err != nil {
+		t.Fatalf("seed lifecycle article info error = %v", err)
+	}
+}
+
+func seedActionFixtures(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	results := []InspectionResult{
+		{ID: 1001, OrgID: 100, TaskID: 501, ArticleID: 1, DispositionStatus: ResultDispositionPending},
+		{ID: 1002, OrgID: 100, TaskID: 501, ArticleID: 2, DispositionStatus: ResultDispositionIgnored},
+		{ID: 1003, OrgID: 100, TaskID: 501, ArticleID: 3, DispositionStatus: ResultDispositionPending},
+		{ID: 1004, OrgID: 100, TaskID: 501, ArticleID: 4, DispositionStatus: ResultDispositionProcessed},
+	}
+	if err := db.Create(&results).Error; err != nil {
+		t.Fatalf("seed action results error = %v", err)
+	}
 }

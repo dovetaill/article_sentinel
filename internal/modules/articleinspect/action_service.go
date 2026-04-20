@@ -1,0 +1,146 @@
+package articleinspect
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+var ErrInvalidActionInput = errors.New("invalid action input")
+
+type BatchActionInput struct {
+	OrgID        uint64
+	TaskID       uint64
+	ResultIDs    []uint64
+	OperatorID   uint64
+	OperatorName string
+	Reason       string
+}
+
+type BatchActionSummary struct {
+	ActionID     uint64
+	TargetCount  int64
+	SuccessCount int64
+	FailCount    int64
+	SkipCount    int64
+	Status       string
+	ActionType   string
+}
+
+type ActionService struct {
+	db   *gorm.DB
+	repo *ActionRepository
+}
+
+func NewActionService(db *gorm.DB, repo *ActionRepository) *ActionService {
+	return &ActionService{db: db, repo: repo}
+}
+
+func (s *ActionService) BatchIgnore(ctx context.Context, input BatchActionInput) (*BatchActionSummary, error) {
+	return s.applyDisposition(ctx, input, ActionTypeBatchIgnore, ResultDispositionIgnored)
+}
+
+func (s *ActionService) BatchProcess(ctx context.Context, input BatchActionInput) (*BatchActionSummary, error) {
+	return s.applyDisposition(ctx, input, ActionTypeBatchProcess, ResultDispositionProcessed)
+}
+
+func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionInput, actionType, targetDisposition string) (*BatchActionSummary, error) {
+	if s == nil || s.db == nil || s.repo == nil || input.OrgID == 0 || len(input.ResultIDs) == 0 {
+		return nil, ErrInvalidActionInput
+	}
+
+	now := time.Now().UTC()
+	action := &InspectionAction{
+		OrgID:        input.OrgID,
+		ActionNo:     buildActionNumber(now),
+		ActionType:   actionType,
+		TaskID:       input.TaskID,
+		TargetCount:  int64(len(input.ResultIDs)),
+		Status:       ActionStatusRunning,
+		Reason:       strings.TrimSpace(input.Reason),
+		OperatorID:   input.OperatorID,
+		OperatorName: strings.TrimSpace(input.OperatorName),
+		StartedAt:    &now,
+	}
+	if err := s.repo.CreateAction(ctx, action); err != nil {
+		return nil, err
+	}
+
+	summary := &BatchActionSummary{
+		ActionID:    action.ID,
+		ActionType:  actionType,
+		TargetCount: int64(len(input.ResultIDs)),
+	}
+
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, resultID := range uniqueUint64s(input.ResultIDs) {
+			var result InspectionResult
+			err := tx.Where("orgid = ? AND id = ?", input.OrgID, resultID).First(&result).Error
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					summary.SkipCount++
+					continue
+				}
+				summary.FailCount++
+				continue
+			}
+
+			status := ActionStatusSuccess
+			beforeDisposition := result.DispositionStatus
+			if result.DispositionStatus == targetDisposition {
+				status = ActionStatusSkipped
+				summary.SkipCount++
+			} else {
+				if err := tx.Model(&InspectionResult{}).
+					Where("orgid = ? AND id = ?", input.OrgID, resultID).
+					Updates(map[string]any{
+						"disposition_status":   targetDisposition,
+						"latest_action_id":     action.ID,
+						"latest_operator_id":   input.OperatorID,
+						"latest_operator_name": strings.TrimSpace(input.OperatorName),
+						"latest_action_at":     now,
+					}).Error; err != nil {
+					summary.FailCount++
+					continue
+				}
+				summary.SuccessCount++
+			}
+
+			if err := (&ActionRepository{db: tx}).CreateOperationLog(ctx, &InspectionOperationLog{
+				OrgID:         input.OrgID,
+				ActionID:      action.ID,
+				TaskID:        input.TaskID,
+				ResultID:      result.ID,
+				ArticleID:     result.ArticleID,
+				OperationType: actionType,
+				BeforeState:   beforeDisposition,
+				AfterState:    targetDisposition,
+				Status:        status,
+				Reason:        input.Reason,
+				OperatorID:    input.OperatorID,
+				OperatorName:  strings.TrimSpace(input.OperatorName),
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	summary.Status = ActionStatusSuccess
+	if summary.FailCount > 0 && summary.SuccessCount > 0 {
+		summary.Status = TaskStatusPartialSuccess
+	}
+	if summary.FailCount > 0 && summary.SuccessCount == 0 {
+		summary.Status = ActionStatusFailed
+	}
+	if err := s.repo.UpdateActionSummary(ctx, action.ID, summary.Status, summary.SuccessCount, summary.FailCount, summary.SkipCount); err != nil {
+		return nil, err
+	}
+	return summary, nil
+}
