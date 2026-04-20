@@ -1,0 +1,255 @@
+-- phpMyAdmin SQL Dump
+-- version 5.0.2
+-- https://www.phpmyadmin.net/
+--
+-- 主机： 10.200.131.51
+-- 生成日期： 2026-04-20 10:39:30
+-- 服务器版本： 5.7.42-log
+-- PHP 版本： 7.4.7
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- 数据库： `app.iqilu.com`
+--
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `xt_article`
+--
+
+CREATE TABLE `xt_article` (
+  `id` int(11) NOT NULL,
+  `uuid` varchar(32) COLLATE utf8_unicode_ci NOT NULL DEFAULT '' COMMENT '文稿的uuid',
+  `innerid` int(11) NOT NULL COMMENT '同时发布到栏目的原始ID',
+  `symbol_id` int(11) NOT NULL DEFAULT '0' COMMENT '与innerid cateid组成唯一索引',
+  `oid` varchar(32) COLLATE utf8_unicode_ci NOT NULL,
+  `orgid` int(11) NOT NULL COMMENT '机构id',
+  `modelid` int(11) NOT NULL,
+  `sort` int(11) NOT NULL,
+  `pv` int(11) NOT NULL,
+  `uv` int(11) NOT NULL COMMENT '用户量',
+  `fake_pv` int(11) NOT NULL DEFAULT '0' COMMENT '基础浏览量',
+  `likenum` int(11) UNSIGNED NOT NULL DEFAULT '0',
+  `fake_likenum` int(11) NOT NULL DEFAULT '0' COMMENT '基础点赞量',
+  `goodnum` int(11) NOT NULL COMMENT '满意 新版用这个老版还是likenum',
+  `nearlynum` int(11) UNSIGNED NOT NULL COMMENT '基本满意凑合 ',
+  `badnum` int(11) UNSIGNED NOT NULL COMMENT '不满意数',
+  `commentnum` int(11) NOT NULL DEFAULT '0',
+  `sharenum` int(11) NOT NULL COMMENT '分享次数',
+  `type` varchar(10) COLLATE utf8_unicode_ci NOT NULL,
+  `state` tinyint(4) NOT NULL DEFAULT '0',
+  `flag` set('1','2','3','4','5','6','11','12') COLLATE utf8_unicode_ci NOT NULL COMMENT '推荐位标识',
+  `publish_by` int(11) NOT NULL,
+  `publish_at` datetime NOT NULL,
+  `publish_at_time` int(11) NOT NULL COMMENT '发布时间的时间戳',
+  `create_at` int(11) NOT NULL,
+  `update_at` int(11) NOT NULL,
+  `cateid` int(11) NOT NULL,
+  `cateids` varchar(400) COLLATE utf8_unicode_ci NOT NULL,
+  `catenames` varchar(500) COLLATE utf8_unicode_ci NOT NULL COMMENT '多栏目发布名称',
+  `subcateid` int(11) NOT NULL COMMENT '子栏目信息，比如部门ID之类的',
+  `title` varchar(240) COLLATE utf8_unicode_ci NOT NULL,
+  `short_title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '副标题',
+  `rich_title` varchar(1000) COLLATE utf8_unicode_ci NOT NULL COMMENT '富文本标题',
+  `keyword` varchar(240) COLLATE utf8_unicode_ci NOT NULL,
+  `desc` varchar(250) COLLATE utf8_unicode_ci NOT NULL,
+  `thumbnail` varchar(600) COLLATE utf8_unicode_ci NOT NULL,
+  `speech` varchar(200) COLLATE utf8_unicode_ci NOT NULL COMMENT '语音稿件',
+  `author` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+  `editor` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+  `correspondent` varchar(2000) COLLATE utf8_unicode_ci NOT NULL COMMENT '通讯员',
+  `copyfrom` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+  `share_info` varchar(800) COLLATE utf8_unicode_ci NOT NULL DEFAULT '' COMMENT 'json格式分享信息  title image desc',
+  `islink` tinyint(1) NOT NULL,
+  `link` varchar(500) COLLATE utf8_unicode_ci NOT NULL,
+  `isschedule` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否定时',
+  `version` int(11) NOT NULL,
+  `listtype` tinyint(1) NOT NULL DEFAULT '100' COMMENT '显示样式',
+  `url` varchar(200) COLLATE utf8_unicode_ci NOT NULL,
+  `path` varchar(200) COLLATE utf8_unicode_ci NOT NULL,
+  `original` tinyint(4) NOT NULL DEFAULT '0' COMMENT '原创标识 1原创',
+  `is_sdy` tinyint(4) NOT NULL DEFAULT '0' COMMENT '是不是来自闪电云 1闪电云',
+  `personel` json DEFAULT NULL COMMENT '工作人员配置',
+  `interview_city` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '' COMMENT '采访城市'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+PARTITION BY HASH (orgid)
+(
+PARTITION p0 ENGINE=InnoDB,
+PARTITION p1 ENGINE=InnoDB,
+PARTITION p2 ENGINE=InnoDB,
+PARTITION p3 ENGINE=InnoDB,
+PARTITION p4 ENGINE=InnoDB,
+PARTITION p5 ENGINE=InnoDB,
+PARTITION p6 ENGINE=InnoDB,
+PARTITION p7 ENGINE=InnoDB,
+PARTITION p8 ENGINE=InnoDB,
+PARTITION p9 ENGINE=InnoDB,
+PARTITION p10 ENGINE=InnoDB,
+PARTITION p11 ENGINE=InnoDB,
+PARTITION p12 ENGINE=InnoDB,
+PARTITION p13 ENGINE=InnoDB,
+PARTITION p14 ENGINE=InnoDB,
+PARTITION p15 ENGINE=InnoDB,
+PARTITION p16 ENGINE=InnoDB,
+PARTITION p17 ENGINE=InnoDB,
+PARTITION p18 ENGINE=InnoDB,
+PARTITION p19 ENGINE=InnoDB,
+PARTITION p20 ENGINE=InnoDB,
+PARTITION p21 ENGINE=InnoDB,
+PARTITION p22 ENGINE=InnoDB,
+PARTITION p23 ENGINE=InnoDB,
+PARTITION p24 ENGINE=InnoDB,
+PARTITION p25 ENGINE=InnoDB,
+PARTITION p26 ENGINE=InnoDB,
+PARTITION p27 ENGINE=InnoDB,
+PARTITION p28 ENGINE=InnoDB,
+PARTITION p29 ENGINE=InnoDB,
+PARTITION p30 ENGINE=InnoDB,
+PARTITION p31 ENGINE=InnoDB,
+PARTITION p32 ENGINE=InnoDB,
+PARTITION p33 ENGINE=InnoDB,
+PARTITION p34 ENGINE=InnoDB,
+PARTITION p35 ENGINE=InnoDB,
+PARTITION p36 ENGINE=InnoDB,
+PARTITION p37 ENGINE=InnoDB,
+PARTITION p38 ENGINE=InnoDB,
+PARTITION p39 ENGINE=InnoDB,
+PARTITION p40 ENGINE=InnoDB,
+PARTITION p41 ENGINE=InnoDB,
+PARTITION p42 ENGINE=InnoDB,
+PARTITION p43 ENGINE=InnoDB,
+PARTITION p44 ENGINE=InnoDB,
+PARTITION p45 ENGINE=InnoDB,
+PARTITION p46 ENGINE=InnoDB,
+PARTITION p47 ENGINE=InnoDB,
+PARTITION p48 ENGINE=InnoDB,
+PARTITION p49 ENGINE=InnoDB,
+PARTITION p50 ENGINE=InnoDB,
+PARTITION p51 ENGINE=InnoDB,
+PARTITION p52 ENGINE=InnoDB,
+PARTITION p53 ENGINE=InnoDB,
+PARTITION p54 ENGINE=InnoDB,
+PARTITION p55 ENGINE=InnoDB,
+PARTITION p56 ENGINE=InnoDB,
+PARTITION p57 ENGINE=InnoDB,
+PARTITION p58 ENGINE=InnoDB,
+PARTITION p59 ENGINE=InnoDB,
+PARTITION p60 ENGINE=InnoDB,
+PARTITION p61 ENGINE=InnoDB,
+PARTITION p62 ENGINE=InnoDB,
+PARTITION p63 ENGINE=InnoDB,
+PARTITION p64 ENGINE=InnoDB,
+PARTITION p65 ENGINE=InnoDB,
+PARTITION p66 ENGINE=InnoDB,
+PARTITION p67 ENGINE=InnoDB,
+PARTITION p68 ENGINE=InnoDB,
+PARTITION p69 ENGINE=InnoDB,
+PARTITION p70 ENGINE=InnoDB,
+PARTITION p71 ENGINE=InnoDB,
+PARTITION p72 ENGINE=InnoDB,
+PARTITION p73 ENGINE=InnoDB,
+PARTITION p74 ENGINE=InnoDB,
+PARTITION p75 ENGINE=InnoDB,
+PARTITION p76 ENGINE=InnoDB,
+PARTITION p77 ENGINE=InnoDB,
+PARTITION p78 ENGINE=InnoDB,
+PARTITION p79 ENGINE=InnoDB,
+PARTITION p80 ENGINE=InnoDB,
+PARTITION p81 ENGINE=InnoDB,
+PARTITION p82 ENGINE=InnoDB,
+PARTITION p83 ENGINE=InnoDB,
+PARTITION p84 ENGINE=InnoDB,
+PARTITION p85 ENGINE=InnoDB,
+PARTITION p86 ENGINE=InnoDB,
+PARTITION p87 ENGINE=InnoDB,
+PARTITION p88 ENGINE=InnoDB,
+PARTITION p89 ENGINE=InnoDB,
+PARTITION p90 ENGINE=InnoDB,
+PARTITION p91 ENGINE=InnoDB,
+PARTITION p92 ENGINE=InnoDB,
+PARTITION p93 ENGINE=InnoDB,
+PARTITION p94 ENGINE=InnoDB,
+PARTITION p95 ENGINE=InnoDB,
+PARTITION p96 ENGINE=InnoDB,
+PARTITION p97 ENGINE=InnoDB,
+PARTITION p98 ENGINE=InnoDB,
+PARTITION p99 ENGINE=InnoDB,
+PARTITION p100 ENGINE=InnoDB,
+PARTITION p101 ENGINE=InnoDB,
+PARTITION p102 ENGINE=InnoDB,
+PARTITION p103 ENGINE=InnoDB,
+PARTITION p104 ENGINE=InnoDB,
+PARTITION p105 ENGINE=InnoDB,
+PARTITION p106 ENGINE=InnoDB,
+PARTITION p107 ENGINE=InnoDB,
+PARTITION p108 ENGINE=InnoDB,
+PARTITION p109 ENGINE=InnoDB,
+PARTITION p110 ENGINE=InnoDB,
+PARTITION p111 ENGINE=InnoDB,
+PARTITION p112 ENGINE=InnoDB,
+PARTITION p113 ENGINE=InnoDB,
+PARTITION p114 ENGINE=InnoDB,
+PARTITION p115 ENGINE=InnoDB,
+PARTITION p116 ENGINE=InnoDB,
+PARTITION p117 ENGINE=InnoDB,
+PARTITION p118 ENGINE=InnoDB,
+PARTITION p119 ENGINE=InnoDB,
+PARTITION p120 ENGINE=InnoDB,
+PARTITION p121 ENGINE=InnoDB,
+PARTITION p122 ENGINE=InnoDB,
+PARTITION p123 ENGINE=InnoDB,
+PARTITION p124 ENGINE=InnoDB,
+PARTITION p125 ENGINE=InnoDB,
+PARTITION p126 ENGINE=InnoDB,
+PARTITION p127 ENGINE=InnoDB
+);
+
+--
+-- 转储表的索引
+--
+
+--
+-- 表的索引 `xt_article`
+--
+ALTER TABLE `xt_article`
+  ADD PRIMARY KEY (`id`,`orgid`),
+  ADD KEY `create_at` (`create_at`),
+  ADD KEY `sort` (`sort`),
+  ADD KEY `orgid` (`orgid`),
+  ADD KEY `type` (`type`),
+  ADD KEY `subcateid` (`subcateid`),
+  ADD KEY `update_at` (`update_at`),
+  ADD KEY `publish_at` (`publish_at`),
+  ADD KEY `cateid` (`cateid`),
+  ADD KEY `innerid` (`innerid`),
+  ADD KEY `orgid_state` (`orgid`,`state`) USING BTREE,
+  ADD KEY `flag` (`flag`),
+  ADD KEY `publish_by` (`publish_by`),
+  ADD KEY `oid` (`oid`),
+  ADD KEY `id` (`id`),
+  ADD KEY `orgid_2` (`orgid`,`state`,`subcateid`);
+
+--
+-- 在导出的表使用AUTO_INCREMENT
+--
+
+--
+-- 使用表AUTO_INCREMENT `xt_article`
+--
+ALTER TABLE `xt_article`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
