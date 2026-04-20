@@ -1,17 +1,24 @@
 package articleinspect
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/dovetaill/article-sentinel/internal/api/response"
 	"github.com/dovetaill/article-sentinel/internal/identity"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	"gorm.io/driver/sqlite"
@@ -991,6 +998,210 @@ func TestOperatorResolverPreservesAuditMetadataOnLogs(t *testing.T) {
 	}
 }
 
+func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedQueryFixtures(t, db)
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	handler := newArticleInspectHandler(t, db, dispatcher)
+
+	createdKeyword := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{
+		"orgid":          100,
+		"name":           "spam",
+		"category":       "policy",
+		"match_type":     MatchTypeContains,
+		"risk_level":     RiskLevelHigh,
+		"suggest_action": SuggestActionOffline,
+		"enabled":        true,
+		"scopes":         []string{KeywordScopeTitle, KeywordScopeBody},
+	})
+	if createdKeyword.status != http.StatusCreated {
+		t.Fatalf("create keyword status = %d, want %d", createdKeyword.status, http.StatusCreated)
+	}
+	if createdKeyword.envelope.Code != 0 {
+		t.Fatalf("create keyword envelope = %+v, want success", createdKeyword.envelope)
+	}
+	createdKeywordData := articleInspectDataMap(t, createdKeyword.envelope.Data)
+	keywordID := articleInspectUint64Field(t, createdKeywordData, "id")
+
+	listedKeywords := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/keywords?orgid=100&page=1&page_size=20", nil)
+	if listedKeywords.status != http.StatusOK {
+		t.Fatalf("list keywords status = %d, want %d", listedKeywords.status, http.StatusOK)
+	}
+	listData := articleInspectDataMap(t, listedKeywords.envelope.Data)
+	if total := articleInspectNumberField(t, listData, "total"); total != 1 {
+		t.Fatalf("list keywords total = %v, want %d", total, 1)
+	}
+
+	detailKeyword := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"])+"?orgid=100", nil)
+	if detailKeyword.status != http.StatusOK {
+		t.Fatalf("get keyword status = %d, want %d", detailKeyword.status, http.StatusOK)
+	}
+
+	updatedKeyword := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"]), map[string]any{
+		"orgid":          100,
+		"name":           "spam-updated",
+		"category":       "policy",
+		"match_type":     MatchTypeContains,
+		"risk_level":     RiskLevelHigh,
+		"suggest_action": SuggestActionProcess,
+		"enabled":        true,
+		"remark":         "review immediately",
+		"scopes":         []string{KeywordScopeTitle},
+	})
+	if updatedKeyword.status != http.StatusOK {
+		t.Fatalf("update keyword status = %d, want %d", updatedKeyword.status, http.StatusOK)
+	}
+
+	patchedKeyword := sendArticleInspectJSONRequest(t, handler, http.MethodPatch, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"])+"/status", map[string]any{
+		"orgid":   100,
+		"enabled": false,
+	})
+	if patchedKeyword.status != http.StatusOK {
+		t.Fatalf("patch keyword status = %d, want %d", patchedKeyword.status, http.StatusOK)
+	}
+
+	createdTask := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{
+		"orgid":         100,
+		"keyword_ids":   []uint64{keywordID},
+		"include_body":  true,
+		"article_state": ArticleStateOnline,
+	})
+	if createdTask.status != http.StatusCreated {
+		t.Fatalf("create task status = %d, want %d", createdTask.status, http.StatusCreated)
+	}
+	if len(dispatcher.payloads) != 1 {
+		t.Fatalf("dispatcher payloads len = %d, want %d", len(dispatcher.payloads), 1)
+	}
+	if dispatcher.payloads[0].OrgID != 100 || dispatcher.payloads[0].TaskID == 0 {
+		t.Fatalf("dispatcher payload = %+v, want orgid and task id", dispatcher.payloads[0])
+	}
+
+	listedResults := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/results?orgid=100&task_id=501&risk_level=high&page=1&page_size=20", nil)
+	if listedResults.status != http.StatusOK {
+		t.Fatalf("list results status = %d, want %d", listedResults.status, http.StatusOK)
+	}
+	resultListData := articleInspectDataMap(t, listedResults.envelope.Data)
+	if total := articleInspectNumberField(t, resultListData, "total"); total != 1 {
+		t.Fatalf("list results total = %v, want %d", total, 1)
+	}
+
+	detailResult := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/results/1001?orgid=100", nil)
+	if detailResult.status != http.StatusOK {
+		t.Fatalf("get result detail status = %d, want %d", detailResult.status, http.StatusOK)
+	}
+	detailData := articleInspectDataMap(t, detailResult.envelope.Data)
+	if _, ok := detailData["hits"].([]any); !ok {
+		t.Fatalf("detail hits type = %T, want []any", detailData["hits"])
+	}
+
+	deletedKeyword := sendArticleInspectRequest(t, handler, http.MethodDelete, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"])+"?orgid=100", nil)
+	if deletedKeyword.status != http.StatusOK {
+		t.Fatalf("delete keyword status = %d, want %d", deletedKeyword.status, http.StatusOK)
+	}
+}
+
+func TestHandlerBatchActionsValidateTargets(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedActionFixtures(t, db)
+	handler := newArticleInspectHandler(t, db, &articleInspectTaskDispatcherStub{})
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "batch ignore", path: "/api/v1/article-inspect/actions/batch-ignore"},
+		{name: "batch process", path: "/api/v1/article-inspect/actions/batch-process"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sendArticleInspectJSONRequest(t, handler, http.MethodPost, tt.path, map[string]any{
+				"orgid":   100,
+				"task_id": 501,
+				"reason":  "missing targets",
+			})
+			if result.status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", result.status, http.StatusBadRequest)
+			}
+			if result.envelope.Code != http.StatusBadRequest {
+				t.Fatalf("envelope = %+v, want bad request code", result.envelope)
+			}
+		})
+	}
+}
+
+func TestHandlerRectifyAndRepublishRequireOrgID(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedLifecycleArticles(t, db)
+	handler := newArticleInspectHandler(t, db, &articleInspectTaskDispatcherStub{})
+
+	rectify := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/articles/12/rectify", map[string]any{
+		"title": "Updated title",
+		"body":  "Updated body content",
+	})
+	if rectify.status != http.StatusBadRequest {
+		t.Fatalf("rectify status = %d, want %d", rectify.status, http.StatusBadRequest)
+	}
+
+	republish := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/articles/11/republish", map[string]any{
+		"reason": "try republish",
+	})
+	if republish.status != http.StatusBadRequest {
+		t.Fatalf("republish status = %d, want %d", republish.status, http.StatusBadRequest)
+	}
+}
+
+func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	dispatcher := &articleInspectTaskDispatcherStub{}
+
+	mux := http.NewServeMux()
+	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
+	RegisterRoutes(api, Routes{
+		Keywords:   NewKeywordService(NewKeywordRepository(db)),
+		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
+		Results:    NewResultService(db),
+		Actions:    NewActionService(db, NewActionRepository(db)),
+		Lifecycle:  NewLifecycleService(db),
+		Logs:       NewLogService(db),
+		Dispatcher: dispatcher,
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("openapi status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var doc struct {
+		Paths map[string]map[string]any `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("decode openapi: %v", err)
+	}
+
+	requiredPaths := []string{
+		"/api/v1/article-inspect/keywords",
+		"/api/v1/article-inspect/keywords/{id}",
+		"/api/v1/article-inspect/tasks",
+		"/api/v1/article-inspect/results",
+		"/api/v1/article-inspect/results/{id}",
+		"/api/v1/article-inspect/actions/batch-ignore",
+		"/api/v1/article-inspect/actions/batch-process",
+		"/api/v1/article-inspect/articles/{article_id}/rectify",
+		"/api/v1/article-inspect/articles/{article_id}/republish",
+		"/api/v1/article-inspect/logs/operations",
+		"/api/v1/article-inspect/logs/field-changes",
+	}
+
+	for _, path := range requiredPaths {
+		if _, ok := doc.Paths[path]; !ok {
+			t.Fatalf("openapi missing path %s", path)
+		}
+	}
+}
+
 func extractArticleIDs(items []CandidateArticle) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
@@ -1001,6 +1212,122 @@ func extractArticleIDs(items []CandidateArticle) []uint64 {
 
 func timePointer(value time.Time) *time.Time {
 	return &value
+}
+
+type articleInspectHTTPResult struct {
+	status   int
+	envelope response.Envelope
+}
+
+type articleInspectTaskDispatcherStub struct {
+	payloads []queuetasks.ArticleInspectTaskPayload
+	err      error
+}
+
+func (s *articleInspectTaskDispatcherStub) DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error {
+	_ = ctx
+	s.payloads = append(s.payloads, payload)
+	return s.err
+}
+
+func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher *articleInspectTaskDispatcherStub) http.Handler {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
+	RegisterRoutes(api, Routes{
+		Keywords:   NewKeywordService(NewKeywordRepository(db)),
+		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
+		Results:    NewResultService(db),
+		Actions:    NewActionService(db, NewActionRepository(db)),
+		Lifecycle:  NewLifecycleService(db),
+		Logs:       NewLogService(db),
+		Dispatcher: dispatcher,
+	})
+	return mux
+}
+
+func sendArticleInspectJSONRequest(t *testing.T, handler http.Handler, method, path string, body any) articleInspectHTTPResult {
+	t.Helper()
+
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	return sendArticleInspectRequest(t, handler, method, path, bytes.NewReader(encoded))
+}
+
+func sendArticleInspectRequest(t *testing.T, handler http.Handler, method, path string, body *bytes.Reader) articleInspectHTTPResult {
+	t.Helper()
+
+	var req *http.Request
+	if body != nil {
+		req = httptest.NewRequest(method, path, body)
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req = httptest.NewRequest(method, path, nil)
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	return articleInspectHTTPResult{status: rec.Code, envelope: decodeArticleInspectEnvelope(t, rec)}
+}
+
+func decodeArticleInspectEnvelope(t *testing.T, rec *httptest.ResponseRecorder) response.Envelope {
+	t.Helper()
+	var got response.Envelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return got
+}
+
+func articleInspectDataMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+	data, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("data type = %T, want map[string]any", value)
+	}
+	return data
+}
+
+func articleInspectNumberField(t *testing.T, m map[string]any, key string) float64 {
+	t.Helper()
+	v, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	switch value := v.(type) {
+	case float64:
+		return value
+	case json.Number:
+		number, err := value.Float64()
+		if err != nil {
+			t.Fatalf("json number %q: %v", value, err)
+		}
+		return number
+	default:
+		t.Fatalf("key %q type = %T, want numeric", key, v)
+		return 0
+	}
+}
+
+func articleInspectUint64Field(t *testing.T, m map[string]any, key string) uint64 {
+	t.Helper()
+	return uint64(articleInspectNumberField(t, m, key))
+}
+
+func articleInspectUint64String(t *testing.T, value any) string {
+	t.Helper()
+	switch item := value.(type) {
+	case float64:
+		return strconv.FormatUint(uint64(item), 10)
+	case json.Number:
+		return item.String()
+	default:
+		t.Fatalf("id type = %T, want numeric", value)
+		return ""
+	}
 }
 
 func seedInspectionTaskForWorker(t *testing.T, db *gorm.DB, rules []KeywordRule) *InspectionTask {

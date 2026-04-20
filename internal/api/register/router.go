@@ -1,6 +1,7 @@
 package register
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,7 +12,10 @@ import (
 	"github.com/dovetaill/article-sentinel/internal/api/handlers"
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
 	"github.com/dovetaill/article-sentinel/internal/middleware"
+	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
+	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
+	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 )
 
 // NewRouter 构建基于 Huma 的 HTTP 路由。
@@ -40,6 +44,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	if postService := newPostService(rt); postService != nil {
 		postmodule.RegisterRoutes(publicRoutes, postService)
 	}
+	articleinspectmodule.RegisterRoutes(publicRoutes, newArticleInspectRoutes(rt))
 
 	timeout := 15 * time.Second
 	if rt != nil && rt.Config != nil && rt.Config.HTTP.RequestTimeoutSeconds > 0 {
@@ -72,6 +77,53 @@ func newPostService(rt *bootstrap.Runtime) *postmodule.Service {
 	}
 	repo := postmodule.NewRepository(rt.Resources.DB)
 	return postmodule.NewService(repo)
+}
+
+func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes {
+	if rt == nil || rt.Resources == nil || rt.Resources.DB == nil {
+		return articleinspectmodule.Routes{}
+	}
+
+	db := rt.Resources.DB
+	keywordRepo := articleinspectmodule.NewKeywordRepository(db)
+	return articleinspectmodule.Routes{
+		Keywords:   articleinspectmodule.NewKeywordService(keywordRepo),
+		Tasks:      articleinspectmodule.NewTaskService(db, keywordRepo, articleinspectmodule.NewArticleRepository(db)),
+		Results:    articleinspectmodule.NewResultService(db),
+		Actions:    articleinspectmodule.NewActionService(db, articleinspectmodule.NewActionRepository(db)),
+		Lifecycle:  articleinspectmodule.NewLifecycleService(db),
+		Logs:       articleinspectmodule.NewLogService(db),
+		Dispatcher: newArticleInspectDispatcher(rt),
+	}
+}
+
+type articleInspectDispatcher struct {
+	client    queueasynq.Enqueuer
+	queueName string
+}
+
+func newArticleInspectDispatcher(rt *bootstrap.Runtime) articleinspectmodule.TaskDispatcher {
+	client, err := queueasynq.NewClient(rt)
+	if err != nil {
+		return nil
+	}
+	if rt != nil {
+		rt.RegisterCloser(client.Close)
+	}
+	queueName := ""
+	if rt != nil && rt.Config != nil {
+		queueName = rt.Config.Queue.Asynq.QueueName
+	}
+	return &articleInspectDispatcher{client: client, queueName: queueName}
+}
+
+func (d *articleInspectDispatcher) DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error {
+	_ = ctx
+	if d == nil {
+		return nil
+	}
+	_, err := queueasynq.EnqueueArticleInspectTask(d.client, d.queueName, payload)
+	return err
 }
 
 func nilLogger(rt *bootstrap.Runtime) *slog.Logger {

@@ -21,11 +21,26 @@ type openAPIDocument struct {
 	Paths map[string]map[string]any `json:"paths"`
 }
 
-func TestRouterRegistersOnlyStarterRoutes(t *testing.T) {
+func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 	handler := register.NewRouter(newRouterTestRuntime(true))
 	doc := fetchOpenAPIDocument(t, handler)
 
 	wantPaths := []string{
+		"/api/v1/article-inspect/actions/batch-ignore",
+		"/api/v1/article-inspect/actions/batch-process",
+		"/api/v1/article-inspect/articles/{article_id}/change-logs",
+		"/api/v1/article-inspect/articles/{article_id}/offline",
+		"/api/v1/article-inspect/articles/{article_id}/operation-logs",
+		"/api/v1/article-inspect/articles/{article_id}/rectify",
+		"/api/v1/article-inspect/articles/{article_id}/republish",
+		"/api/v1/article-inspect/keywords",
+		"/api/v1/article-inspect/keywords/{id}",
+		"/api/v1/article-inspect/keywords/{id}/status",
+		"/api/v1/article-inspect/logs/field-changes",
+		"/api/v1/article-inspect/logs/operations",
+		"/api/v1/article-inspect/results",
+		"/api/v1/article-inspect/results/{id}",
+		"/api/v1/article-inspect/tasks",
 		"/api/v1/posts",
 		"/api/v1/posts/{id}",
 		"/healthz",
@@ -38,6 +53,22 @@ func TestRouterRegistersOnlyStarterRoutes(t *testing.T) {
 
 	assertOperation(t, doc.Paths, "/healthz", http.MethodGet)
 	assertOperation(t, doc.Paths, "/readyz", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodPut)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodDelete)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}/status", http.MethodPatch)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results/{id}", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-ignore", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-process", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/offline", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/rectify", http.MethodPut)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/republish", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/logs/operations", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/logs/field-changes", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/posts", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/posts", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/posts/{id}", http.MethodGet)
@@ -47,7 +78,6 @@ func TestRouterRegistersOnlyStarterRoutes(t *testing.T) {
 	assertPathAbsent(t, doc.Paths, "/api/v1/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/member/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/admin/users")
-	assertPathAbsent(t, doc.Paths, "/api/v1/articles")
 }
 
 func TestRouterServesStarterHealthAndDocsEndpoints(t *testing.T) {
@@ -173,6 +203,8 @@ func httpMethodKey(method string) string {
 		return "get"
 	case http.MethodPost:
 		return "post"
+	case http.MethodPut:
+		return "put"
 	case http.MethodPatch:
 		return "patch"
 	case http.MethodDelete:
