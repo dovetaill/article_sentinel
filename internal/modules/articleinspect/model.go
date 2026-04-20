@@ -2,7 +2,7 @@ package articleinspect
 
 import "time"
 
-type inspectionTimestamps struct {
+type InspectionTimestamps struct {
 	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
 	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
 }
@@ -21,7 +21,7 @@ type InspectionKeyword struct {
 	CreatorName   string `gorm:"column:creator_name;size:128;not null;default:''" json:"creator_name"`
 	UpdaterID     uint64 `gorm:"column:updater_id;not null;default:0" json:"updater_id"`
 	UpdaterName   string `gorm:"column:updater_name;size:128;not null;default:''" json:"updater_name"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionKeyword) TableName() string {
@@ -33,7 +33,7 @@ type InspectionKeywordScope struct {
 	OrgID     uint64 `gorm:"column:orgid;not null;index" json:"orgid"`
 	KeywordID uint64 `gorm:"column:keyword_id;not null;index" json:"keyword_id"`
 	Scope     string `gorm:"column:scope;size:32;not null" json:"scope"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionKeywordScope) TableName() string {
@@ -67,7 +67,7 @@ type InspectionTask struct {
 	ErrorMessage       string     `gorm:"column:error_message;type:text" json:"error_message"`
 	CreatorID          uint64     `gorm:"column:creator_id;not null;default:0" json:"creator_id"`
 	CreatorName        string     `gorm:"column:creator_name;size:128;not null;default:''" json:"creator_name"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionTask) TableName() string {
@@ -79,7 +79,7 @@ type InspectionTaskKeyword struct {
 	OrgID     uint64 `gorm:"column:orgid;not null;index" json:"orgid"`
 	TaskID    uint64 `gorm:"column:task_id;not null;index" json:"task_id"`
 	KeywordID uint64 `gorm:"column:keyword_id;not null;index" json:"keyword_id"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionTaskKeyword) TableName() string {
@@ -104,7 +104,7 @@ type InspectionResult struct {
 	LatestOperatorID   uint64     `gorm:"column:latest_operator_id;not null;default:0" json:"latest_operator_id"`
 	LatestOperatorName string     `gorm:"column:latest_operator_name;size:128;not null;default:''" json:"latest_operator_name"`
 	LatestActionAt     *time.Time `gorm:"column:latest_action_at" json:"latest_action_at"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionResult) TableName() string {
@@ -129,7 +129,7 @@ type InspectionResultHit struct {
 	PositionStart int64  `gorm:"column:position_start;not null;default:0" json:"position_start"`
 	PositionEnd   int64  `gorm:"column:position_end;not null;default:0" json:"position_end"`
 	RuleSnapshot  string `gorm:"column:rule_snapshot;type:longtext" json:"rule_snapshot"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionResultHit) TableName() string {
@@ -156,7 +156,7 @@ type InspectionAction struct {
 	SourceIP        string     `gorm:"column:source_ip;size:64;not null;default:''" json:"source_ip"`
 	StartedAt       *time.Time `gorm:"column:started_at" json:"started_at"`
 	FinishedAt      *time.Time `gorm:"column:finished_at" json:"finished_at"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionAction) TableName() string {
@@ -181,7 +181,7 @@ type InspectionOperationLog struct {
 	OperatorName    string `gorm:"column:operator_name;size:128;not null;default:''" json:"operator_name"`
 	RequestID       string `gorm:"column:request_id;size:128;not null;default:''" json:"request_id"`
 	SourceIP        string `gorm:"column:source_ip;size:64;not null;default:''" json:"source_ip"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionOperationLog) TableName() string {
@@ -203,7 +203,7 @@ type InspectionFieldChangeLog struct {
 	OperatorName string `gorm:"column:operator_name;size:128;not null;default:''" json:"operator_name"`
 	RequestID    string `gorm:"column:request_id;size:128;not null;default:''" json:"request_id"`
 	SourceIP     string `gorm:"column:source_ip;size:64;not null;default:''" json:"source_ip"`
-	inspectionTimestamps
+	InspectionTimestamps
 }
 
 func (InspectionFieldChangeLog) TableName() string {

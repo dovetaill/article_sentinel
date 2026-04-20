@@ -826,6 +826,98 @@ func TestBatchAction(t *testing.T) {
 	}
 }
 
+func TestResultQuery(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedQueryFixtures(t, db)
+	service := NewResultService(db)
+
+	listed, err := service.List(context.Background(), ResultListInput{
+		OrgID:             100,
+		TaskID:            501,
+		RiskLevel:         RiskLevelHigh,
+		DispositionStatus: ResultDispositionPending,
+		TitleLike:         "Alpha",
+		Page:              1,
+		PageSize:          20,
+	})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if listed.Total != 1 || len(listed.Items) != 1 || listed.Items[0].ID != 1001 {
+		t.Fatalf("List() = %+v, want one matching result 1001", listed)
+	}
+
+	byArticleID, err := service.List(context.Background(), ResultListInput{
+		OrgID:     100,
+		ArticleID: 2,
+		Page:      1,
+		PageSize:  20,
+	})
+	if err != nil {
+		t.Fatalf("List(article id) error = %v", err)
+	}
+	if byArticleID.Total != 1 || len(byArticleID.Items) != 1 || byArticleID.Items[0].ArticleID != 2 {
+		t.Fatalf("List(article id) = %+v, want article 2 only", byArticleID)
+	}
+
+	detail, err := service.GetDetail(context.Background(), 100, 1001)
+	if err != nil {
+		t.Fatalf("GetDetail() error = %v", err)
+	}
+	if detail.Result.ID != 1001 || len(detail.Hits) != 2 || len(detail.OperationLogs) != 2 {
+		t.Fatalf("GetDetail() = %+v, want result 1001 with 2 hits and 2 operation logs", detail)
+	}
+}
+
+func TestOperationLogQuery(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedQueryFixtures(t, db)
+	service := NewLogService(db)
+
+	start := mustTime(t, "2026-04-20T09:30:00Z")
+	end := mustTime(t, "2026-04-20T12:30:00Z")
+	result, err := service.ListOperationLogs(context.Background(), OperationLogListInput{
+		OrgID:        100,
+		ArticleID:    1,
+		TaskID:       501,
+		OperatorName: "alice",
+		StartAt:      &start,
+		EndAt:        &end,
+		Page:         1,
+		PageSize:     20,
+	})
+	if err != nil {
+		t.Fatalf("ListOperationLogs() error = %v", err)
+	}
+	if result.Total != 2 || len(result.Items) != 2 {
+		t.Fatalf("ListOperationLogs() = %+v, want 2 matching logs", result)
+	}
+}
+
+func TestFieldChangeLogQuery(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedQueryFixtures(t, db)
+	service := NewLogService(db)
+
+	start := mustTime(t, "2026-04-20T09:30:00Z")
+	end := mustTime(t, "2026-04-20T12:30:00Z")
+	result, err := service.ListFieldChangeLogs(context.Background(), FieldChangeLogListInput{
+		OrgID:     100,
+		ArticleID: 1,
+		FieldName: KeywordScopeBody,
+		StartAt:   &start,
+		EndAt:     &end,
+		Page:      1,
+		PageSize:  20,
+	})
+	if err != nil {
+		t.Fatalf("ListFieldChangeLogs() error = %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].FieldName != KeywordScopeBody {
+		t.Fatalf("ListFieldChangeLogs() = %+v, want one body change log", result)
+	}
+}
+
 func extractArticleIDs(items []CandidateArticle) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
@@ -915,5 +1007,49 @@ func seedActionFixtures(t *testing.T, db *gorm.DB) {
 	}
 	if err := db.Create(&results).Error; err != nil {
 		t.Fatalf("seed action results error = %v", err)
+	}
+}
+
+func seedQueryFixtures(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	publishAt := mustTime(t, "2026-04-20T10:00:00Z")
+	later := mustTime(t, "2026-04-20T11:00:00Z")
+	createAt := mustTime(t, "2026-04-20T10:30:00Z")
+	updateAt := mustTime(t, "2026-04-20T12:00:00Z")
+
+	results := []InspectionResult{
+		{ID: 1001, OrgID: 100, TaskID: 501, ArticleID: 1, ArticleTitle: "Alpha news", ArticleState: ArticleStateOnline, PublishAtTime: &publishAt, RiskLevel: RiskLevelHigh, SuggestAction: SuggestActionOffline, HitFieldsCount: 2, HitKeywordsCount: 2, HitCount: 2, DispositionStatus: ResultDispositionPending},
+		{ID: 1002, OrgID: 100, TaskID: 501, ArticleID: 2, ArticleTitle: "Beta update", ArticleState: ArticleStateOnline, PublishAtTime: &later, RiskLevel: RiskLevelLow, SuggestAction: SuggestActionProcess, HitFieldsCount: 1, HitKeywordsCount: 1, HitCount: 1, DispositionStatus: ResultDispositionProcessed},
+		{ID: 2001, OrgID: 200, TaskID: 601, ArticleID: 9, ArticleTitle: "Other org", ArticleState: ArticleStateOnline, PublishAtTime: &later, RiskLevel: RiskLevelHigh, SuggestAction: SuggestActionOffline, HitFieldsCount: 1, HitKeywordsCount: 1, HitCount: 1, DispositionStatus: ResultDispositionPending},
+	}
+	if err := db.Create(&results).Error; err != nil {
+		t.Fatalf("seed query results error = %v", err)
+	}
+
+	hits := []InspectionResultHit{
+		{ID: 1, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, KeywordID: 1, KeywordText: "alpha", FieldName: KeywordScopeTitle, MatchType: MatchTypeContains, RiskLevel: RiskLevelHigh, SuggestAction: SuggestActionOffline, MatchedText: "Alpha", Snippet: "Alpha news"},
+		{ID: 2, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, KeywordID: 2, KeywordText: "body", FieldName: KeywordScopeBody, MatchType: MatchTypeContains, RiskLevel: RiskLevelHigh, SuggestAction: SuggestActionOffline, MatchedText: "body", Snippet: "body snippet"},
+		{ID: 3, OrgID: 100, TaskID: 501, ResultID: 1002, ArticleID: 2, KeywordID: 3, KeywordText: "beta", FieldName: KeywordScopeTitle, MatchType: MatchTypeContains, RiskLevel: RiskLevelLow, SuggestAction: SuggestActionProcess, MatchedText: "Beta", Snippet: "Beta update"},
+	}
+	if err := db.Create(&hits).Error; err != nil {
+		t.Fatalf("seed query hits error = %v", err)
+	}
+
+	opLogs := []InspectionOperationLog{
+		{ID: 1, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, OperationType: ActionTypeOffline, BeforeState: "9", AfterState: "8", Status: ActionStatusSuccess, OperatorID: 7, OperatorName: "alice", InspectionTimestamps: InspectionTimestamps{CreateAt: createAt, UpdateAt: createAt}},
+		{ID: 2, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, OperationType: ActionTypeRectify, BeforeState: "8", AfterState: "8", Status: ActionStatusSuccess, OperatorID: 7, OperatorName: "alice", InspectionTimestamps: InspectionTimestamps{CreateAt: updateAt, UpdateAt: updateAt}},
+		{ID: 3, OrgID: 100, TaskID: 501, ResultID: 1002, ArticleID: 2, OperationType: ActionTypeBatchProcess, BeforeState: ResultDispositionPending, AfterState: ResultDispositionProcessed, Status: ActionStatusSuccess, OperatorID: 8, OperatorName: "bob", InspectionTimestamps: InspectionTimestamps{CreateAt: updateAt, UpdateAt: updateAt}},
+	}
+	if err := db.Create(&opLogs).Error; err != nil {
+		t.Fatalf("seed operation logs error = %v", err)
+	}
+
+	changeLogs := []InspectionFieldChangeLog{
+		{ID: 1, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, FieldName: KeywordScopeBody, BeforeValue: "old", AfterValue: "new", DiffSummary: "body: old -> new", OperatorID: 7, OperatorName: "alice", InspectionTimestamps: InspectionTimestamps{CreateAt: updateAt, UpdateAt: updateAt}},
+		{ID: 2, OrgID: 100, TaskID: 501, ResultID: 1001, ArticleID: 1, FieldName: KeywordScopeTitle, BeforeValue: "old title", AfterValue: "new title", DiffSummary: "title: old title -> new title", OperatorID: 7, OperatorName: "alice", InspectionTimestamps: InspectionTimestamps{CreateAt: createAt, UpdateAt: createAt}},
+	}
+	if err := db.Create(&changeLogs).Error; err != nil {
+		t.Fatalf("seed field change logs error = %v", err)
 	}
 }
