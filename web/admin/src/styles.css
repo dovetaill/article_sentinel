@@ -1,0 +1,124 @@
+:root {
+  --sentinel-bg: radial-gradient(circle at top left, rgba(209, 122, 22, 0.24), transparent 32%),
+    linear-gradient(180deg, #f7efe3 0%, #fbf8f1 45%, #f3eee3 100%);
+  --sentinel-surface: rgba(255, 252, 247, 0.88);
+  --sentinel-ink: #2f2619;
+  --sentinel-muted: #766754;
+  --sentinel-line: rgba(94, 69, 31, 0.12);
+  color: var(--sentinel-ink);
+  background: #f3eee3;
+  font-family: 'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--sentinel-bg);
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.app-shell .ant-pro-layout {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.app-shell .ant-pro-layout-content {
+  padding: 24px;
+}
+
+.shell-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-end;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  border: 1px solid var(--sentinel-line);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 250, 242, 0.92), rgba(246, 232, 211, 0.82));
+  box-shadow: 0 24px 48px rgba(73, 47, 13, 0.08);
+}
+
+.shell-brand {
+  margin: 16px 0 8px;
+  font-size: clamp(2.25rem, 4vw, 3.75rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  color: var(--sentinel-ink);
+}
+
+.shell-hero > div > p:last-child {
+  max-width: 620px;
+  margin: 0;
+  color: var(--sentinel-muted);
+  font-size: 1rem;
+}
+
+.shell-highlight {
+  min-width: 220px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(47, 38, 25, 0.96);
+  color: #f8efdf;
+}
+
+.shell-highlight span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(248, 239, 223, 0.72);
+}
+
+.shell-highlight strong {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.shell-stage {
+  padding-bottom: 32px;
+}
+
+.route-panel {
+  border-radius: 24px;
+  background: var(--sentinel-surface);
+  border: 1px solid var(--sentinel-line);
+  box-shadow: 0 22px 44px rgba(80, 55, 18, 0.07);
+}
+
+.route-card {
+  min-height: 180px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.route-card-accent {
+  background: linear-gradient(160deg, rgba(209, 122, 22, 0.12), rgba(255, 255, 255, 0.92));
+}
+
+@media (max-width: 768px) {
+  .app-shell .ant-pro-layout-content {
+    padding: 16px;
+  }
+
+  .shell-hero {
+    padding: 20px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .shell-highlight {
+    min-width: 0;
+  }
+}

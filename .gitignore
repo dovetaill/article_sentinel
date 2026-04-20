@@ -65,3 +65,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# =========================
+# 前端依赖与构建产物
+# =========================
+node_modules/
+dist/
