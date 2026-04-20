@@ -29,6 +29,18 @@ const (
 )
 
 const (
+	RiskLevelLow    = "low"
+	RiskLevelMedium = "medium"
+	RiskLevelHigh   = "high"
+)
+
+const (
+	SuggestActionIgnore  = "ignore"
+	SuggestActionProcess = "process"
+	SuggestActionOffline = "offline"
+)
+
+const (
 	KeywordScopeTitle      = "title"
 	KeywordScopeShortTitle = "short_title"
 	KeywordScopeRichTitle  = "rich_title"
@@ -72,5 +84,40 @@ func InspectionResultDispositionStatuses() []string {
 		ResultDispositionOfflined,
 		ResultDispositionRepublished,
 		ResultDispositionFailed,
+	}
+}
+
+func InspectionKeywordScopes() []string {
+	return []string{
+		KeywordScopeTitle,
+		KeywordScopeShortTitle,
+		KeywordScopeRichTitle,
+		KeywordScopeKeyword,
+		KeywordScopeDesc,
+		KeywordScopeBody,
+	}
+}
+
+func InspectionMatchTypes() []string {
+	return []string{
+		MatchTypeContains,
+		MatchTypeExact,
+		MatchTypeRegex,
+	}
+}
+
+func InspectionRiskLevels() []string {
+	return []string{
+		RiskLevelLow,
+		RiskLevelMedium,
+		RiskLevelHigh,
+	}
+}
+
+func InspectionSuggestActions() []string {
+	return []string{
+		SuggestActionIgnore,
+		SuggestActionProcess,
+		SuggestActionOffline,
 	}
 }

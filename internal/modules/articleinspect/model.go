@@ -3,8 +3,8 @@ package articleinspect
 import "time"
 
 type inspectionTimestamps struct {
-	CreateAt time.Time `gorm:"column:create_at;not null" json:"create_at"`
-	UpdateAt time.Time `gorm:"column:update_at;not null" json:"update_at"`
+	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
+	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
 }
 
 type InspectionKeyword struct {
