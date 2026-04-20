@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/dovetaill/article-sentinel/internal/identity"
 )
 
 const requestIDHeader = "X-Request-ID"
 
 var requestIDCounter uint64
-
-type requestIDContextKey struct{}
 
 // Middleware 表示 HTTP 中间件。
 type Middleware func(http.Handler) http.Handler
@@ -38,7 +38,7 @@ func RequestID() Middleware {
 				requestID = strconv.FormatInt(time.Now().UnixNano(), 10) + "-" + strconv.FormatUint(atomic.AddUint64(&requestIDCounter, 1), 10)
 			}
 
-			ctx := context.WithValue(r.Context(), requestIDContextKey{}, requestID)
+			ctx := identity.ContextWithRequestMetadata(r.Context(), identity.RequestMetadata{RequestID: requestID})
 			w.Header().Set(requestIDHeader, requestID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -47,12 +47,9 @@ func RequestID() Middleware {
 
 // RequestIDFromContext 返回上下文中的 request id。
 func RequestIDFromContext(ctx context.Context) (string, bool) {
-	if ctx == nil {
+	metadata, ok := identity.RequestMetadataFromContext(ctx)
+	if !ok || metadata.RequestID == "" {
 		return "", false
 	}
-	requestID, ok := ctx.Value(requestIDContextKey{}).(string)
-	if !ok || requestID == "" {
-		return "", false
-	}
-	return requestID, true
+	return metadata.RequestID, true
 }

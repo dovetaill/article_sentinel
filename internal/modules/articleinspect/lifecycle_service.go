@@ -140,7 +140,7 @@ func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input Update
 			Update("body", input.Fields.Body).Error; err != nil {
 			return err
 		}
-		changeLogs := buildFieldChangeLogs(input, changes)
+		changeLogs := buildFieldChangeLogs(ctx, input, changes)
 		if err := (&ActionRepository{db: tx}).CreateFieldChangeLogs(ctx, changeLogs); err != nil {
 			return err
 		}
@@ -178,7 +178,7 @@ func (s *LifecycleService) RepublishArticle(ctx context.Context, input Republish
 	return &LifecycleActionResult{Status: ActionStatusSuccess, ArticleID: article.ID, BeforeState: article.State, AfterState: targetState}, nil
 }
 
-func buildFieldChangeLogs(input UpdateArticleFieldsInput, changes []FieldChange) []InspectionFieldChangeLog {
+func buildFieldChangeLogs(ctx context.Context, input UpdateArticleFieldsInput, changes []FieldChange) []InspectionFieldChangeLog {
 	logs := make([]InspectionFieldChangeLog, 0, len(changes))
 	for _, change := range changes {
 		logs = append(logs, InspectionFieldChangeLog{
@@ -195,6 +195,7 @@ func buildFieldChangeLogs(input UpdateArticleFieldsInput, changes []FieldChange)
 			OperatorName: strings.TrimSpace(input.OperatorName),
 		})
 	}
+	enrichFieldChangeLogsWithOperator(ctx, logs)
 	return logs
 }
 
@@ -210,7 +211,7 @@ func (s *LifecycleService) writeOperationLogWithDB(ctx context.Context, db *gorm
 	if db != s.db {
 		repo = &ActionRepository{db: db}
 	}
-	return repo.CreateOperationLog(ctx, &InspectionOperationLog{
+	logEntry := &InspectionOperationLog{
 		OrgID:         orgID,
 		ActionID:      actionID,
 		TaskID:        taskID,
@@ -223,5 +224,7 @@ func (s *LifecycleService) writeOperationLogWithDB(ctx context.Context, db *gorm
 		Reason:        reason,
 		OperatorID:    operatorID,
 		OperatorName:  strings.TrimSpace(operatorName),
-	})
+	}
+	enrichOperationLogWithOperator(ctx, logEntry)
+	return repo.CreateOperationLog(ctx, logEntry)
 }

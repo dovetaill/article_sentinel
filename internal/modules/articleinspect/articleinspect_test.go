@@ -918,6 +918,79 @@ func TestFieldChangeLogQuery(t *testing.T) {
 	}
 }
 
+func TestOperatorResolverUsesActorAndRequestMetadata(t *testing.T) {
+	actor := identity.NewActor(23, "jwt-user", "reviewer", "active")
+	ctx := identity.ContextWithActor(context.Background(), actor)
+	ctx = identity.ContextWithPrincipal(ctx, identity.PrincipalFromActor(actor))
+	ctx = identity.ContextWithRequestMetadata(ctx, identity.RequestMetadata{
+		RequestID: "req-123",
+		SourceIP:  "203.0.113.10",
+	})
+
+	operator := ResolveOperator(ctx)
+	if operator.ID != 23 || operator.Name != "jwt-user" || operator.Role != "reviewer" {
+		t.Fatalf("ResolveOperator() identity = %+v, want actor fields", operator)
+	}
+	if operator.RequestID != "req-123" || operator.SourceIP != "203.0.113.10" {
+		t.Fatalf("ResolveOperator() audit metadata = %+v, want request id and ip", operator)
+	}
+}
+
+func TestOperatorResolverPreservesAuditMetadataOnLogs(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedLifecycleArticles(t, db)
+	service := NewLifecycleService(db)
+
+	actor := identity.NewActor(23, "jwt-user", "reviewer", "active")
+	ctx := identity.ContextWithActor(context.Background(), actor)
+	ctx = identity.ContextWithRequestMetadata(ctx, identity.RequestMetadata{
+		RequestID: "req-456",
+		SourceIP:  "198.51.100.25",
+	})
+
+	operator := ResolveOperator(ctx)
+	changes, err := service.UpdateArticleFields(ctx, UpdateArticleFieldsInput{
+		OrgID:        100,
+		ArticleID:    12,
+		OperatorID:   operator.ID,
+		OperatorName: operator.Name,
+		Fields: EditableArticleFields{
+			Title: "Updated title",
+			Body:  "Updated body content",
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdateArticleFields() error = %v", err)
+	}
+	if len(changes) != 2 {
+		t.Fatalf("UpdateArticleFields() change count = %d, want %d", len(changes), 2)
+	}
+
+	var opLogs []InspectionOperationLog
+	if err := db.Where("orgid = ? AND article_id = ?", 100, 12).Find(&opLogs).Error; err != nil {
+		t.Fatalf("load operation logs error = %v", err)
+	}
+	if len(opLogs) != 1 {
+		t.Fatalf("operation logs len = %d, want %d", len(opLogs), 1)
+	}
+	if opLogs[0].RequestID != "req-456" || opLogs[0].SourceIP != "198.51.100.25" {
+		t.Fatalf("operation log audit metadata = %+v, want request id and source ip", opLogs[0])
+	}
+
+	var changeLogs []InspectionFieldChangeLog
+	if err := db.Where("orgid = ? AND article_id = ?", 100, 12).Find(&changeLogs).Error; err != nil {
+		t.Fatalf("load field change logs error = %v", err)
+	}
+	if len(changeLogs) != 2 {
+		t.Fatalf("field change logs len = %d, want %d", len(changeLogs), 2)
+	}
+	for _, log := range changeLogs {
+		if log.RequestID != "req-456" || log.SourceIP != "198.51.100.25" {
+			t.Fatalf("field change log audit metadata = %+v, want request id and source ip", log)
+		}
+	}
+}
+
 func extractArticleIDs(items []CandidateArticle) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {

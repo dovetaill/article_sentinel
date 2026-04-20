@@ -65,6 +65,7 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 		OperatorName: strings.TrimSpace(input.OperatorName),
 		StartedAt:    &now,
 	}
+	enrichActionWithOperator(ctx, action)
 	if err := s.repo.CreateAction(ctx, action); err != nil {
 		return nil, err
 	}
@@ -109,7 +110,7 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 				summary.SuccessCount++
 			}
 
-			if err := (&ActionRepository{db: tx}).CreateOperationLog(ctx, &InspectionOperationLog{
+			logEntry := &InspectionOperationLog{
 				OrgID:         input.OrgID,
 				ActionID:      action.ID,
 				TaskID:        input.TaskID,
@@ -122,7 +123,9 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 				Reason:        input.Reason,
 				OperatorID:    input.OperatorID,
 				OperatorName:  strings.TrimSpace(input.OperatorName),
-			}); err != nil {
+			}
+			enrichOperationLogWithOperator(ctx, logEntry)
+			if err := (&ActionRepository{db: tx}).CreateOperationLog(ctx, logEntry); err != nil {
 				return err
 			}
 		}

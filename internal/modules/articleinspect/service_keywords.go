@@ -5,8 +5,6 @@ import (
 	"errors"
 	"sort"
 	"strings"
-
-	"github.com/dovetaill/article-sentinel/internal/identity"
 )
 
 var (
@@ -193,9 +191,6 @@ func buildKeywordDTO(keyword *InspectionKeyword, scopes []InspectionKeywordScope
 }
 
 func auditOperatorFromContext(ctx context.Context) (uint64, string) {
-	actor, ok := identity.ActorFromContext(ctx)
-	if !ok {
-		return 0, ""
-	}
-	return uint64(actor.ID), actor.Username
+	operator := ResolveOperator(ctx)
+	return operator.ID, operator.Name
 }
