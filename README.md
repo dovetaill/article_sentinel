@@ -40,7 +40,25 @@ make dev
 - `http://127.0.0.1:8080/openapi.json`
 - `http://127.0.0.1:8080/docs`
 
-### 4. 关闭依赖
+### 4. 启动前端控制台
+
+```bash
+cd web/admin
+npm install
+npm run dev
+```
+
+默认访问：`http://127.0.0.1:5173`
+
+### 5. 导入一期 demo 数据（可选但推荐）
+
+```bash
+mysql -h127.0.0.1 -P3307 -uroot -proot article_sentinel < scripts/article_inspection_seed.sql
+```
+
+这会写入一组关键词、任务、命中结果、整改日志，便于直接验收 `/keywords`、`/tasks`、`/results`、`/logs` 流程。
+
+### 6. 关闭依赖
 
 ```bash
 make down
@@ -59,6 +77,12 @@ make smoke
 - `make test`: 运行 `go test ./...`
 - `make verify`: 执行当前项目的标准校验脚本
 - `make smoke`: 启动本地依赖、执行 migrate、拉起 server，并检查核心端点
+
+文稿巡检附加文档：
+
+- `docs/article-inspection-api.md`: API 路由、请求示例、生命周期说明
+- `docs/article-inspection-pages.md`: 页面职责、验收路径、前端联调说明
+- `scripts/article_inspection_seed.sql`: 本地演示数据
 
 ## 默认暴露什么
 
