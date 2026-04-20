@@ -388,6 +388,133 @@ func TestFieldDiff(t *testing.T) {
 	}
 }
 
+func TestCandidateArticleLoading(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedCandidateArticles(t, db)
+	repo := NewArticleRepository(db)
+
+	start := mustTime(t, "2026-04-20T09:00:00Z")
+	end := mustTime(t, "2026-04-20T13:00:00Z")
+	firstPage, nextCursor, err := repo.ListCandidateArticles(context.Background(), CandidateArticleFilter{
+		OrgID:            100,
+		ArticleState:     ArticleStateOnline,
+		PublishTimeStart: &start,
+		PublishTimeEnd:   &end,
+		Limit:            1,
+	})
+	if err != nil {
+		t.Fatalf("ListCandidateArticles(first page) error = %v", err)
+	}
+	if len(firstPage) != 1 || firstPage[0].ID != 1 {
+		t.Fatalf("first page ids = %#v, want first article only", extractArticleIDs(firstPage))
+	}
+	if firstPage[0].Body != "body one" {
+		t.Fatalf("first page body = %q, want %q", firstPage[0].Body, "body one")
+	}
+
+	secondPage, _, err := repo.ListCandidateArticles(context.Background(), CandidateArticleFilter{
+		OrgID:            100,
+		ArticleState:     ArticleStateOnline,
+		PublishTimeStart: &start,
+		PublishTimeEnd:   &end,
+		AfterID:          nextCursor,
+		Limit:            1,
+	})
+	if err != nil {
+		t.Fatalf("ListCandidateArticles(second page) error = %v", err)
+	}
+	if len(secondPage) != 1 || secondPage[0].ID != 2 {
+		t.Fatalf("second page ids = %#v, want second article only", extractArticleIDs(secondPage))
+	}
+
+	exact, _, err := repo.ListCandidateArticles(context.Background(), CandidateArticleFilter{
+		OrgID:        100,
+		ArticleState: ArticleStateOnline,
+		ArticleID:    2,
+		Limit:        10,
+	})
+	if err != nil {
+		t.Fatalf("ListCandidateArticles(exact id) error = %v", err)
+	}
+	if len(exact) != 1 || exact[0].ID != 2 {
+		t.Fatalf("exact filter ids = %#v, want article 2 only", extractArticleIDs(exact))
+	}
+
+	fuzzy, _, err := repo.ListCandidateArticles(context.Background(), CandidateArticleFilter{
+		OrgID:        100,
+		ArticleState: ArticleStateOnline,
+		TitleLike:    "Alpha",
+		Limit:        10,
+	})
+	if err != nil {
+		t.Fatalf("ListCandidateArticles(title like) error = %v", err)
+	}
+	if len(fuzzy) != 1 || fuzzy[0].ID != 1 {
+		t.Fatalf("title filter ids = %#v, want article 1 only", extractArticleIDs(fuzzy))
+	}
+}
+
+func TestTaskCreation(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		Category:      "policy",
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle, KeywordScopeBody},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	start := mustTime(t, "2026-04-20T09:00:00Z")
+	end := mustTime(t, "2026-04-20T13:00:00Z")
+	created, err := taskService.Create(ctx, CreateInspectionTaskInput{
+		OrgID:            100,
+		KeywordIDs:       []uint64{keyword.ID},
+		PublishTimeStart: &start,
+		PublishTimeEnd:   &end,
+		IncludeBody:      true,
+	})
+	if err != nil {
+		t.Fatalf("Create task error = %v", err)
+	}
+	if created.OrgID != 100 {
+		t.Fatalf("Create().OrgID = %d, want %d", created.OrgID, 100)
+	}
+	if created.Status != TaskStatusPending {
+		t.Fatalf("Create().Status = %q, want %q", created.Status, TaskStatusPending)
+	}
+	if created.RuleSnapshot == "" || !strings.Contains(created.RuleSnapshot, "spam") {
+		t.Fatalf("Create().RuleSnapshot = %q, want contains %q", created.RuleSnapshot, "spam")
+	}
+	if created.RequestSnapshot == "" || !strings.Contains(created.RequestSnapshot, "\"orgid\":100") {
+		t.Fatalf("Create().RequestSnapshot = %q, want contains %q", created.RequestSnapshot, "\"orgid\":100")
+	}
+
+	var taskKeywords []InspectionTaskKeyword
+	if err := db.Where("orgid = ? AND task_id = ?", 100, created.ID).Find(&taskKeywords).Error; err != nil {
+		t.Fatalf("Find task keywords error = %v", err)
+	}
+	if len(taskKeywords) != 1 || taskKeywords[0].KeywordID != keyword.ID {
+		t.Fatalf("task keywords = %#v, want keyword %d linked once", taskKeywords, keyword.ID)
+	}
+
+	_, err = taskService.Create(ctx, CreateInspectionTaskInput{
+		KeywordIDs: []uint64{keyword.ID},
+	})
+	if !errors.Is(err, ErrInvalidTaskInput) {
+		t.Fatalf("Create(missing orgid) error = %v, want %v", err, ErrInvalidTaskInput)
+	}
+}
+
 func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -430,4 +557,40 @@ func sortedStrings(values []string) []string {
 	cloned := append([]string(nil), values...)
 	sort.Strings(cloned)
 	return cloned
+}
+
+func seedCandidateArticles(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	articles := []Article{
+		{ID: 1, OrgID: 100, Title: "Alpha news", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T10:00:00Z"))},
+		{ID: 2, OrgID: 100, Title: "Beta update", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T11:00:00Z"))},
+		{ID: 3, OrgID: 100, Title: "Gamma draft", State: ArticleStateDraft, PublishAtTime: timePointer(mustTime(t, "2026-04-20T12:00:00Z"))},
+		{ID: 4, OrgID: 200, Title: "Other org", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T10:30:00Z"))},
+	}
+	if err := db.Create(&articles).Error; err != nil {
+		t.Fatalf("seed articles error = %v", err)
+	}
+
+	infos := []ArticleInfo{
+		{ArticleID: 1, Body: "body one"},
+		{ArticleID: 2, Body: "body two"},
+		{ArticleID: 3, Body: "body three"},
+		{ArticleID: 4, Body: "body four"},
+	}
+	if err := db.Create(&infos).Error; err != nil {
+		t.Fatalf("seed article infos error = %v", err)
+	}
+}
+
+func extractArticleIDs(items []CandidateArticle) []uint64 {
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func timePointer(value time.Time) *time.Time {
+	return &value
 }
