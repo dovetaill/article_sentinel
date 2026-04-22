@@ -1,0 +1,25 @@
+:root {
+  --admin-bg-base: #f3f6fb;
+  --admin-bg-canvas:
+    radial-gradient(circle at top left, rgba(47, 75, 111, 0.14), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f3f6fb 46%, #eef3f9 100%);
+  --admin-surface-1: rgba(255, 255, 255, 0.94);
+  --admin-surface-2: rgba(246, 249, 253, 0.98);
+  --admin-ink-strong: #1f2937;
+  --admin-ink-body: #314052;
+  --admin-ink-muted: #5f6f82;
+  --admin-line-soft: rgba(94, 118, 150, 0.16);
+  --admin-line-strong: rgba(47, 75, 111, 0.24);
+  --admin-accent: #2f4b6f;
+  --admin-accent-soft: rgba(47, 75, 111, 0.1);
+  --admin-gold: #9a6a2f;
+  --admin-success: #3b6c5f;
+  --admin-warning: #9a6a2f;
+  --admin-danger: #b33a3a;
+  --admin-shadow-lg: 0 24px 60px rgba(29, 45, 66, 0.12);
+  --admin-shadow-md: 0 16px 36px rgba(29, 45, 66, 0.08);
+  --admin-radius-xl: 24px;
+  --admin-radius-lg: 18px;
+  --admin-radius-md: 14px;
+  --admin-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}

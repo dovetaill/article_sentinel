@@ -25,33 +25,33 @@ export const appRoutes: AppRoute[] = [
   {
     key: 'keywords',
     path: '/keywords',
-    label: 'Keywords',
-    title: 'Rule deck',
-    description: 'Tune keyword scopes, risk weights, and action hints before each scan wave.',
+    label: '关键词规则',
+    title: '关键词规则',
+    description: '统一维护巡检词库、匹配范围与处置建议，确保规则口径明确、执行一致。',
     accent: 'gold'
   },
   {
     key: 'tasks',
     path: '/tasks',
-    label: 'Tasks',
-    title: 'Scan launches',
-    description: 'Kick off asynchronous inspection batches and monitor their execution rhythm.',
+    label: '检测任务',
+    title: '检测任务',
+    description: '统一发起巡检批次，掌握执行状态、扫描规模与命中情况。',
     accent: 'orange'
   },
   {
     key: 'results',
     path: '/results',
-    label: 'Results',
-    title: 'Hit stream',
-    description: 'Review matched articles, compare risk signals, and send the next action fast.',
+    label: '风险结果',
+    title: '风险结果',
+    description: '集中查看命中文稿、风险等级与处置进展，支撑快速研判与规范处置。',
     accent: 'red'
   },
   {
     key: 'logs',
     path: '/logs',
-    label: 'Logs',
-    title: 'Audit trail',
-    description: 'Trace who changed what, with request IDs and source IPs preserved end to end.',
+    label: '操作日志',
+    title: '操作日志',
+    description: '留存任务与处置过程的关键痕迹，保障记录可查、责任可溯。',
     accent: 'blue'
   }
 ];
@@ -75,19 +75,17 @@ function RoutePanel({ route }: { route: AppRoute }) {
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
             <Card className="route-card" variant="borderless">
-              <Text type="secondary">Ready for the next task batch</Text>
+              <Text type="secondary">规则执行与任务推进一体呈现</Text>
               <Paragraph>
-                This shell intentionally keeps each module lightweight so the upcoming CRUD pages can slot in
-                without reworking the chrome.
+                当前后台将以统一壳层承载各业务模块，后续页面扩展时无需重复改动公共框架。
               </Paragraph>
             </Card>
           </Col>
           <Col xs={24} md={12}>
             <Card className="route-card route-card-accent" variant="borderless">
-              <Text strong>Operator cues</Text>
+              <Text strong>值守提示</Text>
               <Paragraph>
-                Focused navigation, bold section titles, and space for table-heavy workflows keep the admin UI
-                readable under pressure.
+                页面导航、分区标题与表格区域将保持清晰秩序，便于在高频巡检场景下稳定使用。
               </Paragraph>
             </Card>
           </Col>

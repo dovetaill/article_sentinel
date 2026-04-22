@@ -1,13 +1,15 @@
+@import './styles/theme.css';
+@import './styles/layout.css';
+
 :root {
-  --sentinel-bg: radial-gradient(circle at top left, rgba(209, 122, 22, 0.24), transparent 32%),
-    linear-gradient(180deg, #f7efe3 0%, #fbf8f1 45%, #f3eee3 100%);
-  --sentinel-surface: rgba(255, 252, 247, 0.88);
-  --sentinel-ink: #2f2619;
-  --sentinel-muted: #766754;
-  --sentinel-line: rgba(94, 69, 31, 0.12);
+  --sentinel-bg: var(--admin-bg-canvas);
+  --sentinel-surface: var(--admin-surface-1);
+  --sentinel-ink: var(--admin-ink-strong);
+  --sentinel-muted: var(--admin-ink-muted);
+  --sentinel-line: var(--admin-line-soft);
   color: var(--sentinel-ink);
-  background: #f3eee3;
-  font-family: 'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  background: var(--admin-bg-base);
+  font-family: var(--admin-font-sans);
 }
 
 html,
