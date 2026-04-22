@@ -1,15 +1,10 @@
-import { Drawer, Empty, List, Space, Spin, Tabs, Tag, Typography } from 'antd';
+import { Drawer, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 
+import { StatusBadge } from '../../components/ui/status-badge';
 import { getResultDetail, type ResultDetailRecord, type ResultHitRecord } from '../../services/results';
 
 const { Paragraph, Text, Title } = Typography;
-
-const riskColors: Record<string, string> = {
-  low: 'green',
-  medium: 'gold',
-  high: 'red'
-};
 
 function highlightSnippet(hit: ResultHitRecord) {
   if (!hit.matched_text) {
@@ -54,7 +49,7 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
   const items = useMemo(() => [
     {
       key: 'hits',
-      label: 'Hit Details',
+      label: '命中详情',
       children: detail?.hits.length ? (
         <List
           dataSource={detail.hits}
@@ -62,7 +57,7 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
             <List.Item>
               <Space direction="vertical" size={4} style={{ width: '100%' }}>
                 <Space>
-                  <Tag color={riskColors[item.risk_level] ?? 'default'}>{item.risk_level}</Tag>
+                  <StatusBadge kind="risk" value={item.risk_level} />
                   <Text strong>{item.field_name}</Text>
                   <Text type="secondary">{item.keyword_text}</Text>
                 </Space>
@@ -71,16 +66,16 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
             </List.Item>
           )}
         />
-      ) : <Empty description="No hits" />
+      ) : <Empty description="暂无命中记录" />
     },
     {
       key: 'body',
-      label: 'Body Snippet',
-      children: detail?.article_body ? <div dangerouslySetInnerHTML={{ __html: detail.article_body }} /> : <Empty description="No body snapshot" />
+      label: '正文快照',
+      children: detail?.article_body ? <div dangerouslySetInnerHTML={{ __html: detail.article_body }} /> : <Empty description="暂无正文快照" />
     },
     {
       key: 'operations',
-      label: 'Operation History',
+      label: '操作记录',
       children: detail?.operation_logs.length ? (
         <List
           dataSource={detail.operation_logs}
@@ -88,16 +83,16 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
             <List.Item>
               <Space direction="vertical" size={2} style={{ width: '100%' }}>
                 <Text strong>{item.summary}</Text>
-                <Text type="secondary">{item.operator_name || 'unknown'} · {item.created_at || 'unknown time'}</Text>
+                <Text type="secondary">{item.operator_name || '未知'} · {item.created_at || '未知时间'}</Text>
               </Space>
             </List.Item>
           )}
         />
-      ) : <Empty description="No operations" />
+      ) : <Empty description="暂无操作记录" />
     },
     {
       key: 'changes',
-      label: 'Field Changes',
+      label: '字段变更',
       children: detail?.field_changes.length ? (
         <List
           dataSource={detail.field_changes}
@@ -110,20 +105,20 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
             </List.Item>
           )}
         />
-      ) : <Empty description="No field changes" />
+      ) : <Empty description="暂无字段变更" />
     }
   ], [detail]);
 
   return (
-    <Drawer title="Result Detail" open={open} width={760} onClose={onClose}>
+    <Drawer title="结果详情" open={open} width={760} onClose={onClose}>
       {loading ? <Spin /> : null}
       {detail ? (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <div>
-            <Tag color={riskColors[detail.risk_level] ?? 'default'}>{detail.risk_level}</Tag>
+            <StatusBadge kind="risk" value={detail.risk_level} />
             <Title level={4}>{detail.article_title}</Title>
             <Paragraph>
-              Article #{detail.article_id} · Task #{detail.task_id} · State {detail.article_state ?? '-'}
+              文章编号 #{detail.article_id} · 任务编号 #{detail.task_id} · 当前状态 {detail.article_state ?? '-'}
             </Paragraph>
           </div>
           <Tabs defaultActiveKey="hits" items={items} />

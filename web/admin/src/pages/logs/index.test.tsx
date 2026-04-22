@@ -47,14 +47,15 @@ describe('LogsPage', () => {
     );
 
     expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '操作日志' })).toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText(/article id/i));
-    await user.type(screen.getByLabelText(/article id/i), '501');
-    await user.clear(screen.getByLabelText(/task id/i));
-    await user.type(screen.getByLabelText(/task id/i), '77');
-    await user.clear(screen.getByLabelText(/operator/i));
-    await user.type(screen.getByLabelText(/operator/i), 'alice');
-    await user.click(screen.getByRole('button', { name: /search logs/i }));
+    await user.clear(screen.getByLabelText('文章编号'));
+    await user.type(screen.getByLabelText('文章编号'), '501');
+    await user.clear(screen.getByLabelText('任务编号'));
+    await user.type(screen.getByLabelText('任务编号'), '77');
+    await user.clear(screen.getByLabelText('操作人'));
+    await user.type(screen.getByLabelText('操作人'), 'alice');
+    await user.click(screen.getByRole('button', { name: '查询日志' }));
 
     await waitFor(() => {
       expect(mockedListOperationLogs).toHaveBeenLastCalledWith(

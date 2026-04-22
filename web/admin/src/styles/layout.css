@@ -337,6 +337,100 @@
   background: rgba(248, 250, 253, 0.94);
 }
 
+.toolbar-strip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.task-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 18px;
+}
+
+.task-form-layout__select {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-ink-body);
+}
+
+.task-form-layout__tips {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-form-layout__tips .ant-typography {
+  margin-bottom: 0;
+}
+
+.rectify-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
+  gap: 18px;
+}
+
+.rectify-layout__side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rectify-form__intro {
+  margin-bottom: 18px;
+  color: var(--admin-ink-muted);
+}
+
+.rectify-form__actions {
+  margin-top: 8px;
+}
+
+.rectify-reference,
+.rectify-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rectify-reference__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: var(--admin-radius-md);
+  background: rgba(248, 250, 253, 0.88);
+}
+
+.rectify-reference__label {
+  color: var(--admin-ink-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.rectify-reference__value {
+  margin: 0;
+  color: var(--admin-ink-strong);
+  line-height: 1.75;
+}
+
+.rectify-reference__body {
+  margin: 0;
+  color: var(--admin-ink-body);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rectify-notes .ant-typography {
+  margin-bottom: 0;
+}
+
 @media (max-width: 1200px) {
   .admin-topbar {
     flex-direction: column;
@@ -348,6 +442,14 @@
 
   .summary-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rectify-layout {
+    grid-template-columns: 1fr;
   }
 }
 

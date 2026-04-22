@@ -55,9 +55,11 @@ describe('TasksPage', () => {
     );
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
-    expect(screen.getByText('running')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '检测任务' })).toBeInTheDocument();
+    expect(screen.getAllByText('执行中').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: '新建任务' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /detail/i }));
+    await user.click(screen.getByRole('button', { name: '查看详情' }));
     expect(await screen.findByText(/spam keyword/i)).toBeInTheDocument();
   });
 });

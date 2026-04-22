@@ -53,14 +53,15 @@ describe('ResultsPage', () => {
     );
 
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '风险结果' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /select current page/i }));
-    expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '本页全选' }));
+    expect(screen.getByText('已选 1 项')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /batch offline/i }));
-    expect(await screen.findByText(/offline 1 selected article/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '批量下线处置' }));
+    expect(await screen.findByText('确认对 1 篇文章执行下线处置？')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /confirm offline/i }));
+    await user.click(screen.getByRole('button', { name: '确认处置' }));
 
     await waitFor(() => {
       expect(mockedBatchOfflineResults).toHaveBeenCalledWith({

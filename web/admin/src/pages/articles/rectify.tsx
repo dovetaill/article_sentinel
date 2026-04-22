@@ -1,11 +1,14 @@
 import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
-import { Button, Card, Descriptions, Form, Space, Spin, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { Button, Empty, Form, Space, Spin, Typography, message } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { PageHeader } from '../../components/ui/page-header';
+import { SectionCard } from '../../components/ui/section-card';
+import { SummaryCard } from '../../components/ui/summary-card';
 import { getArticleRectify, rectifyArticle, type RectifyArticleRecord } from '../../services/results';
 
-const { Paragraph } = Typography;
+const { Paragraph, Text, Title } = Typography;
 
 type RectifyFormValues = {
   title: string;
@@ -19,7 +22,6 @@ export default function RectifyPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<RectifyArticleRecord | null>(null);
-  const [targetState, setTargetState] = useState<number>();
 
   useEffect(() => {
     if (!articleId) {
@@ -40,74 +42,160 @@ export default function RectifyPage() {
       .finally(() => setLoading(false));
   }, [articleId, form]);
 
+  const metrics = useMemo(() => {
+    if (!record) {
+      return [];
+    }
+
+    return [
+      {
+        label: '文章编号',
+        value: `#${record.article_id}`,
+        helper: '当前进入整改流程的稿件编号'
+      },
+      {
+        label: '原标题字数',
+        value: record.title.length,
+        helper: '用于对照整改前标题长度'
+      },
+      {
+        label: '原摘要字数',
+        value: record.desc.length,
+        helper: '便于保持摘要信息完整'
+      },
+      {
+        label: '原文字数',
+        value: record.body.length,
+        helper: '按原始内容核验调整范围'
+      }
+    ];
+  }, [record]);
+
+  async function submitRectification(targetArticleState?: number) {
+    if (!articleId) {
+      return;
+    }
+
+    const values = await form.validateFields();
+    await rectifyArticle(Number(articleId), {
+      orgid: 100,
+      title: values.title,
+      desc: values.desc,
+      body: values.body,
+      target_article_state: targetArticleState
+    });
+
+    messageApi.success(targetArticleState === 1 ? '整改内容已保存并提交复核' : '整改内容已保存');
+  }
+
   return (
     <>
       {contextHolder}
-      <Card title={`Rectify Article #${articleId || '-'}`} variant="borderless">
-        {loading ? <Spin /> : null}
-        {record ? (
-          <Space direction="vertical" size={20} style={{ width: '100%' }}>
-            <Descriptions
-              column={1}
-              items={[
-                { key: 'title', label: 'Current Title', children: record.title },
-                { key: 'desc', label: 'Current Summary', children: record.desc },
-                {
-                  key: 'body',
-                  label: 'Current Body',
-                  children: <Paragraph code>{record.body}</Paragraph>
-                }
-              ]}
-            />
-            <ProForm<RectifyFormValues>
-              form={form}
-              submitter={false}
-              onFinish={async (values) => {
-                if (!articleId) {
-                  return false;
-                }
-                await rectifyArticle(Number(articleId), {
-                  orgid: 100,
-                  title: values.title,
-                  desc: values.desc,
-                  body: values.body,
-                  target_article_state: targetState
-                });
-                messageApi.success('Rectification saved');
-                setTargetState(undefined);
-                return true;
-              }}
-            >
-              <ProFormText
-                name="title"
-                label="New Title"
-                rules={[{ required: true }]}
-                fieldProps={{ 'aria-label': 'New Title' }}
-              />
-              <ProFormText
-                name="desc"
-                label="New Summary"
-                rules={[{ required: true }]}
-                fieldProps={{ 'aria-label': 'New Summary' }}
-              />
-              <ProFormTextArea
-                name="body"
-                label="New Body HTML"
-                rules={[{ required: true }]}
-                fieldProps={{ 'aria-label': 'New Body HTML', rows: 8 }}
-              />
-              <Space>
-                <Button type="primary" htmlType="submit" onClick={() => setTargetState(undefined)}>
-                  Save Rectification
-                </Button>
-                <Button htmlType="submit" onClick={() => setTargetState(1)}>
-                  Save & Send To Audit
-                </Button>
-              </Space>
-            </ProForm>
-          </Space>
-        ) : null}
-      </Card>
+      <PageHeader
+        title="内容整改"
+        description="对命中文稿进行标题、摘要与正文修订，保存后可继续调整，也可直接提交复核进入后续处置流程。"
+        extra={<Text type="secondary">整改稿件：{articleId ? `#${articleId}` : '未识别'}</Text>}
+      />
+
+      {loading ? (
+        <SectionCard title="整改载入中">
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <Spin />
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {!loading && record ? (
+        <>
+          <div className="summary-card-grid">
+            {metrics.map((item) => (
+              <SummaryCard key={item.label} label={item.label} value={item.value} helper={item.helper} />
+            ))}
+          </div>
+
+          <div className="rectify-layout">
+            <SectionCard title="整改内容">
+              <div className="rectify-form">
+                <Paragraph className="rectify-form__intro">
+                  请在保持稿件主旨准确的前提下，对存在风险的标题、摘要与正文进行审慎修订，避免再次触发同类规则。
+                </Paragraph>
+
+                <ProForm<RectifyFormValues> form={form} submitter={false}>
+                  <ProFormText
+                    name="title"
+                    label="整改标题"
+                    rules={[{ required: true, message: '请填写整改标题' }]}
+                    fieldProps={{ 'aria-label': '整改标题' }}
+                  />
+                  <ProFormText
+                    name="desc"
+                    label="整改摘要"
+                    rules={[{ required: true, message: '请填写整改摘要' }]}
+                    fieldProps={{ 'aria-label': '整改摘要' }}
+                  />
+                  <ProFormTextArea
+                    name="body"
+                    label="整改正文"
+                    rules={[{ required: true, message: '请填写整改正文' }]}
+                    fieldProps={{ 'aria-label': '整改正文', rows: 12 }}
+                  />
+
+                  <Space wrap className="rectify-form__actions">
+                    <Button type="primary" onClick={() => void submitRectification()}>
+                      保存整改
+                    </Button>
+                    <Button onClick={() => void submitRectification(1)}>
+                      保存并提交复核
+                    </Button>
+                  </Space>
+                </ProForm>
+              </div>
+            </SectionCard>
+
+            <div className="rectify-layout__side">
+              <SectionCard title="原稿对照">
+                <div className="rectify-reference">
+                  <div className="rectify-reference__item">
+                    <span className="rectify-reference__label">原标题</span>
+                    <p className="rectify-reference__value">{record.title}</p>
+                  </div>
+                  <div className="rectify-reference__item">
+                    <span className="rectify-reference__label">原摘要</span>
+                    <p className="rectify-reference__value">{record.desc}</p>
+                  </div>
+                  <div className="rectify-reference__item">
+                    <span className="rectify-reference__label">原正文</span>
+                    <pre className="rectify-reference__body">{record.body}</pre>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="办理提示">
+                <div className="rectify-notes">
+                  <div>
+                    <Title level={5}>处置原则</Title>
+                    <Paragraph>
+                      修改内容应与原稿事实一致，重点消除敏感表述、误导措辞与不当扩散风险，不得新增未经核验的信息。
+                    </Paragraph>
+                  </div>
+                  <div>
+                    <Title level={5}>提交流程</Title>
+                    <Paragraph>
+                      “保存整改”适用于暂存调整结果；如需进入后续审核，请选择“保存并提交复核”。
+                    </Paragraph>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {!loading && !record ? (
+        <SectionCard title="未获取到整改信息">
+          <Empty description="当前文章暂无可用整改内容，请返回结果列表重新进入。" />
+        </SectionCard>
+      ) : null}
     </>
   );
 }

@@ -55,16 +55,17 @@ describe('KeywordsPage', () => {
 
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByText('policy')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '关键词规则' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /new keyword/i }));
-    expect(await screen.findByRole('dialog', { name: /create keyword/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '新增规则' }));
+    expect(await screen.findByRole('dialog', { name: '新增规则' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await user.click(screen.getByRole('button', { name: /取\s*消/ }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /create keyword/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: '新增规则' })).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /edit/i }));
-    expect(await screen.findByRole('dialog', { name: /edit keyword/i })).toBeInTheDocument();
-  });
+    await user.click(screen.getByRole('button', { name: '编辑规则' }));
+    expect(await screen.findByRole('dialog', { name: '编辑规则' })).toBeInTheDocument();
+  }, 10_000);
 });

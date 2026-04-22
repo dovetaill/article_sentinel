@@ -62,7 +62,8 @@ describe('ResultDetailDrawer', () => {
 
     const snippets = await screen.findAllByText((_, element) => element?.textContent === 'spam alert keeps repeating');
     expect(snippets[0]).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: /operation history/i }));
+    expect(screen.getAllByText('高风险').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('tab', { name: '操作记录' }));
     expect(screen.getByText(/article sent offline/i)).toBeInTheDocument();
     expect(screen.getByText(/auditor/i)).toBeInTheDocument();
   });

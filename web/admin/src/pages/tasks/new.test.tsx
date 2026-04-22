@@ -44,12 +44,14 @@ describe('NewTaskPage', () => {
       </ConfigProvider>,
     );
 
-    await user.type(screen.getByLabelText(/orgid/i), '100');
-    await user.selectOptions(screen.getByLabelText(/keyword set/i), '7');
-    await user.click(screen.getByRole('switch', { name: /include body/i }));
-    await user.type(screen.getByLabelText(/article id/i), '123');
-    await user.type(screen.getByLabelText(/title like/i), 'Alpha');
-    await user.click(screen.getByRole('button', { name: /launch inspection/i }));
+    expect(screen.getByRole('heading', { name: '新建检测任务' })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('所属机构'), '100');
+    await user.selectOptions(screen.getByLabelText('关键词范围'), '7');
+    await user.click(screen.getByRole('switch', { name: '是否检索正文' }));
+    await user.type(screen.getByLabelText('文章编号'), '123');
+    await user.type(screen.getByLabelText('标题检索'), 'Alpha');
+    await user.click(screen.getByRole('button', { name: '提交任务' }));
 
     await waitFor(() => {
       expect(mockedCreateTask).toHaveBeenCalledWith(

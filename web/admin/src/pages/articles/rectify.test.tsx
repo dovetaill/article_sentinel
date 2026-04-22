@@ -46,12 +46,13 @@ describe('RectifyPage', () => {
 
     expect(await screen.findByText(/old title/i)).toBeInTheDocument();
     expect(screen.getByText(/old summary/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '内容整改' })).toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText(/new title/i));
-    await user.type(screen.getByLabelText(/new title/i), 'New title');
-    await user.clear(screen.getByLabelText(/new summary/i));
-    await user.type(screen.getByLabelText(/new summary/i), 'New summary');
-    await user.click(screen.getByRole('button', { name: /save rectification/i }));
+    await user.clear(screen.getByLabelText('整改标题'));
+    await user.type(screen.getByLabelText('整改标题'), 'New title');
+    await user.clear(screen.getByLabelText('整改摘要'));
+    await user.type(screen.getByLabelText('整改摘要'), 'New summary');
+    await user.click(screen.getByRole('button', { name: '保存整改' }));
 
     await waitFor(() => {
       expect(mockedRectifyArticle).toHaveBeenCalledWith(501, {

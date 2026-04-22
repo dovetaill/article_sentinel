@@ -1,7 +1,10 @@
 import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
-import { Button, Space, Tag, message } from 'antd';
+import { Button, Space, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 
+import { PageHeader } from '../../components/ui/page-header';
+import { SectionCard } from '../../components/ui/section-card';
+import { StatusBadge } from '../../components/ui/status-badge';
 import {
   createKeyword,
   type KeywordMutationInput,
@@ -15,17 +18,11 @@ type ActionRef = {
 };
 
 const scopeOptions = [
-  { label: 'Title', value: 'title' },
-  { label: 'Body', value: 'body' },
-  { label: 'Keyword', value: 'keyword' },
-  { label: 'Rich Title', value: 'rich_title' }
+  { label: '标题', value: 'title' },
+  { label: '正文', value: 'body' },
+  { label: '关键词字段', value: 'keyword' },
+  { label: '富标题', value: 'rich_title' }
 ];
-
-const riskColors: Record<string, string> = {
-  low: 'green',
-  medium: 'gold',
-  high: 'red'
-};
 
 export default function KeywordsPage() {
   const actionRef = useRef<ActionRef>({});
@@ -61,75 +58,86 @@ export default function KeywordsPage() {
   return (
     <>
       {contextHolder}
-      <ProTable<KeywordRecord>
-        rowKey="id"
-        actionRef={actionRef as never}
-        search={{ labelWidth: 120 }}
-        cardBordered
-        headerTitle="Keyword Library"
-        toolBarRender={() => [
+      <PageHeader
+        title="关键词规则"
+        description="统一维护巡检词库、匹配方式、风险等级与建议处置，确保巡检口径稳定一致。"
+        extra={(
           <Button
-            key="create"
             type="primary"
             onClick={() => {
               setEditingKeyword(null);
               setModalOpen(true);
             }}
           >
-            New Keyword
+            新增规则
           </Button>
-        ]}
-        request={async (params) => {
-          const result = await listKeywords({
-            orgid: 100,
-            page: params.current,
-            pageSize: params.pageSize,
-            category: typeof params.category === 'string' ? params.category : undefined,
-            keyword: typeof params.name === 'string' ? params.name : undefined
-          });
-
-          return {
-            data: result.items,
-            success: true,
-            total: result.total
-          };
-        }}
-        columns={[
-          { title: 'Keyword', dataIndex: 'name' },
-          { title: 'Category', dataIndex: 'category' },
-          {
-            title: 'Risk',
-            dataIndex: 'risk_level',
-            render: (_, record) => <Tag color={riskColors[record.risk_level] ?? 'default'}>{record.risk_level}</Tag>
-          },
-          {
-            title: 'Scopes',
-            dataIndex: 'scopes',
-            render: (_, record) => record.scopes.join(', ')
-          },
-          {
-            title: 'Status',
-            dataIndex: 'enabled',
-            render: (_, record) => <Tag color={record.enabled ? 'green' : 'default'}>{record.enabled ? 'enabled' : 'disabled'}</Tag>
-          },
-          {
-            title: 'Action',
-            valueType: 'option',
-            render: (_, record) => [
-              <Button
-                key="edit"
-                type="link"
-                onClick={() => {
-                  setEditingKeyword(record);
-                  setModalOpen(true);
-                }}
-              >
-                Edit
-              </Button>
-            ]
-          }
-        ]}
+        )}
       />
+      <SectionCard title="规则列表">
+        <ProTable<KeywordRecord>
+          rowKey="id"
+          actionRef={actionRef as never}
+          search={{ labelWidth: 110 }}
+          cardBordered={false}
+          options={{ density: false, fullScreen: false }}
+          headerTitle={false}
+          toolBarRender={false}
+          request={async (params) => {
+            const result = await listKeywords({
+              orgid: 100,
+              page: params.current,
+              pageSize: params.pageSize,
+              category: typeof params.category === 'string' ? params.category : undefined,
+              keyword: typeof params.name === 'string' ? params.name : undefined
+            });
+
+            return {
+              data: result.items,
+              success: true,
+              total: result.total
+            };
+          }}
+          columns={[
+            { title: '关键词名称', dataIndex: 'name' },
+            { title: '规则分类', dataIndex: 'category' },
+            {
+              title: '风险等级',
+              dataIndex: 'risk_level',
+              render: (_, record) => <StatusBadge kind="risk" value={record.risk_level} />
+            },
+            {
+              title: '适用范围',
+              dataIndex: 'scopes',
+              render: (_, record) => record.scopes.join('、')
+            },
+            {
+              title: '启用状态',
+              dataIndex: 'enabled',
+              render: (_, record) => (
+                <span className={`status-badge ${record.enabled ? 'status-badge--success' : 'status-badge--neutral'}`}>
+                  {record.enabled ? '启用' : '停用'}
+                </span>
+              )
+            },
+            {
+              title: '操作',
+              valueType: 'option',
+              render: (_, record) => [
+                <Button
+                  key="edit"
+                  type="link"
+                  onClick={() => {
+                    setEditingKeyword(record);
+                    setModalOpen(true);
+                  }}
+                >
+                  编辑规则
+                </Button>
+              ]
+            }
+          ]}
+        />
+      </SectionCard>
 
       <ModalForm<KeywordMutationInput>
         open={modalOpen}
@@ -137,11 +145,11 @@ export default function KeywordsPage() {
           destroyOnHidden: true,
           transitionName: '',
           maskTransitionName: '',
-          cancelText: 'Cancel',
-          okText: editingKeyword ? 'Save Changes' : 'Create Keyword',
+          cancelText: '取消',
+          okText: editingKeyword ? '保存修改' : '确认新增',
           onCancel: () => setModalOpen(false)
         }}
-        title={editingKeyword ? 'Edit Keyword' : 'Create Keyword'}
+        title={editingKeyword ? '编辑规则' : '新增规则'}
         initialValues={initialValues}
         onFinish={async (values) => {
           const payload: KeywordMutationInput = {
@@ -158,10 +166,10 @@ export default function KeywordsPage() {
 
           if (editingKeyword) {
             await updateKeyword(editingKeyword.id, payload);
-            messageApi.success('Keyword updated');
+            messageApi.success('规则已更新');
           } else {
             await createKeyword(payload);
-            messageApi.success('Keyword created');
+            messageApi.success('规则已新增');
           }
 
           setModalOpen(false);
@@ -170,52 +178,52 @@ export default function KeywordsPage() {
           return true;
         }}
       >
-        <ProFormText name="orgid" label="OrgID" disabled />
-        <ProFormText name="name" label="Keyword Name" rules={[{ required: true }]} />
-        <ProFormText name="category" label="Category" rules={[{ required: true }]} />
+        <ProFormText name="orgid" label="所属机构" disabled />
+        <ProFormText name="name" label="关键词名称" rules={[{ required: true }]} />
+        <ProFormText name="category" label="规则分类" rules={[{ required: true }]} />
         <ProFormSelect
           name="match_type"
-          label="Match Type"
+          label="匹配方式"
           options={[
-            { label: 'Contains', value: 'contains' },
-            { label: 'Exact', value: 'exact' },
-            { label: 'Regex', value: 'regex' }
+            { label: '包含匹配', value: 'contains' },
+            { label: '完全匹配', value: 'exact' },
+            { label: '正则匹配', value: 'regex' }
           ]}
           rules={[{ required: true }]}
         />
         <Space size={16} wrap>
           <ProFormSelect
             name="risk_level"
-            label="Risk Level"
+            label="风险等级"
             width="sm"
             options={[
-              { label: 'Low', value: 'low' },
-              { label: 'Medium', value: 'medium' },
-              { label: 'High', value: 'high' }
+              { label: '低风险', value: 'low' },
+              { label: '中风险', value: 'medium' },
+              { label: '高风险', value: 'high' }
             ]}
             rules={[{ required: true }]}
           />
           <ProFormSelect
             name="suggest_action"
-            label="Suggested Action"
+            label="建议处置"
             width="sm"
             options={[
-              { label: 'Ignore', value: 'ignore' },
-              { label: 'Process', value: 'process' },
-              { label: 'Offline', value: 'offline' }
+              { label: '忽略', value: 'ignore' },
+              { label: '人工处理', value: 'process' },
+              { label: '下线处置', value: 'offline' }
             ]}
             rules={[{ required: true }]}
           />
         </Space>
         <ProFormSelect
           name="scopes"
-          label="Scopes"
+          label="适用范围"
           mode="multiple"
           options={scopeOptions}
           rules={[{ required: true }]}
         />
-        <ProFormSwitch name="enabled" label="Enabled" />
-        <ProFormText name="remark" label="Remark" />
+        <ProFormSwitch name="enabled" label="启用状态" />
+        <ProFormText name="remark" label="备注说明" />
       </ModalForm>
     </>
   );
