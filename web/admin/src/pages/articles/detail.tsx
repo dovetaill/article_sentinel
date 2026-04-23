@@ -124,7 +124,6 @@ export default function ArticleDetailPage() {
     <>
       <PageHeader
         title="文稿详情"
-        description="集中查看单篇文稿的命中情况、正文快照、处置记录与整改入口。"
         extra={(
           <Space wrap>
             <Button href="/articles">返回列表</Button>

@@ -143,7 +143,6 @@ export default function TaskDetailPage() {
     <>
       <PageHeader
         title="任务详情"
-        description="集中查看任务配置、命中结果与关联日志。"
         extra={(
           <Space wrap>
             <Button href="/tasks">返回任务列表</Button>

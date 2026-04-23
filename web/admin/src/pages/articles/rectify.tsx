@@ -93,7 +93,6 @@ export default function RectifyPage() {
       {contextHolder}
       <PageHeader
         title="内容整改"
-        description="对命中文稿进行标题、摘要与正文修订，保存后可继续调整，也可直接提交复核进入后续处置流程。"
         extra={(
           <Space wrap>
             <Button href={`/articles/${articleId ?? ''}`}>返回文稿详情</Button>
