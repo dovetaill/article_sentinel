@@ -18,6 +18,7 @@ describe('App shell', () => {
     expect(screen.getByRole('link', { name: /关键词规则/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /检测任务/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /风险结果/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /文稿列表/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /操作日志/i })).toBeInTheDocument();
     expect(screen.queryByText('适用机构')).not.toBeInTheDocument();
     expect(screen.queryByText('巡检时段')).not.toBeInTheDocument();
@@ -26,13 +27,21 @@ describe('App shell', () => {
     expect(screen.queryByText('值守模式')).not.toBeInTheDocument();
     expect(screen.queryByText('政务融媒')).not.toBeInTheDocument();
     expect(screen.queryByText('值守中')).not.toBeInTheDocument();
+    expect(screen.queryByText('控制台')).not.toBeInTheDocument();
     expect(screen.queryByText('巡检控制台')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /article sentinel/i })).not.toBeInTheDocument();
     expect(screen.queryByText('安全巡检后台')).not.toBeInTheDocument();
+    expect(screen.queryByText('留存任务执行与稿件处置过程的关键记录。')).not.toBeInTheDocument();
   });
 
   it('uses Chinese labels for the primary navigation routes', () => {
-    expect(appRoutes.map((route) => route.label)).toEqual(['关键词规则', '检测任务', '风险结果', '操作日志']);
+    expect(appRoutes.map((route) => route.label)).toEqual([
+      '关键词规则',
+      '检测任务',
+      '风险结果',
+      '文稿列表',
+      '操作日志'
+    ]);
   });
 
   it('resolves article list and article detail as non-sidebar routes', () => {
