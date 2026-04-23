@@ -25,4 +25,18 @@ describe('admin visual tokens', () => {
     expect(layoutCss).toContain('.ant-switch.ant-switch-checked');
     expect(layoutCss).toContain('.ant-input-outlined:focus');
   });
+
+  it('compresses shell rhythm and summary density toward the reference layout', () => {
+    expect(layoutCss).toContain('width: 34px;');
+    expect(layoutCss).toContain('height: 34px;');
+    expect(layoutCss).toContain('.admin-topbar {\n  display: flex;\n  gap: 12px;');
+    expect(layoutCss).toContain('.summary-card {\n  padding: 12px 14px;');
+  });
+
+  it('tightens tables, tabs, and form controls for the final polish pass', () => {
+    expect(layoutCss).toContain('min-height: 34px !important;');
+    expect(layoutCss).toContain('.section-card .ant-table-wrapper .ant-table-thead > tr > th {\n  padding: 10px 12px;');
+    expect(layoutCss).toContain('.section-card .ant-table-wrapper .ant-table-tbody > tr > td {\n  padding: 10px 12px;');
+    expect(layoutCss).toContain('.section-card .ant-tabs-tab {\n  padding: 10px 0;');
+  });
 });

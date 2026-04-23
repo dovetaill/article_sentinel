@@ -26,8 +26,7 @@ export function SidebarNav({ routes }: SidebarNavProps) {
       <div className="admin-sidebar__brand">
         <span className="admin-sidebar__brand-badge">AS</span>
         <div className="admin-sidebar__brand-copy">
-          <p className="admin-sidebar__eyebrow">融媒内容安全巡检平台</p>
-          <h1>巡检控制台</h1>
+          <p className="admin-sidebar__brand-title">融媒内容安全巡检平台</p>
         </div>
       </div>
 

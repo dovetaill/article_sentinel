@@ -26,6 +26,7 @@ describe('App shell', () => {
     expect(screen.queryByText('值守模式')).not.toBeInTheDocument();
     expect(screen.queryByText('政务融媒')).not.toBeInTheDocument();
     expect(screen.queryByText('值守中')).not.toBeInTheDocument();
+    expect(screen.queryByText('巡检控制台')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /article sentinel/i })).not.toBeInTheDocument();
     expect(screen.queryByText('安全巡检后台')).not.toBeInTheDocument();
   });
