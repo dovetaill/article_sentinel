@@ -28,16 +28,22 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 	wantPaths := []string{
 		"/api/v1/article-inspect/actions/batch-ignore",
 		"/api/v1/article-inspect/actions/batch-process",
+		"/api/v1/article-inspect/articles",
+		"/api/v1/article-inspect/articles/{article_id}",
 		"/api/v1/article-inspect/articles/{article_id}/change-logs",
 		"/api/v1/article-inspect/articles/{article_id}/offline",
 		"/api/v1/article-inspect/articles/{article_id}/operation-logs",
 		"/api/v1/article-inspect/articles/{article_id}/rectify",
 		"/api/v1/article-inspect/articles/{article_id}/republish",
+		"/api/v1/article-inspect/categories",
+		"/api/v1/article-inspect/categories/{id}",
+		"/api/v1/article-inspect/categories/{id}/status",
 		"/api/v1/article-inspect/keywords",
 		"/api/v1/article-inspect/keywords/{id}",
 		"/api/v1/article-inspect/keywords/{id}/status",
 		"/api/v1/article-inspect/logs/field-changes",
 		"/api/v1/article-inspect/logs/operations",
+		"/api/v1/article-inspect/orgs",
 		"/api/v1/article-inspect/results",
 		"/api/v1/article-inspect/results/{id}",
 		"/api/v1/article-inspect/tasks",
@@ -53,12 +59,21 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 
 	assertOperation(t, doc.Paths, "/healthz", http.MethodGet)
 	assertOperation(t, doc.Paths, "/readyz", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/orgs", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodPut)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodDelete)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}/status", http.MethodPatch)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodPut)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodDelete)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}/status", http.MethodPatch)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results/{id}", http.MethodGet)

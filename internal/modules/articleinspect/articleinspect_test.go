@@ -1169,6 +1169,210 @@ func TestHandlerRectifyAndRepublishRequireOrgID(t *testing.T) {
 	}
 }
 
+func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	seedArticleCenterFixtures(t, db)
+	handler := newArticleInspectHandler(t, db, &articleInspectTaskDispatcherStub{})
+
+	t.Run("listing organizations returns seeded org", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/orgs", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list orgs status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		items := articleInspectListField(t, data, "items")
+		if len(items) == 0 {
+			t.Fatal("list orgs items = empty, want seeded org")
+		}
+
+		first := articleInspectDataMap(t, items[0])
+		if articleInspectUint64Field(t, first, "id") != 29 {
+			t.Fatalf("first org id = %d, want %d", articleInspectUint64Field(t, first, "id"), 29)
+		}
+		if articleInspectStringField(t, first, "name") != "一县一端" {
+			t.Fatalf("first org name = %q, want %q", articleInspectStringField(t, first, "name"), "一县一端")
+		}
+	})
+
+	t.Run("categories are scoped by orgid", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/categories?orgid=29&page=1&page_size=20", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list categories status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		if total := articleInspectNumberField(t, data, "total"); total != 2 {
+			t.Fatalf("list categories total = %v, want %d", total, 2)
+		}
+
+		items := articleInspectListField(t, data, "items")
+		gotIDs := make([]uint64, 0, len(items))
+		for _, raw := range items {
+			item := articleInspectDataMap(t, raw)
+			if articleInspectUint64Field(t, item, "orgid") != 29 {
+				t.Fatalf("category orgid = %d, want %d", articleInspectUint64Field(t, item, "orgid"), 29)
+			}
+			gotIDs = append(gotIDs, articleInspectUint64Field(t, item, "id"))
+		}
+		sort.Slice(gotIDs, func(i, j int) bool { return gotIDs[i] < gotIDs[j] })
+		if !reflect.DeepEqual(gotIDs, []uint64{501, 502}) {
+			t.Fatalf("category ids = %#v, want %#v", gotIDs, []uint64{501, 502})
+		}
+	})
+
+	t.Run("category CRUD rejects missing orgid", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			method string
+			path   string
+			body   any
+		}{
+			{
+				name:   "create",
+				method: http.MethodPost,
+				path:   "/api/v1/article-inspect/categories",
+				body: map[string]any{
+					"name":    "新增分类",
+					"code":    "new-category",
+					"enabled": true,
+				},
+			},
+			{
+				name:   "detail",
+				method: http.MethodGet,
+				path:   "/api/v1/article-inspect/categories/501",
+			},
+			{
+				name:   "update",
+				method: http.MethodPut,
+				path:   "/api/v1/article-inspect/categories/501",
+				body: map[string]any{
+					"name":    "分类更新",
+					"code":    "policy-updated",
+					"enabled": true,
+				},
+			},
+			{
+				name:   "delete",
+				method: http.MethodDelete,
+				path:   "/api/v1/article-inspect/categories/501",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var result articleInspectHTTPResult
+				if tt.body != nil {
+					result = sendArticleInspectJSONRequest(t, handler, tt.method, tt.path, tt.body)
+				} else {
+					result = sendArticleInspectRequest(t, handler, tt.method, tt.path, nil)
+				}
+				if result.status != http.StatusBadRequest {
+					t.Fatalf("%s status = %d, want %d", tt.name, result.status, http.StatusBadRequest)
+				}
+				if result.envelope.Code != http.StatusBadRequest {
+					t.Fatalf("%s envelope = %+v, want bad request code", tt.name, result.envelope)
+				}
+			})
+		}
+	})
+
+	t.Run("keyword create and update payloads use category_id", func(t *testing.T) {
+		created := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{
+			"orgid":          29,
+			"name":           "敏感词",
+			"category_id":    501,
+			"match_type":     MatchTypeContains,
+			"risk_level":     RiskLevelHigh,
+			"suggest_action": SuggestActionOffline,
+			"enabled":        true,
+			"scopes":         []string{KeywordScopeTitle},
+		})
+		if created.status != http.StatusCreated {
+			t.Fatalf("create keyword status = %d, want %d", created.status, http.StatusCreated)
+		}
+
+		createdData := articleInspectDataMap(t, created.envelope.Data)
+		if articleInspectUint64Field(t, createdData, "category_id") != 501 {
+			t.Fatalf("create keyword category_id = %d, want %d", articleInspectUint64Field(t, createdData, "category_id"), 501)
+		}
+		if articleInspectStringField(t, createdData, "category_name") != "政策红线" {
+			t.Fatalf("create keyword category_name = %q, want %q", articleInspectStringField(t, createdData, "category_name"), "政策红线")
+		}
+
+		updated := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdData["id"]), map[string]any{
+			"orgid":          29,
+			"name":           "敏感词-更新",
+			"category_id":    502,
+			"match_type":     MatchTypeContains,
+			"risk_level":     RiskLevelMedium,
+			"suggest_action": SuggestActionProcess,
+			"enabled":        true,
+			"scopes":         []string{KeywordScopeBody},
+		})
+		if updated.status != http.StatusOK {
+			t.Fatalf("update keyword status = %d, want %d", updated.status, http.StatusOK)
+		}
+
+		updatedData := articleInspectDataMap(t, updated.envelope.Data)
+		if articleInspectUint64Field(t, updatedData, "category_id") != 502 {
+			t.Fatalf("update keyword category_id = %d, want %d", articleInspectUint64Field(t, updatedData, "category_id"), 502)
+		}
+		if articleInspectStringField(t, updatedData, "category_name") != "高频违规" {
+			t.Fatalf("update keyword category_name = %q, want %q", articleInspectStringField(t, updatedData, "category_name"), "高频违规")
+		}
+	})
+
+	t.Run("article list endpoint reads real articles", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list articles status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		if total := articleInspectNumberField(t, data, "total"); total != 2 {
+			t.Fatalf("list articles total = %v, want %d", total, 2)
+		}
+
+		items := articleInspectListField(t, data, "items")
+		gotIDs := make([]uint64, 0, len(items))
+		for _, raw := range items {
+			item := articleInspectDataMap(t, raw)
+			gotIDs = append(gotIDs, articleInspectUint64Field(t, item, "id"))
+		}
+		sort.Slice(gotIDs, func(i, j int) bool { return gotIDs[i] < gotIDs[j] })
+		if !reflect.DeepEqual(gotIDs, []uint64{9001, 9002}) {
+			t.Fatalf("article ids = %#v, want %#v", gotIDs, []uint64{9001, 9002})
+		}
+	})
+
+	t.Run("article detail endpoint includes article data and latest inspect summary", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles/9001?orgid=29", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("get article detail status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		if articleInspectUint64Field(t, data, "id") != 9001 {
+			t.Fatalf("article detail id = %d, want %d", articleInspectUint64Field(t, data, "id"), 9001)
+		}
+		if articleInspectStringField(t, data, "title") != "县域要闻一" {
+			t.Fatalf("article detail title = %q, want %q", articleInspectStringField(t, data, "title"), "县域要闻一")
+		}
+		if articleInspectStringField(t, data, "body") != "<p>real body one</p>" {
+			t.Fatalf("article detail body = %q, want %q", articleInspectStringField(t, data, "body"), "<p>real body one</p>")
+		}
+		if articleInspectUint64Field(t, data, "latest_task_id") != 702 {
+			t.Fatalf("article detail latest_task_id = %d, want %d", articleInspectUint64Field(t, data, "latest_task_id"), 702)
+		}
+		if articleInspectStringField(t, data, "latest_risk_level") != RiskLevelHigh {
+			t.Fatalf("article detail latest_risk_level = %q, want %q", articleInspectStringField(t, data, "latest_risk_level"), RiskLevelHigh)
+		}
+	})
+}
+
 func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	dispatcher := &articleInspectTaskDispatcherStub{}
@@ -1293,8 +1497,12 @@ func sendArticleInspectRequest(t *testing.T, handler http.Handler, method, path 
 
 func decodeArticleInspectEnvelope(t *testing.T, rec *httptest.ResponseRecorder) response.Envelope {
 	t.Helper()
+	body := bytes.TrimSpace(rec.Body.Bytes())
+	if len(body) == 0 || body[0] != '{' {
+		return response.Envelope{}
+	}
 	var got response.Envelope
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	return got
@@ -1307,6 +1515,19 @@ func articleInspectDataMap(t *testing.T, value any) map[string]any {
 		t.Fatalf("data type = %T, want map[string]any", value)
 	}
 	return data
+}
+
+func articleInspectListField(t *testing.T, m map[string]any, key string) []any {
+	t.Helper()
+	value, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	items, ok := value.([]any)
+	if !ok {
+		t.Fatalf("key %q type = %T, want []any", key, value)
+	}
+	return items
 }
 
 func articleInspectNumberField(t *testing.T, m map[string]any, key string) float64 {
@@ -1328,6 +1549,19 @@ func articleInspectNumberField(t *testing.T, m map[string]any, key string) float
 		t.Fatalf("key %q type = %T, want numeric", key, v)
 		return 0
 	}
+}
+
+func articleInspectStringField(t *testing.T, m map[string]any, key string) string {
+	t.Helper()
+	value, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	text, ok := value.(string)
+	if !ok {
+		t.Fatalf("key %q type = %T, want string", key, value)
+	}
+	return text
 }
 
 func articleInspectUint64Field(t *testing.T, m map[string]any, key string) uint64 {
@@ -1411,6 +1645,126 @@ func seedLifecycleArticles(t *testing.T, db *gorm.DB) {
 	}
 	if err := db.Create(&[]ArticleInfo{{ArticleID: 10, Body: "body a"}, {ArticleID: 11, Body: "body b"}, {ArticleID: 12, Body: "body c"}}).Error; err != nil {
 		t.Fatalf("seed lifecycle article info error = %v", err)
+	}
+}
+
+func seedOrgCategoryFixtures(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	statements := []string{
+		`CREATE TABLE IF NOT EXISTS xt_chuangqi_org (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			cateid INTEGER NOT NULL DEFAULT 0,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			sort INTEGER NOT NULL DEFAULT 0,
+			create_at DATETIME NOT NULL,
+			update_at DATETIME NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS xt_article_inspect_categories (
+			id INTEGER PRIMARY KEY,
+			orgid INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			code TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			sort INTEGER NOT NULL DEFAULT 0,
+			creator_id INTEGER NOT NULL DEFAULT 0,
+			creator_name TEXT NOT NULL DEFAULT '',
+			updater_id INTEGER NOT NULL DEFAULT 0,
+			updater_name TEXT NOT NULL DEFAULT '',
+			create_at DATETIME NOT NULL,
+			update_at DATETIME NOT NULL
+		)`,
+	}
+	for _, statement := range statements {
+		if err := db.Exec(statement).Error; err != nil {
+			t.Fatalf("prepare org/category tables error = %v", err)
+		}
+	}
+
+	timestamp := mustTime(t, "2026-04-20T08:00:00Z")
+	if err := db.Exec(
+		`INSERT INTO xt_chuangqi_org (id, name, cateid, enabled, sort, create_at, update_at) VALUES
+			(29, '一县一端', 0, 1, 10, ?, ?),
+			(30, '其他组织', 0, 1, 20, ?, ?)`,
+		timestamp, timestamp, timestamp, timestamp,
+	).Error; err != nil {
+		t.Fatalf("seed orgs error = %v", err)
+	}
+
+	if err := db.Exec(
+		`INSERT INTO xt_article_inspect_categories (id, orgid, name, code, enabled, sort, creator_id, creator_name, updater_id, updater_name, create_at, update_at) VALUES
+			(501, 29, '政策红线', 'policy', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
+			(502, 29, '高频违规', 'risk', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
+			(601, 30, '外部分类', 'external', 1, 10, 8, 'bob', 8, 'bob', ?, ?)`,
+		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
+	).Error; err != nil {
+		t.Fatalf("seed categories error = %v", err)
+	}
+}
+
+func seedArticleCenterFixtures(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	publishAt := mustTime(t, "2026-04-21T09:00:00Z")
+	laterPublishAt := mustTime(t, "2026-04-21T10:30:00Z")
+	latestActionAt := mustTime(t, "2026-04-21T12:30:00Z")
+	olderActionAt := mustTime(t, "2026-04-21T11:00:00Z")
+
+	articles := []Article{
+		{ID: 9001, OrgID: 29, Title: "县域要闻一", State: ArticleStateOnline, PublishAtTime: &publishAt, UpdateAt: latestActionAt},
+		{ID: 9002, OrgID: 29, Title: "县域要闻二", State: ArticleStateOffline, PublishAtTime: &laterPublishAt, UpdateAt: laterPublishAt},
+		{ID: 9901, OrgID: 30, Title: "外部组织稿件", State: ArticleStateOnline, PublishAtTime: &publishAt, UpdateAt: publishAt},
+	}
+	if err := db.Create(&articles).Error; err != nil {
+		t.Fatalf("seed article center articles error = %v", err)
+	}
+
+	infos := []ArticleInfo{
+		{ArticleID: 9001, Body: "<p>real body one</p>", UpdateAt: latestActionAt},
+		{ArticleID: 9002, Body: "<p>real body two</p>", UpdateAt: laterPublishAt},
+		{ArticleID: 9901, Body: "<p>other org body</p>", UpdateAt: publishAt},
+	}
+	if err := db.Create(&infos).Error; err != nil {
+		t.Fatalf("seed article center infos error = %v", err)
+	}
+
+	results := []InspectionResult{
+		{
+			ID:                 7101,
+			OrgID:              29,
+			TaskID:             701,
+			ArticleID:          9001,
+			ArticleTitle:       "县域要闻一",
+			ArticleState:       ArticleStateOnline,
+			PublishAtTime:      &publishAt,
+			RiskLevel:          RiskLevelLow,
+			SuggestAction:      SuggestActionIgnore,
+			HitCount:           1,
+			DispositionStatus:  ResultDispositionPending,
+			LatestActionAt:     &olderActionAt,
+			LatestOperatorID:   7,
+			LatestOperatorName: "alice",
+		},
+		{
+			ID:                 7102,
+			OrgID:              29,
+			TaskID:             702,
+			ArticleID:          9001,
+			ArticleTitle:       "县域要闻一",
+			ArticleState:       ArticleStateOnline,
+			PublishAtTime:      &publishAt,
+			RiskLevel:          RiskLevelHigh,
+			SuggestAction:      SuggestActionOffline,
+			HitCount:           2,
+			DispositionStatus:  ResultDispositionProcessed,
+			LatestActionAt:     &latestActionAt,
+			LatestOperatorID:   8,
+			LatestOperatorName: "bob",
+		},
+	}
+	if err := db.Create(&results).Error; err != nil {
+		t.Fatalf("seed article center results error = %v", err)
 	}
 }
 
