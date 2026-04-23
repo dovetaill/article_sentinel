@@ -44,7 +44,7 @@ describe('ArticlesPage', () => {
       </ConfigProvider>,
     );
 
-    expect(screen.getByRole('heading', { name: '文稿列表' })).toBeInTheDocument();
+    expect(screen.queryByText('按稿件维度查看巡检命中、处置状态与最近任务，便于持续跟进单篇稿件。')).not.toBeInTheDocument();
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
     expect(screen.getByText('#501')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/articles/501');

@@ -53,8 +53,9 @@ describe('ResultsPage', () => {
     );
 
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '风险结果' })).toBeInTheDocument();
+    expect(screen.queryByText('集中查看命中文稿、风险等级与处置状态，按批次完成研判、下线与整改。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute('href', '/articles/501');
+    expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '本页全选' }));
     expect(screen.getByText('已选 1 项')).toBeInTheDocument();

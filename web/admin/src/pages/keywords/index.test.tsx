@@ -55,7 +55,8 @@ describe('KeywordsPage', () => {
 
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByText('policy')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '关键词规则' })).toBeInTheDocument();
+    expect(screen.queryByText('统一维护规则词库、匹配方式、风险等级与建议处置。')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新增规则' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '新增规则' }));
     expect(await screen.findByRole('dialog', { name: '新增规则' })).toBeInTheDocument();

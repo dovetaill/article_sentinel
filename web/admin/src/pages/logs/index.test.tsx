@@ -47,9 +47,10 @@ describe('LogsPage', () => {
     );
 
     expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '操作日志' })).toBeInTheDocument();
+    expect(screen.queryByText('查询任务执行、结果处置与请求快照。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '#501' })).toHaveAttribute('href', '/articles/501');
     expect(screen.getByRole('link', { name: '#77' })).toHaveAttribute('href', '/tasks/77');
+    expect(screen.getByRole('button', { name: '查询日志' })).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('文章编号'));
     await user.type(screen.getByLabelText('文章编号'), '501');
