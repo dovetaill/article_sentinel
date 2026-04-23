@@ -107,6 +107,7 @@ describe('TaskDetailPage', () => {
 
     expect((await screen.findAllByText('inspect-20260420-01')).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '返回任务列表' })).toHaveAttribute('href', '/tasks');
+    expect(screen.queryByText('集中查看任务配置、命中结果与关联日志。')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '命中结果' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '请求快照' })).toBeInTheDocument();

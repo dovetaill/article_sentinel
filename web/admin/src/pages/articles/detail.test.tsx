@@ -133,6 +133,7 @@ describe('ArticleDetailPage', () => {
     expect(screen.getAllByText('文稿编号').length).toBeGreaterThan(0);
     expect(screen.getByRole('tab', { name: '命中记录' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute('href', '/articles/501/rectify');
+    expect(screen.queryByText('集中查看单篇文稿的命中情况、正文快照、处置记录与整改入口。')).not.toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: '操作记录' }));
     expect(screen.getByText(/article sent offline/i)).toBeInTheDocument();
   });
