@@ -3,7 +3,7 @@ package articleinspect
 type CreateKeywordInput struct {
 	OrgID         uint64
 	Name          string
-	Category      string
+	CategoryID    uint64
 	MatchType     string
 	RiskLevel     string
 	SuggestAction string
@@ -24,19 +24,20 @@ type PatchKeywordStatusInput struct {
 }
 
 type KeywordListInput struct {
-	OrgID    uint64
-	Page     int
-	PageSize int
-	Enabled  *bool
-	Category string
-	Query    string
+	OrgID      uint64
+	Page       int
+	PageSize   int
+	Enabled    *bool
+	CategoryID uint64
+	Query      string
 }
 
 type KeywordDTO struct {
 	ID            uint64   `json:"id"`
 	OrgID         uint64   `json:"orgid"`
 	Name          string   `json:"name"`
-	Category      string   `json:"category"`
+	CategoryID    uint64   `json:"category_id"`
+	CategoryName  string   `json:"category_name"`
 	MatchType     string   `json:"match_type"`
 	RiskLevel     string   `json:"risk_level"`
 	SuggestAction string   `json:"suggest_action"`

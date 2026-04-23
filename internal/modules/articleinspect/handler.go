@@ -19,12 +19,14 @@ type TaskDispatcher interface {
 }
 
 type Routes struct {
+	Categories *CategoryService
 	Keywords   *KeywordService
 	Tasks      *TaskService
 	Results    *ResultService
 	Actions    *ActionService
 	Lifecycle  *LifecycleService
 	Logs       *LogService
+	Articles   *ArticleService
 	Dispatcher TaskDispatcher
 }
 
@@ -38,18 +40,18 @@ type keywordIDRequest struct {
 }
 
 type keywordQueryRequest struct {
-	OrgID    uint64 `query:"orgid"`
-	Page     int    `query:"page"`
-	PageSize int    `query:"page_size"`
-	Category string `query:"category"`
-	Query    string `query:"keyword"`
-	Enabled  string `query:"enabled"`
+	OrgID      uint64 `query:"orgid"`
+	Page       int    `query:"page"`
+	PageSize   int    `query:"page_size"`
+	CategoryID uint64 `query:"category_id"`
+	Query      string `query:"keyword"`
+	Enabled    string `query:"enabled"`
 }
 
 type keywordBody struct {
 	OrgID         uint64   `json:"orgid,omitempty"`
 	Name          string   `json:"name,omitempty"`
-	Category      string   `json:"category,omitempty"`
+	CategoryID    uint64   `json:"category_id,omitempty"`
 	MatchType     string   `json:"match_type,omitempty"`
 	RiskLevel     string   `json:"risk_level,omitempty"`
 	SuggestAction string   `json:"suggest_action,omitempty"`
@@ -80,6 +82,48 @@ type keywordPatchStatusBody struct {
 type keywordPatchStatusRequest struct {
 	ID   string `path:"id"`
 	Body keywordPatchStatusBody
+}
+
+type orgListRequest struct{}
+
+type categoryQueryRequest struct {
+	OrgID    uint64 `query:"orgid"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"page_size"`
+	Query    string `query:"name"`
+	Enabled  string `query:"enabled"`
+}
+
+type categoryDetailRequest struct {
+	ID    string `path:"id"`
+	OrgID uint64 `query:"orgid"`
+}
+
+type categoryBody struct {
+	OrgID   uint64 `json:"orgid,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Code    string `json:"code,omitempty"`
+	Enabled bool   `json:"enabled,omitempty"`
+	Sort    int64  `json:"sort,omitempty"`
+}
+
+type categoryCreateRequest struct {
+	Body categoryBody
+}
+
+type categoryUpdateRequest struct {
+	ID   string `path:"id"`
+	Body categoryBody
+}
+
+type categoryPatchStatusBody struct {
+	OrgID   uint64 `json:"orgid"`
+	Enabled bool   `json:"enabled"`
+}
+
+type categoryPatchStatusRequest struct {
+	ID   string `path:"id"`
+	Body categoryPatchStatusBody
 }
 
 type taskCreateRequest struct {
@@ -115,6 +159,19 @@ type batchActionRequest struct {
 
 type articleIDRequest struct {
 	ArticleID string `path:"article_id"`
+}
+
+type articleListRequest struct {
+	OrgID    uint64 `query:"orgid"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"page_size"`
+	State    string `query:"state"`
+	Query    string `query:"keyword"`
+}
+
+type articleDetailRequest struct {
+	ArticleID string `path:"article_id"`
+	OrgID     uint64 `query:"orgid"`
 }
 
 type articleLifecycleBody struct {
@@ -187,6 +244,9 @@ func RegisterRoutes(api huma.API, routes Routes) {
 		return
 	}
 
+	if routes.Categories != nil {
+		registerCategoryRoutes(api, routes.Categories)
+	}
 	if routes.Keywords != nil {
 		registerKeywordRoutes(api, routes.Keywords)
 	}
@@ -205,6 +265,147 @@ func RegisterRoutes(api huma.API, routes Routes) {
 	if routes.Logs != nil {
 		registerLogRoutes(api, routes.Logs)
 	}
+	if routes.Articles != nil {
+		registerArticleRoutes(api, routes.Articles)
+	}
+}
+
+func registerCategoryRoutes(api huma.API, service *CategoryService) {
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-org-list",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/orgs",
+		Summary:     "list inspection organizations",
+	}, func(ctx context.Context, input *orgListRequest) (*envelopeOutput, error) {
+		_ = input
+		result, err := service.ListOrgs(ctx)
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "org list", result), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-list",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/categories",
+		Summary:     "list inspection categories",
+	}, func(ctx context.Context, input *categoryQueryRequest) (*envelopeOutput, error) {
+		enabled, err := parseOptionalBool(input.Enabled)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid enabled filter"), nil
+		}
+		result, err := service.List(ctx, CategoryListInput{
+			OrgID:    input.OrgID,
+			Page:     input.Page,
+			PageSize: input.PageSize,
+			Enabled:  enabled,
+			Query:    input.Query,
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "category list", result), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-create",
+		Method:      http.MethodPost,
+		Path:        "/api/v1/article-inspect/categories",
+		Summary:     "create inspection category",
+	}, func(ctx context.Context, input *categoryCreateRequest) (*envelopeOutput, error) {
+		item, err := service.Create(ctx, CreateCategoryInput{
+			OrgID:   input.Body.OrgID,
+			Name:    input.Body.Name,
+			Code:    input.Body.Code,
+			Enabled: input.Body.Enabled,
+			Sort:    input.Body.Sort,
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusCreated, "category created", item), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-detail",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/categories/{id}",
+		Summary:     "get inspection category",
+	}, func(ctx context.Context, input *categoryDetailRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		item, err := service.Get(ctx, input.OrgID, id)
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "category detail", item), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-update",
+		Method:      http.MethodPut,
+		Path:        "/api/v1/article-inspect/categories/{id}",
+		Summary:     "update inspection category",
+	}, func(ctx context.Context, input *categoryUpdateRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		item, err := service.Update(ctx, UpdateCategoryInput{
+			ID: id,
+			CreateCategoryInput: CreateCategoryInput{
+				OrgID:   input.Body.OrgID,
+				Name:    input.Body.Name,
+				Code:    input.Body.Code,
+				Enabled: input.Body.Enabled,
+				Sort:    input.Body.Sort,
+			},
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "category updated", item), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-status-patch",
+		Method:      http.MethodPatch,
+		Path:        "/api/v1/article-inspect/categories/{id}/status",
+		Summary:     "patch inspection category status",
+	}, func(ctx context.Context, input *categoryPatchStatusRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		item, err := service.PatchEnabled(ctx, PatchCategoryStatusInput{
+			OrgID:      input.Body.OrgID,
+			CategoryID: id,
+			Enabled:    input.Body.Enabled,
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "category status updated", item), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-category-delete",
+		Method:      http.MethodDelete,
+		Path:        "/api/v1/article-inspect/categories/{id}",
+		Summary:     "delete inspection category",
+	}, func(ctx context.Context, input *categoryDetailRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		if err := service.Delete(ctx, input.OrgID, id); err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "category deleted", map[string]uint64{"id": id}), nil
+	})
 }
 
 func registerKeywordRoutes(api huma.API, service *KeywordService) {
@@ -217,7 +418,7 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		item, err := service.Create(ctx, CreateKeywordInput{
 			OrgID:         input.Body.OrgID,
 			Name:          input.Body.Name,
-			Category:      input.Body.Category,
+			CategoryID:    input.Body.CategoryID,
 			MatchType:     input.Body.MatchType,
 			RiskLevel:     input.Body.RiskLevel,
 			SuggestAction: input.Body.SuggestAction,
@@ -242,12 +443,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 			return failureEnvelope(http.StatusBadRequest, "invalid enabled filter"), nil
 		}
 		result, err := service.List(ctx, KeywordListInput{
-			OrgID:    input.OrgID,
-			Page:     input.Page,
-			PageSize: input.PageSize,
-			Enabled:  enabled,
-			Category: input.Category,
-			Query:    input.Query,
+			OrgID:      input.OrgID,
+			Page:       input.Page,
+			PageSize:   input.PageSize,
+			Enabled:    enabled,
+			CategoryID: input.CategoryID,
+			Query:      input.Query,
 		})
 		if err != nil {
 			return failureFromError(err)
@@ -287,7 +488,7 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 			CreateKeywordInput: CreateKeywordInput{
 				OrgID:         input.Body.OrgID,
 				Name:          input.Body.Name,
-				Category:      input.Body.Category,
+				CategoryID:    input.Body.CategoryID,
 				MatchType:     input.Body.MatchType,
 				RiskLevel:     input.Body.RiskLevel,
 				SuggestAction: input.Body.SuggestAction,
@@ -648,6 +849,48 @@ func registerLogRoutes(api huma.API, service *LogService) {
 	})
 }
 
+func registerArticleRoutes(api huma.API, service *ArticleService) {
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-article-list",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/articles",
+		Summary:     "list real articles for the article center",
+	}, func(ctx context.Context, input *articleListRequest) (*envelopeOutput, error) {
+		state, err := parseOptionalInt8(input.State)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid state"), nil
+		}
+		result, err := service.List(ctx, ArticleListInput{
+			OrgID:    input.OrgID,
+			Page:     input.Page,
+			PageSize: input.PageSize,
+			State:    state,
+			Query:    input.Query,
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "article list", result), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-article-detail",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/articles/{article_id}",
+		Summary:     "get real article detail with inspect summary",
+	}, func(ctx context.Context, input *articleDetailRequest) (*envelopeOutput, error) {
+		articleID, err := parseUint64ID(input.ArticleID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid article input"), nil
+		}
+		result, err := service.Get(ctx, input.OrgID, articleID)
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "article detail", result), nil
+	})
+}
+
 func successEnvelope(status int, message string, data any) *envelopeOutput {
 	return &envelopeOutput{Status: status, Body: response.OK(message, data)}
 }
@@ -665,8 +908,14 @@ func articleInspectStatusFromError(err error) (int, string) {
 	switch {
 	case err == nil:
 		return http.StatusOK, "ok"
+	case errors.Is(err, ErrCategoryNotFound):
+		return http.StatusNotFound, "resource not found"
 	case errors.Is(err, ErrKeywordNotFound), errors.Is(err, gorm.ErrRecordNotFound):
 		return http.StatusNotFound, "resource not found"
+	case errors.Is(err, ErrArticleNotFound):
+		return http.StatusNotFound, "resource not found"
+	case errors.Is(err, ErrInvalidCategoryInput):
+		return http.StatusBadRequest, "invalid category input"
 	case errors.Is(err, ErrInvalidKeywordInput):
 		return http.StatusBadRequest, "invalid keyword input"
 	case errors.Is(err, ErrInvalidTaskInput):
@@ -677,6 +926,8 @@ func articleInspectStatusFromError(err error) (int, string) {
 		return http.StatusBadRequest, "invalid action input"
 	case errors.Is(err, ErrInvalidLogQuery):
 		return http.StatusBadRequest, "invalid log query"
+	case errors.Is(err, ErrInvalidArticleQuery):
+		return http.StatusBadRequest, "invalid article query"
 	default:
 		return http.StatusInternalServerError, "internal server error"
 	}
@@ -708,4 +959,17 @@ func parseOptionalBool(value string) (*bool, error) {
 		return nil, err
 	}
 	return &parsed, nil
+}
+
+func parseOptionalInt8(value string) (*int8, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 8)
+	if err != nil {
+		return nil, err
+	}
+	result := int8(parsed)
+	return &result, nil
 }

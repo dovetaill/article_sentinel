@@ -16,10 +16,10 @@ type keywordRepository interface {
 	Create(ctx context.Context, keyword *InspectionKeyword, scopes []InspectionKeywordScope) error
 	Update(ctx context.Context, keyword *InspectionKeyword, scopes []InspectionKeywordScope) error
 	Delete(ctx context.Context, orgID, id uint64) error
-	Get(ctx context.Context, orgID, id uint64) (*InspectionKeyword, []InspectionKeywordScope, error)
-	List(ctx context.Context, filter KeywordListFilter) ([]InspectionKeyword, map[uint64][]InspectionKeywordScope, int64, error)
+	Get(ctx context.Context, orgID, id uint64) (*KeywordRecord, []InspectionKeywordScope, error)
+	List(ctx context.Context, filter KeywordListFilter) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, int64, error)
 	PatchEnabled(ctx context.Context, orgID, id uint64, enabled bool, updaterID uint64, updaterName string) error
-	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]InspectionKeyword, map[uint64][]InspectionKeywordScope, error)
+	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, error)
 }
 
 type KeywordService struct {
@@ -43,7 +43,7 @@ func (s *KeywordService) Create(ctx context.Context, input CreateKeywordInput) (
 	keyword := &InspectionKeyword{
 		OrgID:         normalized.orgID,
 		Name:          normalized.name,
-		Category:      normalized.category,
+		CategoryID:    normalized.categoryID,
 		MatchType:     normalized.matchType,
 		RiskLevel:     normalized.riskLevel,
 		SuggestAction: normalized.suggestAction,
@@ -57,7 +57,11 @@ func (s *KeywordService) Create(ctx context.Context, input CreateKeywordInput) (
 	if err := s.repo.Create(ctx, keyword, buildKeywordScopes(normalized.orgID, normalized.scopes)); err != nil {
 		return nil, err
 	}
-	return buildKeywordDTO(keyword, buildKeywordScopes(normalized.orgID, normalized.scopes)), nil
+	stored, scopes, err := s.repo.Get(ctx, keyword.OrgID, keyword.ID)
+	if err != nil {
+		return nil, err
+	}
+	return buildKeywordDTO(stored, scopes), nil
 }
 
 func (s *KeywordService) Update(ctx context.Context, input UpdateKeywordInput) (*KeywordDTO, error) {
@@ -74,7 +78,7 @@ func (s *KeywordService) Update(ctx context.Context, input UpdateKeywordInput) (
 		ID:            input.ID,
 		OrgID:         normalized.orgID,
 		Name:          normalized.name,
-		Category:      normalized.category,
+		CategoryID:    normalized.categoryID,
 		MatchType:     normalized.matchType,
 		RiskLevel:     normalized.riskLevel,
 		SuggestAction: normalized.suggestAction,
@@ -117,12 +121,12 @@ func (s *KeywordService) List(ctx context.Context, input KeywordListInput) (*Key
 	}
 	page, pageSize := normalizePage(input.Page, input.PageSize)
 	items, scopesByKeyword, total, err := s.repo.List(ctx, KeywordListFilter{
-		OrgID:    input.OrgID,
-		Page:     page,
-		PageSize: pageSize,
-		Enabled:  input.Enabled,
-		Category: strings.TrimSpace(input.Category),
-		Query:    strings.TrimSpace(input.Query),
+		OrgID:      input.OrgID,
+		Page:       page,
+		PageSize:   pageSize,
+		Enabled:    input.Enabled,
+		CategoryID: input.CategoryID,
+		Query:      strings.TrimSpace(input.Query),
 	})
 	if err != nil {
 		return nil, err
@@ -163,7 +167,7 @@ func buildKeywordScopes(orgID uint64, scopes []string) []InspectionKeywordScope 
 	return items
 }
 
-func buildKeywordDTO(keyword *InspectionKeyword, scopes []InspectionKeywordScope) *KeywordDTO {
+func buildKeywordDTO(keyword *KeywordRecord, scopes []InspectionKeywordScope) *KeywordDTO {
 	if keyword == nil {
 		return nil
 	}
@@ -176,7 +180,8 @@ func buildKeywordDTO(keyword *InspectionKeyword, scopes []InspectionKeywordScope
 		ID:            keyword.ID,
 		OrgID:         keyword.OrgID,
 		Name:          keyword.Name,
-		Category:      keyword.Category,
+		CategoryID:    keyword.CategoryID,
+		CategoryName:  keyword.CategoryName,
 		MatchType:     keyword.MatchType,
 		RiskLevel:     keyword.RiskLevel,
 		SuggestAction: keyword.SuggestAction,

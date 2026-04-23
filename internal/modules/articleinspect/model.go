@@ -7,11 +7,43 @@ type InspectionTimestamps struct {
 	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
 }
 
+type ChuangqiOrg struct {
+	ID       uint64    `gorm:"column:id;primaryKey" json:"id"`
+	Name     string    `gorm:"column:name;size:128;not null" json:"name"`
+	CateID   uint64    `gorm:"column:cateid;not null;default:0" json:"cateid"`
+	Enabled  bool      `gorm:"column:enabled;not null;default:true" json:"enabled"`
+	Sort     int64     `gorm:"column:sort;not null;default:0" json:"sort"`
+	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
+	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
+}
+
+func (ChuangqiOrg) TableName() string {
+	return "xt_chuangqi_org"
+}
+
+type InspectionCategory struct {
+	ID          uint64 `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	OrgID       uint64 `gorm:"column:orgid;not null;index" json:"orgid"`
+	Name        string `gorm:"column:name;size:128;not null" json:"name"`
+	Code        string `gorm:"column:code;size:64;not null" json:"code"`
+	Enabled     bool   `gorm:"column:enabled;not null;default:true" json:"enabled"`
+	Sort        int64  `gorm:"column:sort;not null;default:0" json:"sort"`
+	CreatorID   uint64 `gorm:"column:creator_id;not null;default:0" json:"creator_id"`
+	CreatorName string `gorm:"column:creator_name;size:128;not null;default:''" json:"creator_name"`
+	UpdaterID   uint64 `gorm:"column:updater_id;not null;default:0" json:"updater_id"`
+	UpdaterName string `gorm:"column:updater_name;size:128;not null;default:''" json:"updater_name"`
+	InspectionTimestamps
+}
+
+func (InspectionCategory) TableName() string {
+	return "xt_article_inspect_categories"
+}
+
 type InspectionKeyword struct {
 	ID            uint64 `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	OrgID         uint64 `gorm:"column:orgid;not null;index" json:"orgid"`
 	Name          string `gorm:"column:name;size:255;not null" json:"name"`
-	Category      string `gorm:"column:category;size:64;not null" json:"category"`
+	CategoryID    uint64 `gorm:"column:category_id;not null;index" json:"category_id"`
 	MatchType     string `gorm:"column:match_type;size:32;not null" json:"match_type"`
 	RiskLevel     string `gorm:"column:risk_level;size:32;not null" json:"risk_level"`
 	SuggestAction string `gorm:"column:suggest_action;size:32;not null" json:"suggest_action"`

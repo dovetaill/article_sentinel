@@ -16,7 +16,7 @@ import (
 var ErrInvalidTaskInput = errors.New("invalid task input")
 
 type taskKeywordRepository interface {
-	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]InspectionKeyword, map[uint64][]InspectionKeywordScope, error)
+	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, error)
 }
 
 type taskArticleRepository interface {
@@ -105,7 +105,7 @@ func (s *TaskService) Create(ctx context.Context, input CreateInspectionTaskInpu
 	return task, nil
 }
 
-func buildKeywordSnapshots(keywords []InspectionKeyword, scopesByKeyword map[uint64][]InspectionKeywordScope) []KeywordDTO {
+func buildKeywordSnapshots(keywords []KeywordRecord, scopesByKeyword map[uint64][]InspectionKeywordScope) []KeywordDTO {
 	items := make([]KeywordDTO, 0, len(keywords))
 	for _, keyword := range keywords {
 		items = append(items, *buildKeywordDTO(&keyword, scopesByKeyword[keyword.ID]))

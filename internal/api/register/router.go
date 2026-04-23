@@ -85,14 +85,18 @@ func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes 
 	}
 
 	db := rt.Resources.DB
+	categoryRepo := articleinspectmodule.NewCategoryRepository(db)
 	keywordRepo := articleinspectmodule.NewKeywordRepository(db)
+	articleRepo := articleinspectmodule.NewArticleRepository(db)
 	return articleinspectmodule.Routes{
+		Categories: articleinspectmodule.NewCategoryService(categoryRepo),
 		Keywords:   articleinspectmodule.NewKeywordService(keywordRepo),
-		Tasks:      articleinspectmodule.NewTaskService(db, keywordRepo, articleinspectmodule.NewArticleRepository(db)),
+		Tasks:      articleinspectmodule.NewTaskService(db, keywordRepo, articleRepo),
 		Results:    articleinspectmodule.NewResultService(db),
 		Actions:    articleinspectmodule.NewActionService(db, articleinspectmodule.NewActionRepository(db)),
 		Lifecycle:  articleinspectmodule.NewLifecycleService(db),
 		Logs:       articleinspectmodule.NewLogService(db),
+		Articles:   articleinspectmodule.NewArticleService(articleRepo),
 		Dispatcher: newArticleInspectDispatcher(rt),
 	}
 }

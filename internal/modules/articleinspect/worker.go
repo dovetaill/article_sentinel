@@ -209,7 +209,7 @@ func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
 		rules = append(rules, KeywordRule{
 			ID:            dto.ID,
 			Name:          dto.Name,
-			Category:      dto.Category,
+			Category:      dto.CategoryName,
 			MatchType:     dto.MatchType,
 			RiskLevel:     dto.RiskLevel,
 			SuggestAction: dto.SuggestAction,

@@ -31,6 +31,8 @@ func TestInspectionModelMetadata(t *testing.T) {
 		got  string
 		want string
 	}{
+		{name: "org table", got: (ChuangqiOrg{}).TableName(), want: "xt_chuangqi_org"},
+		{name: "category table", got: (InspectionCategory{}).TableName(), want: "xt_article_inspect_categories"},
 		{name: "keyword table", got: (InspectionKeyword{}).TableName(), want: "xt_article_inspect_keywords"},
 		{name: "keyword scope table", got: (InspectionKeywordScope{}).TableName(), want: "xt_article_inspect_keyword_scopes"},
 		{name: "task table", got: (InspectionTask{}).TableName(), want: "xt_article_inspect_tasks"},
@@ -123,6 +125,8 @@ func TestMigrationFileContainsInspectionTables(t *testing.T) {
 
 	text := string(content)
 	requiredTables := []string{
+		"xt_chuangqi_org",
+		"xt_article_inspect_categories",
 		"xt_article_inspect_keywords",
 		"xt_article_inspect_keyword_scopes",
 		"xt_article_inspect_tasks",
@@ -161,6 +165,7 @@ func TestInspectionDocsArtifactsExist(t *testing.T) {
 
 func TestKeywordService(t *testing.T) {
 	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
 	repo := NewKeywordRepository(db)
 	service := NewKeywordService(repo)
 	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(7, "alice", "ops", "active"))
@@ -168,7 +173,7 @@ func TestKeywordService(t *testing.T) {
 	created, err := service.Create(ctx, CreateKeywordInput{
 		OrgID:         100,
 		Name:          "spam",
-		Category:      "policy",
+		CategoryID:    1001,
 		MatchType:     MatchTypeContains,
 		RiskLevel:     RiskLevelHigh,
 		SuggestAction: SuggestActionOffline,
@@ -181,6 +186,9 @@ func TestKeywordService(t *testing.T) {
 	}
 	if created.OrgID != 100 {
 		t.Fatalf("Create().OrgID = %d, want %d", created.OrgID, 100)
+	}
+	if created.CategoryID != 1001 || created.CategoryName != "政策红线" {
+		t.Fatalf("Create().Category = %d/%q, want %d/%q", created.CategoryID, created.CategoryName, 1001, "政策红线")
 	}
 	if !created.Enabled {
 		t.Fatal("Create().Enabled = false, want true")
@@ -198,7 +206,7 @@ func TestKeywordService(t *testing.T) {
 	if _, err := service.Create(ctx, CreateKeywordInput{
 		OrgID:         200,
 		Name:          "spam",
-		Category:      "policy",
+		CategoryID:    2001,
 		MatchType:     MatchTypeContains,
 		RiskLevel:     RiskLevelLow,
 		SuggestAction: SuggestActionIgnore,
@@ -249,6 +257,7 @@ func TestKeywordService(t *testing.T) {
 
 func TestKeywordValidation(t *testing.T) {
 	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
 	service := NewKeywordService(NewKeywordRepository(db))
 
 	tests := []struct {
@@ -259,7 +268,19 @@ func TestKeywordValidation(t *testing.T) {
 			name: "missing orgid",
 			input: CreateKeywordInput{
 				Name:          "spam",
-				Category:      "policy",
+				CategoryID:    1001,
+				MatchType:     MatchTypeContains,
+				RiskLevel:     RiskLevelHigh,
+				SuggestAction: SuggestActionOffline,
+				Enabled:       true,
+				Scopes:        []string{KeywordScopeTitle},
+			},
+		},
+		{
+			name: "missing category id",
+			input: CreateKeywordInput{
+				OrgID:         100,
+				Name:          "spam",
 				MatchType:     MatchTypeContains,
 				RiskLevel:     RiskLevelHigh,
 				SuggestAction: SuggestActionOffline,
@@ -272,7 +293,7 @@ func TestKeywordValidation(t *testing.T) {
 			input: CreateKeywordInput{
 				OrgID:         100,
 				Name:          "spam",
-				Category:      "policy",
+				CategoryID:    1001,
 				MatchType:     MatchTypeContains,
 				RiskLevel:     RiskLevelHigh,
 				SuggestAction: SuggestActionOffline,
@@ -285,7 +306,7 @@ func TestKeywordValidation(t *testing.T) {
 			input: CreateKeywordInput{
 				OrgID:         100,
 				Name:          "spam",
-				Category:      "policy",
+				CategoryID:    1001,
 				MatchType:     MatchTypeContains,
 				RiskLevel:     "critical",
 				SuggestAction: SuggestActionOffline,
@@ -298,7 +319,7 @@ func TestKeywordValidation(t *testing.T) {
 			input: CreateKeywordInput{
 				OrgID:         100,
 				Name:          "spam",
-				Category:      "policy",
+				CategoryID:    1001,
 				MatchType:     MatchTypeContains,
 				RiskLevel:     RiskLevelHigh,
 				SuggestAction: "ban",
@@ -483,6 +504,7 @@ func TestCandidateArticleLoading(t *testing.T) {
 
 func TestTaskCreation(t *testing.T) {
 	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
 	keywordService := NewKeywordService(NewKeywordRepository(db))
 	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
 	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
@@ -490,7 +512,7 @@ func TestTaskCreation(t *testing.T) {
 	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
 		OrgID:         100,
 		Name:          "spam",
-		Category:      "policy",
+		CategoryID:    1001,
 		MatchType:     MatchTypeContains,
 		RiskLevel:     RiskLevelHigh,
 		SuggestAction: SuggestActionOffline,
@@ -665,6 +687,8 @@ func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 	}
 
 	if err := db.AutoMigrate(
+		&ChuangqiOrg{},
+		&InspectionCategory{},
 		&InspectionKeyword{},
 		&InspectionKeywordScope{},
 		&InspectionTask{},
@@ -1018,6 +1042,7 @@ func TestOperatorResolverPreservesAuditMetadataOnLogs(t *testing.T) {
 
 func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
 	seedQueryFixtures(t, db)
 	dispatcher := &articleInspectTaskDispatcherStub{}
 	handler := newArticleInspectHandler(t, db, dispatcher)
@@ -1025,7 +1050,7 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	createdKeyword := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{
 		"orgid":          100,
 		"name":           "spam",
-		"category":       "policy",
+		"category_id":    1001,
 		"match_type":     MatchTypeContains,
 		"risk_level":     RiskLevelHigh,
 		"suggest_action": SuggestActionOffline,
@@ -1058,7 +1083,7 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	updatedKeyword := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"]), map[string]any{
 		"orgid":          100,
 		"name":           "spam-updated",
-		"category":       "policy",
+		"category_id":    1002,
 		"match_type":     MatchTypeContains,
 		"risk_level":     RiskLevelHigh,
 		"suggest_action": SuggestActionProcess,
@@ -1380,12 +1405,14 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
 	RegisterRoutes(api, Routes{
+		Categories: NewCategoryService(NewCategoryRepository(db)),
 		Keywords:   NewKeywordService(NewKeywordRepository(db)),
 		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
 		Results:    NewResultService(db),
 		Actions:    NewActionService(db, NewActionRepository(db)),
 		Lifecycle:  NewLifecycleService(db),
 		Logs:       NewLogService(db),
+		Articles:   NewArticleService(NewArticleRepository(db)),
 		Dispatcher: dispatcher,
 	})
 
@@ -1404,6 +1431,12 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 	}
 
 	requiredPaths := []string{
+		"/api/v1/article-inspect/orgs",
+		"/api/v1/article-inspect/categories",
+		"/api/v1/article-inspect/categories/{id}",
+		"/api/v1/article-inspect/categories/{id}/status",
+		"/api/v1/article-inspect/articles",
+		"/api/v1/article-inspect/articles/{article_id}",
 		"/api/v1/article-inspect/keywords",
 		"/api/v1/article-inspect/keywords/{id}",
 		"/api/v1/article-inspect/tasks",
@@ -1458,12 +1491,14 @@ func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher *articleInsp
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
 	RegisterRoutes(api, Routes{
+		Categories: NewCategoryService(NewCategoryRepository(db)),
 		Keywords:   NewKeywordService(NewKeywordRepository(db)),
 		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
 		Results:    NewResultService(db),
 		Actions:    NewActionService(db, NewActionRepository(db)),
 		Lifecycle:  NewLifecycleService(db),
 		Logs:       NewLogService(db),
+		Articles:   NewArticleService(NewArticleRepository(db)),
 		Dispatcher: dispatcher,
 	})
 	return mux
@@ -1686,8 +1721,10 @@ func seedOrgCategoryFixtures(t *testing.T, db *gorm.DB) {
 	if err := db.Exec(
 		`INSERT INTO xt_chuangqi_org (id, name, cateid, enabled, sort, create_at, update_at) VALUES
 			(29, '一县一端', 0, 1, 10, ?, ?),
-			(30, '其他组织', 0, 1, 20, ?, ?)`,
-		timestamp, timestamp, timestamp, timestamp,
+			(30, '其他组织', 0, 1, 20, ?, ?),
+			(100, '测试组织A', 0, 1, 30, ?, ?),
+			(200, '测试组织B', 0, 1, 40, ?, ?)`,
+		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
 	).Error; err != nil {
 		t.Fatalf("seed orgs error = %v", err)
 	}
@@ -1696,8 +1733,11 @@ func seedOrgCategoryFixtures(t *testing.T, db *gorm.DB) {
 		`INSERT INTO xt_article_inspect_categories (id, orgid, name, code, enabled, sort, creator_id, creator_name, updater_id, updater_name, create_at, update_at) VALUES
 			(501, 29, '政策红线', 'policy', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
 			(502, 29, '高频违规', 'risk', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
-			(601, 30, '外部分类', 'external', 1, 10, 8, 'bob', 8, 'bob', ?, ?)`,
-		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
+			(601, 30, '外部分类', 'external', 1, 10, 8, 'bob', 8, 'bob', ?, ?),
+			(1001, 100, '政策红线', 'policy', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
+			(1002, 100, '高频违规', 'risk', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
+			(2001, 200, '其他组织分类', 'other-org', 1, 10, 8, 'bob', 8, 'bob', ?, ?)`,
+		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
 	).Error; err != nil {
 		t.Fatalf("seed categories error = %v", err)
 	}

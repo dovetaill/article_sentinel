@@ -13,12 +13,17 @@ type KeywordRepository struct {
 }
 
 type KeywordListFilter struct {
-	OrgID    uint64
-	Page     int
-	PageSize int
-	Enabled  *bool
-	Category string
-	Query    string
+	OrgID      uint64
+	Page       int
+	PageSize   int
+	Enabled    *bool
+	CategoryID uint64
+	Query      string
+}
+
+type KeywordRecord struct {
+	InspectionKeyword
+	CategoryName string `gorm:"column:category_name"`
 }
 
 func NewKeywordRepository(db *gorm.DB) *KeywordRepository {
@@ -31,6 +36,9 @@ func (r *KeywordRepository) Create(ctx context.Context, keyword *InspectionKeywo
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureKeywordCategoryExists(tx, keyword.OrgID, keyword.CategoryID); err != nil {
+			return err
+		}
 		if err := tx.Create(keyword).Error; err != nil {
 			return err
 		}
@@ -51,11 +59,14 @@ func (r *KeywordRepository) Update(ctx context.Context, keyword *InspectionKeywo
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := ensureKeywordCategoryExists(tx, keyword.OrgID, keyword.CategoryID); err != nil {
+			return err
+		}
 		result := tx.Model(&InspectionKeyword{}).
 			Where("orgid = ? AND id = ?", keyword.OrgID, keyword.ID).
 			Updates(map[string]any{
 				"name":           keyword.Name,
-				"category":       keyword.Category,
+				"category_id":    keyword.CategoryID,
 				"match_type":     keyword.MatchType,
 				"risk_level":     keyword.RiskLevel,
 				"suggest_action": keyword.SuggestAction,
@@ -104,16 +115,12 @@ func (r *KeywordRepository) Delete(ctx context.Context, orgID, id uint64) error 
 	})
 }
 
-func (r *KeywordRepository) Get(ctx context.Context, orgID, id uint64) (*InspectionKeyword, []InspectionKeywordScope, error) {
+func (r *KeywordRepository) Get(ctx context.Context, orgID, id uint64) (*KeywordRecord, []InspectionKeywordScope, error) {
 	if r == nil || r.db == nil || orgID == 0 || id == 0 {
 		return nil, nil, ErrInvalidKeywordInput
 	}
 
-	var keyword InspectionKeyword
-	err := r.db.WithContext(ctx).Where("orgid = ? AND id = ?", orgID, id).First(&keyword).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil, ErrKeywordNotFound
-	}
+	item, err := r.getKeyword(ctx, orgID, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,34 +129,46 @@ func (r *KeywordRepository) Get(ctx context.Context, orgID, id uint64) (*Inspect
 	if err != nil {
 		return nil, nil, err
 	}
-	return &keyword, scopes[id], nil
+	return item, scopes[id], nil
 }
 
-func (r *KeywordRepository) List(ctx context.Context, filter KeywordListFilter) ([]InspectionKeyword, map[uint64][]InspectionKeywordScope, int64, error) {
+func (r *KeywordRepository) List(ctx context.Context, filter KeywordListFilter) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, int64, error) {
 	if r == nil || r.db == nil || filter.OrgID == 0 {
 		return nil, nil, 0, ErrInvalidKeywordInput
 	}
 
 	page, pageSize := normalizePage(filter.Page, filter.PageSize)
-	query := r.db.WithContext(ctx).Model(&InspectionKeyword{}).Where("orgid = ?", filter.OrgID)
+	countQuery := r.db.WithContext(ctx).Model(&InspectionKeyword{}).Where("orgid = ?", filter.OrgID)
 	if filter.Enabled != nil {
-		query = query.Where("enabled = ?", *filter.Enabled)
+		countQuery = countQuery.Where("enabled = ?", *filter.Enabled)
 	}
-	if category := strings.TrimSpace(filter.Category); category != "" {
-		query = query.Where("category = ?", category)
+	if filter.CategoryID != 0 {
+		countQuery = countQuery.Where("category_id = ?", filter.CategoryID)
 	}
 	if text := strings.TrimSpace(filter.Query); text != "" {
 		like := "%" + text + "%"
-		query = query.Where("name LIKE ? OR remark LIKE ?", like, like)
+		countQuery = countQuery.Where("name LIKE ? OR remark LIKE ?", like, like)
 	}
 
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, nil, 0, err
 	}
 
-	items := make([]InspectionKeyword, 0, pageSize)
-	if err := query.Order("id ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
+	query := r.keywordQuery(ctx, filter.OrgID)
+	if filter.Enabled != nil {
+		query = query.Where("k.enabled = ?", *filter.Enabled)
+	}
+	if filter.CategoryID != 0 {
+		query = query.Where("k.category_id = ?", filter.CategoryID)
+	}
+	if text := strings.TrimSpace(filter.Query); text != "" {
+		like := "%" + text + "%"
+		query = query.Where("k.name LIKE ? OR k.remark LIKE ?", like, like)
+	}
+
+	items := make([]KeywordRecord, 0, pageSize)
+	if err := query.Order("k.id ASC").Offset((page - 1) * pageSize).Limit(pageSize).Scan(&items).Error; err != nil {
 		return nil, nil, 0, err
 	}
 	if len(items) == 0 {
@@ -189,16 +208,16 @@ func (r *KeywordRepository) PatchEnabled(ctx context.Context, orgID, id uint64, 
 	return nil
 }
 
-func (r *KeywordRepository) ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]InspectionKeyword, map[uint64][]InspectionKeywordScope, error) {
+func (r *KeywordRepository) ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, error) {
 	if r == nil || r.db == nil || orgID == 0 || len(ids) == 0 {
 		return nil, nil, ErrInvalidKeywordInput
 	}
 
-	items := make([]InspectionKeyword, 0, len(ids))
-	if err := r.db.WithContext(ctx).
-		Where("orgid = ? AND id IN ?", orgID, ids).
-		Order("id ASC").
-		Find(&items).Error; err != nil {
+	items := make([]KeywordRecord, 0, len(ids))
+	if err := r.keywordQuery(ctx, orgID).
+		Where("k.id IN ?", ids).
+		Order("k.id ASC").
+		Scan(&items).Error; err != nil {
 		return nil, nil, err
 	}
 
@@ -207,6 +226,25 @@ func (r *KeywordRepository) ListByIDs(ctx context.Context, orgID uint64, ids []u
 		return nil, nil, err
 	}
 	return items, scopes, nil
+}
+
+func (r *KeywordRepository) getKeyword(ctx context.Context, orgID, id uint64) (*KeywordRecord, error) {
+	var item KeywordRecord
+	if err := r.keywordQuery(ctx, orgID).Where("k.id = ?", id).Take(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrKeywordNotFound
+		}
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *KeywordRepository) keywordQuery(ctx context.Context, orgID uint64) *gorm.DB {
+	return r.db.WithContext(ctx).
+		Table("xt_article_inspect_keywords AS k").
+		Select("k.*, c.name AS category_name").
+		Joins("JOIN xt_article_inspect_categories AS c ON c.orgid = k.orgid AND c.id = k.category_id").
+		Where("k.orgid = ?", orgID)
 }
 
 func (r *KeywordRepository) listScopes(ctx context.Context, orgID uint64, keywordIDs []uint64) (map[uint64][]InspectionKeywordScope, error) {
@@ -227,4 +265,21 @@ func (r *KeywordRepository) listScopes(ctx context.Context, orgID uint64, keywor
 		result[scope.KeywordID] = append(result[scope.KeywordID], scope)
 	}
 	return result, nil
+}
+
+func ensureKeywordCategoryExists(tx *gorm.DB, orgID, categoryID uint64) error {
+	if orgID == 0 || categoryID == 0 {
+		return ErrInvalidKeywordInput
+	}
+
+	var count int64
+	if err := tx.Model(&InspectionCategory{}).
+		Where("orgid = ? AND id = ?", orgID, categoryID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrInvalidKeywordInput
+	}
+	return nil
 }

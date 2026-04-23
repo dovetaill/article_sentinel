@@ -9,7 +9,7 @@ import (
 type normalizedKeywordInput struct {
 	orgID         uint64
 	name          string
-	category      string
+	categoryID    uint64
 	matchType     string
 	riskLevel     string
 	suggestAction string
@@ -28,9 +28,8 @@ func normalizeCreateKeywordInput(input CreateKeywordInput) (*normalizedKeywordIn
 		return nil, fmt.Errorf("%w: name is required", ErrInvalidKeywordInput)
 	}
 
-	category := strings.TrimSpace(input.Category)
-	if category == "" {
-		return nil, fmt.Errorf("%w: category is required", ErrInvalidKeywordInput)
+	if input.CategoryID == 0 {
+		return nil, fmt.Errorf("%w: category_id is required", ErrInvalidKeywordInput)
 	}
 
 	matchType := strings.TrimSpace(strings.ToLower(input.MatchType))
@@ -56,7 +55,7 @@ func normalizeCreateKeywordInput(input CreateKeywordInput) (*normalizedKeywordIn
 	return &normalizedKeywordInput{
 		orgID:         input.OrgID,
 		name:          name,
-		category:      category,
+		categoryID:    input.CategoryID,
 		matchType:     matchType,
 		riskLevel:     riskLevel,
 		suggestAction: suggestAction,
