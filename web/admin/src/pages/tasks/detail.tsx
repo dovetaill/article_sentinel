@@ -1,0 +1,231 @@
+import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
+
+import { PageHeader } from '../../components/ui/page-header';
+import { SectionCard } from '../../components/ui/section-card';
+import { StatusBadge } from '../../components/ui/status-badge';
+import { SummaryCard } from '../../components/ui/summary-card';
+import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
+import { listResults, type ResultRecord } from '../../services/results';
+import { getTaskDetail, type TaskRecord } from '../../services/tasks';
+
+const { Paragraph, Text } = Typography;
+
+function formatSnapshot(snapshot: string | undefined, fallback: string) {
+  if (!snapshot) {
+    return fallback;
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(snapshot), null, 2);
+  } catch {
+    return snapshot;
+  }
+}
+
+function taskStatusLabel(status: string | undefined) {
+  if (status === 'running') return '执行中';
+  if (status === 'success') return '已完成';
+  if (status === 'failed') return '执行失败';
+  return status || '-';
+}
+
+export default function TaskDetailPage() {
+  const { taskId } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState<TaskRecord | null>(null);
+  const [results, setResults] = useState<ResultRecord[]>([]);
+  const [logs, setLogs] = useState<OperationLogRecord[]>([]);
+
+  useEffect(() => {
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    void Promise.all([
+      getTaskDetail(Number(taskId), 100),
+      listResults({ orgid: 100, task_id: Number(taskId), page: 1, pageSize: 20 }),
+      listOperationLogs({ orgid: 100, task_id: Number(taskId), page: 1, pageSize: 20 })
+    ])
+      .then(([taskDetail, resultList, logList]) => {
+        setTask(taskDetail);
+        setResults(resultList.items);
+        setLogs(logList.items);
+      })
+      .catch(() => {
+        setTask(null);
+        setResults([]);
+        setLogs([]);
+      })
+      .finally(() => setLoading(false));
+  }, [taskId]);
+
+  const metrics = useMemo(() => {
+    if (!task) {
+      return [];
+    }
+
+    return [
+      { label: '任务编号', value: task.task_no, helper: '当前巡检批次编号' },
+      { label: '执行状态', value: taskStatusLabel(task.status), helper: '任务当前执行进度' },
+      { label: '已扫描数量', value: task.total_scanned ?? 0, helper: '当前任务已扫描文章数' },
+      { label: '命中结果', value: `${task.hit_articles ?? 0} / ${task.hit_count ?? 0}`, helper: '命中文稿数 / 命中次数' }
+    ];
+  }, [task]);
+
+  const tabItems = useMemo(
+    () => [
+      {
+        key: 'results',
+        label: '命中结果',
+        children: results.length ? (
+          <List
+            className="detail-list"
+            dataSource={results}
+            renderItem={(item) => (
+              <List.Item>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <a className="detail-list__title" href={`/articles/${item.article_id}`}>{item.article_title}</a>
+                  <Space size={8} wrap>
+                    <StatusBadge kind="risk" value={item.risk_level} />
+                    <Text type="secondary">命中 {item.hit_count} 次</Text>
+                    <Text type="secondary">{item.disposition_status === 'pending' ? '待处置' : '已处置'}</Text>
+                  </Space>
+                  <Paragraph className="detail-list__meta">{item.snippet || '暂无命中片段。'}</Paragraph>
+                </Space>
+              </List.Item>
+            )}
+          />
+        ) : <Empty description="当前任务暂无命中结果。" />
+      },
+      {
+        key: 'rule-snapshot',
+        label: '规则快照',
+        children: <pre className="detail-code-block">{formatSnapshot(task?.rule_snapshot, '暂无规则快照。')}</pre>
+      },
+      {
+        key: 'request-snapshot',
+        label: '请求快照',
+        children: <pre className="detail-code-block">{formatSnapshot(task?.request_snapshot, '暂无请求快照。')}</pre>
+      },
+      {
+        key: 'logs',
+        label: '关联日志',
+        children: logs.length ? (
+          <List
+            className="detail-list"
+            dataSource={logs}
+            renderItem={(item) => (
+              <List.Item>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Text strong>{item.summary}</Text>
+                  <Text type="secondary">
+                    {item.operator_name || '未知操作人'} · {item.created_at || '-'}
+                  </Text>
+                  <Text type="secondary">
+                    {item.before_state || '-'} → {item.after_state || '-'}
+                  </Text>
+                </Space>
+              </List.Item>
+            )}
+          />
+        ) : <Empty description="当前任务暂无关联日志。" />
+      }
+    ],
+    [logs, results, task?.request_snapshot, task?.rule_snapshot],
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="任务详情"
+        description="集中查看任务配置、命中结果与关联日志。"
+        extra={(
+          <Space wrap>
+            <Button href="/tasks">返回任务列表</Button>
+            <Button type="primary" href="/results">
+              查看风险结果
+            </Button>
+          </Space>
+        )}
+      />
+
+      {loading ? (
+        <SectionCard title="任务详情" description="正在加载当前任务的执行信息。">
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <Spin />
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {!loading && !task ? (
+        <SectionCard title="任务详情" description="未返回可展示的任务内容。">
+          <Empty description="未查询到该任务的详细记录。" />
+        </SectionCard>
+      ) : null}
+
+      {!loading && task ? (
+        <>
+          <div className="summary-card-grid">
+            {metrics.map((item) => (
+              <SummaryCard key={item.label} label={item.label} value={item.value} helper={item.helper} />
+            ))}
+          </div>
+
+          <div className="detail-workspace">
+            <SectionCard title={task.task_no} description="查看当前批次的规则快照、执行摘要与命中概况。">
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Space wrap>
+                  <StatusBadge kind="task" value={task.status} />
+                  <span className="status-badge status-badge--neutral">{task.hit_articles ?? 0} 篇命中文稿</span>
+                </Space>
+
+                <Descriptions column={1} size="small">
+                  <Descriptions.Item label="任务编号">{task.task_no}</Descriptions.Item>
+                  <Descriptions.Item label="创建人">{task.creator_name || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="创建时间">{task.created_at || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="执行摘要">
+                    已扫描 {task.total_scanned ?? 0} 篇文章，累计命中 {task.hit_count ?? 0} 次。
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
+            </SectionCard>
+
+            <div className="detail-workspace__side">
+              <SectionCard title="当前状态" description="帮助快速判断这批任务是否还需要继续跟进。">
+                <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                  <Text>执行状态：{taskStatusLabel(task.status)}</Text>
+                  <Text>命中文稿：{task.hit_articles ?? 0} 篇</Text>
+                  <Text>命中次数：{task.hit_count ?? 0} 次</Text>
+                  <Text>最近关联日志：{logs[0]?.summary || '暂无记录'}</Text>
+                </Space>
+              </SectionCard>
+
+              <SectionCard title="快捷入口" description="继续进入稿件和结果工作台。">
+                <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                  <Button href="/results">前往风险结果</Button>
+                  <Button href="/articles">前往文稿列表</Button>
+                  {results[0] ? (
+                    <Button type="link" href={`/articles/${results[0].article_id}`}>
+                      查看首条命中文稿
+                    </Button>
+                  ) : (
+                    <Text type="secondary">当前暂无可跳转的命中文稿。</Text>
+                  )}
+                </Space>
+              </SectionCard>
+            </div>
+          </div>
+
+          <SectionCard title="任务记录" description="查看命中结果、规则快照、请求参数与关联日志。">
+            <Tabs defaultActiveKey="results" items={tabItems} />
+          </SectionCard>
+        </>
+      ) : null}
+    </>
+  );
+}

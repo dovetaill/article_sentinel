@@ -60,7 +60,7 @@ export default function KeywordsPage() {
       {contextHolder}
       <PageHeader
         title="关键词规则"
-        description="统一维护巡检词库、匹配方式、风险等级与建议处置，确保巡检口径稳定一致。"
+        description="统一维护规则词库、匹配方式、风险等级与建议处置。"
         extra={(
           <Button
             type="primary"
@@ -73,13 +73,14 @@ export default function KeywordsPage() {
           </Button>
         )}
       />
-      <SectionCard title="规则列表">
+      <SectionCard title="规则列表" description="统一查看当前生效规则、风险等级和适用范围。">
         <ProTable<KeywordRecord>
           rowKey="id"
           actionRef={actionRef as never}
-          search={{ labelWidth: 110 }}
+          size="small"
+          search={{ labelWidth: 88 }}
           cardBordered={false}
-          options={{ density: false, fullScreen: false }}
+          options={false}
           headerTitle={false}
           toolBarRender={false}
           request={async (params) => {

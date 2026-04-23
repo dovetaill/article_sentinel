@@ -54,6 +54,7 @@ describe('ResultsPage', () => {
 
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '风险结果' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute('href', '/articles/501');
 
     await user.click(screen.getByRole('button', { name: '本页全选' }));
     expect(screen.getByText('已选 1 项')).toBeInTheDocument();

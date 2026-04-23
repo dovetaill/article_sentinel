@@ -1,25 +1,27 @@
 :root {
-  --admin-bg-base: #f3f6fb;
+  --admin-bg-base: #f5f7fb;
   --admin-bg-canvas:
-    radial-gradient(circle at top left, rgba(47, 75, 111, 0.14), transparent 28%),
-    linear-gradient(180deg, #f8fbff 0%, #f3f6fb 46%, #eef3f9 100%);
-  --admin-surface-1: rgba(255, 255, 255, 0.94);
-  --admin-surface-2: rgba(246, 249, 253, 0.98);
-  --admin-ink-strong: #1f2937;
-  --admin-ink-body: #314052;
-  --admin-ink-muted: #5f6f82;
-  --admin-line-soft: rgba(94, 118, 150, 0.16);
-  --admin-line-strong: rgba(47, 75, 111, 0.24);
-  --admin-accent: #2f4b6f;
-  --admin-accent-soft: rgba(47, 75, 111, 0.1);
-  --admin-gold: #9a6a2f;
-  --admin-success: #3b6c5f;
-  --admin-warning: #9a6a2f;
-  --admin-danger: #b33a3a;
-  --admin-shadow-lg: 0 24px 60px rgba(29, 45, 66, 0.12);
-  --admin-shadow-md: 0 16px 36px rgba(29, 45, 66, 0.08);
+    radial-gradient(circle at top left, rgba(124, 140, 168, 0.12), transparent 22%),
+    linear-gradient(180deg, #f8fafc 0%, #f5f7fb 100%);
+  --admin-surface-1: rgba(255, 255, 255, 0.98);
+  --admin-surface-2: rgba(248, 250, 252, 0.96);
+  --admin-surface-3: rgba(243, 246, 250, 0.9);
+  --admin-ink-strong: #111827;
+  --admin-ink-body: #334155;
+  --admin-ink-muted: #64748b;
+  --admin-line-soft: rgba(148, 163, 184, 0.24);
+  --admin-line-strong: rgba(100, 116, 139, 0.32);
+  --admin-accent: #2f5dba;
+  --admin-accent-soft: rgba(47, 93, 186, 0.1);
+  --admin-success: #0f766e;
+  --admin-warning: #b45309;
+  --admin-danger: #b42318;
+  --admin-shadow-lg: 0 22px 48px rgba(15, 23, 42, 0.08);
+  --admin-shadow-md: 0 12px 30px rgba(15, 23, 42, 0.06);
+  --admin-shadow-sm: 0 8px 18px rgba(15, 23, 42, 0.04);
   --admin-radius-xl: 24px;
   --admin-radius-lg: 18px;
   --admin-radius-md: 14px;
+  --admin-radius-sm: 10px;
   --admin-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }

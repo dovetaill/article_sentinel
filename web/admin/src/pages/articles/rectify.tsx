@@ -94,11 +94,16 @@ export default function RectifyPage() {
       <PageHeader
         title="内容整改"
         description="对命中文稿进行标题、摘要与正文修订，保存后可继续调整，也可直接提交复核进入后续处置流程。"
-        extra={<Text type="secondary">整改稿件：{articleId ? `#${articleId}` : '未识别'}</Text>}
+        extra={(
+          <Space wrap>
+            <Button href={`/articles/${articleId ?? ''}`}>返回文稿详情</Button>
+            <Text type="secondary">整改稿件：{articleId ? `#${articleId}` : '未识别'}</Text>
+          </Space>
+        )}
       />
 
       {loading ? (
-        <SectionCard title="整改载入中">
+        <SectionCard title="整改载入中" description="正在读取稿件原文与当前整改版本。">
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />
           </div>
@@ -114,7 +119,7 @@ export default function RectifyPage() {
           </div>
 
           <div className="rectify-layout">
-            <SectionCard title="整改内容">
+            <SectionCard title="整改内容" description="在保留事实准确性的前提下完成风险修订。">
               <div className="rectify-form">
                 <Paragraph className="rectify-form__intro">
                   请在保持稿件主旨准确的前提下，对存在风险的标题、摘要与正文进行审慎修订，避免再次触发同类规则。
@@ -153,7 +158,7 @@ export default function RectifyPage() {
             </SectionCard>
 
             <div className="rectify-layout__side">
-              <SectionCard title="原稿对照">
+              <SectionCard title="原稿对照" description="对照原始标题、摘要与正文，确保修改范围可控。">
                 <div className="rectify-reference">
                   <div className="rectify-reference__item">
                     <span className="rectify-reference__label">原标题</span>
@@ -170,7 +175,7 @@ export default function RectifyPage() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="办理提示">
+              <SectionCard title="办理提示" description="按当前处置流程完成暂存或提交复核。">
                 <div className="rectify-notes">
                   <div>
                     <Title level={5}>处置原则</Title>
@@ -192,7 +197,7 @@ export default function RectifyPage() {
       ) : null}
 
       {!loading && !record ? (
-        <SectionCard title="未获取到整改信息">
+        <SectionCard title="未获取到整改信息" description="当前稿件未返回可编辑内容。">
           <Empty description="当前文章暂无可用整改内容，请返回结果列表重新进入。" />
         </SectionCard>
       ) : null}

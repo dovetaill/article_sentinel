@@ -6,6 +6,7 @@ export interface ResultRecord {
   task_id: number;
   article_id: number;
   article_title: string;
+  article_state?: number;
   risk_level: string;
   suggest_action: string;
   disposition_status: string;

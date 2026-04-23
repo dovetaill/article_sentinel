@@ -48,6 +48,8 @@ describe('LogsPage', () => {
 
     expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '操作日志' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '#501' })).toHaveAttribute('href', '/articles/501');
+    expect(screen.getByRole('link', { name: '#77' })).toHaveAttribute('href', '/tasks/77');
 
     await user.clear(screen.getByLabelText('文章编号'));
     await user.type(screen.getByLabelText('文章编号'), '501');

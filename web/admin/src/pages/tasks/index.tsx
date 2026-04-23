@@ -1,19 +1,23 @@
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Drawer, Space, Typography } from 'antd';
+import { Button, Input, Select } from 'antd';
 import { useMemo, useState } from 'react';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
-import { getTaskDetail, listTasks, type TaskRecord } from '../../services/tasks';
+import { ToolbarStrip } from '../../components/ui/toolbar-strip';
+import { listTasks, type TaskRecord } from '../../services/tasks';
 
-const { Paragraph, Text } = Typography;
+type Filters = {
+  task_no?: string;
+  status?: string;
+};
 
 export default function TasksPage() {
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detail, setDetail] = useState<TaskRecord | null>(null);
   const [pageRows, setPageRows] = useState<TaskRecord[]>([]);
+  const [draftFilters, setDraftFilters] = useState({ taskNo: '', status: undefined as string | undefined });
+  const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
 
   const summary = useMemo(() => {
     const running = pageRows.filter((item) => item.status === 'running').length;
@@ -32,7 +36,7 @@ export default function TasksPage() {
     <>
       <PageHeader
         title="检测任务"
-        description="统一发起巡检任务，掌握执行状态、扫描规模与命中情况，便于值守人员连续跟进。"
+        description="统一发起巡检任务，查看执行状态、扫描规模与命中情况。"
         extra={(
           <Button key="new-task" type="primary" href="/tasks/new">
             新建任务
@@ -47,19 +51,73 @@ export default function TasksPage() {
         <SummaryCard label="命中总量" value={summary.hits} helper="当前分页累计命中次数" />
       </div>
 
-      <SectionCard title="任务列表">
+      <SectionCard title="任务列表" description="按任务编号与执行状态浏览当前批次。">
+        <ToolbarStrip>
+          <div className="toolbar-strip__group">
+            <div className="toolbar-strip__controls">
+              <Input
+                aria-label="任务编号"
+                className="toolbar-strip__control"
+                placeholder="任务编号 / inspect-20260420-01"
+                value={draftFilters.taskNo}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, taskNo: event.target.value }))}
+              />
+              <Select
+                allowClear
+                aria-label="执行状态"
+                className="toolbar-strip__control toolbar-strip__control--select"
+                placeholder="执行状态"
+                value={draftFilters.status}
+                options={[
+                  { label: '执行中', value: 'running' },
+                  { label: '已完成', value: 'success' },
+                  { label: '执行失败', value: 'failed' }
+                ]}
+                onChange={(value) => setDraftFilters((current) => ({ ...current, status: value }))}
+              />
+            </div>
+            <span className="toolbar-strip__meta">更快筛出进行中的批次或定位单个任务编号。</span>
+          </div>
+
+          <div className="toolbar-strip__actions">
+            <Button
+              onClick={() => {
+                setDraftFilters({ taskNo: '', status: undefined });
+                setSubmittedFilters({});
+              }}
+            >
+              重置
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setSubmittedFilters({
+                  task_no: draftFilters.taskNo || undefined,
+                  status: draftFilters.status
+                });
+              }}
+            >
+              查询任务
+            </Button>
+          </div>
+        </ToolbarStrip>
+
         <ProTable<TaskRecord>
           rowKey="id"
           cardBordered={false}
           headerTitle={false}
+          size="small"
           search={false}
-          options={{ density: false, fullScreen: false }}
+          params={submittedFilters}
+          options={false}
           toolBarRender={false}
           request={async (params) => {
             const result = await listTasks({
               orgid: 100,
               page: params.current,
-              pageSize: params.pageSize
+              pageSize: params.pageSize,
+              task_no: submittedFilters.task_no,
+              status: submittedFilters.status
             });
             setPageRows(result.items);
 
@@ -87,15 +145,7 @@ export default function TasksPage() {
               title: '操作',
               valueType: 'option',
               render: (_, record) => [
-                <Button
-                  key="detail"
-                  type="link"
-                  onClick={async () => {
-                    const task = await getTaskDetail(record.id, record.orgid);
-                    setDetail(task);
-                    setDetailOpen(true);
-                  }}
-                >
+                <Button key="detail" type="link" href={`/tasks/${record.id}`}>
                   查看详情
                 </Button>
               ]
@@ -103,22 +153,6 @@ export default function TasksPage() {
           ]}
         />
       </SectionCard>
-
-      <Drawer
-        title="任务详情"
-        open={detailOpen}
-        width={520}
-        onClose={() => setDetailOpen(false)}
-      >
-        {detail ? (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <Text strong>{detail.task_no}</Text>
-            <StatusBadge kind="task" value={detail.status} />
-            <Paragraph>{detail.rule_snapshot || '当前暂无规则快照。'}</Paragraph>
-            <Paragraph type="secondary">发起人：{detail.creator_name || '未知'}</Paragraph>
-          </Space>
-        ) : null}
-      </Drawer>
     </>
   );
 }

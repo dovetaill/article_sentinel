@@ -7,7 +7,6 @@ import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
-import ResultDetailDrawer from './detail';
 import { batchOfflineResults, listResults, type ResultRecord } from '../../services/results';
 
 type ActionRef = {
@@ -39,8 +38,6 @@ export default function ResultsPage() {
   const [pageRows, setPageRows] = useState<ResultRecord[]>([]);
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
-  const [detailResultId, setDetailResultId] = useState<number>();
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
@@ -63,7 +60,7 @@ export default function ResultsPage() {
       {contextHolder}
       <PageHeader
         title="风险结果"
-        description="集中查看命中文稿、风险等级与处置状态，支持值守人员按批次完成研判、下线与整改。"
+        description="集中查看命中文稿、风险等级与处置状态，按批次完成研判、下线与整改。"
       />
 
       <div className="summary-card-grid">
@@ -73,7 +70,7 @@ export default function ResultsPage() {
         <SummaryCard label="命中总量" value={summary.hitCount} helper="当前分页累计命中次数" />
       </div>
 
-      <SectionCard title="结果列表">
+      <SectionCard title="结果列表" description="按当前筛选条件查看命中文稿并执行批量处置。">
         <ToolbarStrip>
           <Text>已选 {selectedCount} 项</Text>
           <div className="toolbar-strip__actions">
@@ -99,9 +96,10 @@ export default function ResultsPage() {
           rowKey="id"
           actionRef={actionRef as never}
           cardBordered={false}
+          size="small"
           search={false}
           headerTitle={false}
-          options={{ density: false, fullScreen: false }}
+          options={false}
           toolBarRender={false}
           rowSelection={{
             selectedRowKeys: selectedResultIds,
@@ -121,7 +119,11 @@ export default function ResultsPage() {
             };
           }}
           columns={[
-            { title: '文章标题', dataIndex: 'article_title' },
+            {
+              title: '文章标题',
+              dataIndex: 'article_title',
+              render: (_, record) => <a href={`/articles/${record.article_id}`}>{record.article_title}</a>
+            },
             {
               title: '风险等级',
               dataIndex: 'risk_level',
@@ -146,14 +148,7 @@ export default function ResultsPage() {
               title: '操作',
               valueType: 'option',
               render: (_, record) => [
-                <Button
-                  key="detail"
-                  type="link"
-                  onClick={() => {
-                    setDetailResultId(record.id);
-                    setDetailOpen(true);
-                  }}
-                >
+                <Button key="detail" type="link" href={`/articles/${record.article_id}`}>
                   查看详情
                 </Button>,
                 <Button key="offline" type="link" danger onClick={() => setConfirmIds([record.id])}>
@@ -188,13 +183,6 @@ export default function ResultsPage() {
       >
         <p>确认对 {confirmIds.length} 篇文章执行下线处置？</p>
       </Modal>
-
-      <ResultDetailDrawer
-        open={detailOpen}
-        resultId={detailResultId}
-        orgid={100}
-        onClose={() => setDetailOpen(false)}
-      />
     </>
   );
 }

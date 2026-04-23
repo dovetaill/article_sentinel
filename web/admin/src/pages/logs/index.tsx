@@ -1,5 +1,5 @@
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Input, Modal, Space } from 'antd';
+import { Button, Input, Modal } from 'antd';
 import { useState } from 'react';
 
 import { PageHeader } from '../../components/ui/page-header';
@@ -22,52 +22,70 @@ export default function LogsPage() {
     <>
       <PageHeader
         title="操作日志"
-        description="查询任务执行、结果处置与请求快照，保留关键留痕信息，便于后续复盘与审计。"
+        description="查询任务执行、结果处置与请求快照。"
       />
 
-      <SectionCard title="日志检索">
+      <SectionCard title="日志检索" description="按稿件、任务和操作人回看关键记录。">
         <ToolbarStrip>
-          <Space wrap>
-            <Input
-              aria-label="文章编号"
-              placeholder="文章编号"
-              value={draftFilters.articleId}
-              onChange={(event) => setDraftFilters((current) => ({ ...current, articleId: event.target.value }))}
-            />
-            <Input
-              aria-label="任务编号"
-              placeholder="任务编号"
-              value={draftFilters.taskId}
-              onChange={(event) => setDraftFilters((current) => ({ ...current, taskId: event.target.value }))}
-            />
-            <Input
-              aria-label="操作人"
-              placeholder="操作人"
-              value={draftFilters.operator}
-              onChange={(event) => setDraftFilters((current) => ({ ...current, operator: event.target.value }))}
-            />
-          </Space>
-          <Button
-            type="primary"
-            onClick={() => {
-              setSubmittedFilters({
-                article_id: draftFilters.articleId ? Number(draftFilters.articleId) : undefined,
-                task_id: draftFilters.taskId ? Number(draftFilters.taskId) : undefined,
-                operator_name: draftFilters.operator || undefined
-              });
-            }}
-          >
-            查询日志
-          </Button>
+          <div className="toolbar-strip__group">
+            <div className="toolbar-strip__controls">
+              <Input
+                aria-label="文章编号"
+                className="toolbar-strip__control"
+                placeholder="文章编号"
+                value={draftFilters.articleId}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, articleId: event.target.value }))}
+              />
+              <Input
+                aria-label="任务编号"
+                className="toolbar-strip__control"
+                placeholder="任务编号"
+                value={draftFilters.taskId}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, taskId: event.target.value }))}
+              />
+              <Input
+                aria-label="操作人"
+                className="toolbar-strip__control"
+                placeholder="操作人"
+                value={draftFilters.operator}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, operator: event.target.value }))}
+              />
+            </div>
+            <span className="toolbar-strip__meta">快速串联任务、文章与操作人三个维度的记录。</span>
+          </div>
+
+          <div className="toolbar-strip__actions">
+            <Button
+              onClick={() => {
+                setDraftFilters({ articleId: '', taskId: '', operator: '' });
+                setSubmittedFilters({});
+              }}
+            >
+              重置
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setSubmittedFilters({
+                  article_id: draftFilters.articleId ? Number(draftFilters.articleId) : undefined,
+                  task_id: draftFilters.taskId ? Number(draftFilters.taskId) : undefined,
+                  operator_name: draftFilters.operator || undefined
+                });
+              }}
+            >
+              查询日志
+            </Button>
+          </div>
         </ToolbarStrip>
 
         <ProTable<OperationLogRecord>
           rowKey="id"
           cardBordered={false}
+          size="small"
           search={false}
           params={submittedFilters}
           headerTitle={false}
-          options={{ density: false, fullScreen: false }}
+          options={false}
           toolBarRender={false}
           request={async (params) => {
             const result = await listOperationLogs({
@@ -85,8 +103,16 @@ export default function LogsPage() {
             };
           }}
           columns={[
-            { title: '文章编号', dataIndex: 'article_id' },
-            { title: '任务编号', dataIndex: 'task_id' },
+            {
+              title: '文章编号',
+              dataIndex: 'article_id',
+              render: (_, record) => record.article_id ? <a href={`/articles/${record.article_id}`}>#{record.article_id}</a> : '-'
+            },
+            {
+              title: '任务编号',
+              dataIndex: 'task_id',
+              render: (_, record) => record.task_id ? <a href={`/tasks/${record.task_id}`}>#{record.task_id}</a> : '-'
+            },
             { title: '操作类型', dataIndex: 'operation_type' },
             {
               title: '状态流转',
@@ -110,7 +136,7 @@ export default function LogsPage() {
       </SectionCard>
 
       <Modal open={Boolean(activeSnapshot)} footer={null} title="请求快照" onCancel={() => setActiveSnapshot(null)}>
-        <pre>{activeSnapshot?.request_snapshot || '暂无请求快照。'}</pre>
+        <pre className="detail-code-block">{activeSnapshot?.request_snapshot || '暂无请求快照。'}</pre>
       </Modal>
     </>
   );

@@ -1,10 +1,10 @@
 import { ConfigProvider } from 'antd';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TasksPage from './index';
-import { getTaskDetail, listTasks } from '../../services/tasks';
+import { listTasks } from '../../services/tasks';
 
 vi.mock('../../services/tasks', () => ({
   listTasks: vi.fn(),
@@ -13,7 +13,6 @@ vi.mock('../../services/tasks', () => ({
 }));
 
 const mockedListTasks = vi.mocked(listTasks);
-const mockedGetTaskDetail = vi.mocked(getTaskDetail);
 
 describe('TasksPage', () => {
   beforeEach(() => {
@@ -36,21 +35,14 @@ describe('TasksPage', () => {
         }
       ]
     });
-    mockedGetTaskDetail.mockResolvedValue({
-      id: 77,
-      task_no: 'inspect-20260420-01',
-      status: 'running',
-      creator_name: 'operator',
-      rule_snapshot: 'spam keyword'
-    } as never);
   });
 
-  it('renders task status tags and detail action', async () => {
-    const user = userEvent.setup();
-
+  it('renders task status tags and routes detail action to the full detail page', async () => {
     render(
       <ConfigProvider>
-        <TasksPage />
+        <MemoryRouter>
+          <TasksPage />
+        </MemoryRouter>
       </ConfigProvider>,
     );
 
@@ -58,8 +50,7 @@ describe('TasksPage', () => {
     expect(screen.getByRole('heading', { name: '检测任务' })).toBeInTheDocument();
     expect(screen.getAllByText('执行中').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '新建任务' })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: '查看详情' }));
-    expect(await screen.findByText(/spam keyword/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/tasks/77');
+    expect(screen.queryByText(/spam keyword/i)).not.toBeInTheDocument();
   });
 });

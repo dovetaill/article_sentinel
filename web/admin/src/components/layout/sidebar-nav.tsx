@@ -24,15 +24,15 @@ export function SidebarNav({ routes }: SidebarNavProps) {
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">
-        <span className="admin-sidebar__brand-badge">RM</span>
-        <div>
+        <span className="admin-sidebar__brand-badge">AS</span>
+        <div className="admin-sidebar__brand-copy">
           <p className="admin-sidebar__eyebrow">融媒内容安全巡检平台</p>
-          <h1>后台管理</h1>
+          <h1>巡检控制台</h1>
         </div>
       </div>
 
       <div className="admin-sidebar__section">
-        <p className="admin-sidebar__section-title">业务导航</p>
+        <p className="admin-sidebar__section-title">主导航</p>
         <nav className="admin-sidebar__nav" aria-label="主导航">
           {routes.map((route) => (
             <NavLink
@@ -45,10 +45,6 @@ export function SidebarNav({ routes }: SidebarNavProps) {
             </NavLink>
           ))}
         </nav>
-      </div>
-
-      <div className="admin-sidebar__footer">
-        <p>适用于政府融媒体机构内容巡检与规范处置场景。</p>
       </div>
     </aside>
   );

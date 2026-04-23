@@ -42,10 +42,11 @@ export default function NewTaskPage() {
       <PageHeader
         title="新建检测任务"
         description="设置巡检范围、关键词条件与筛选口径，发起后将按异步任务方式执行。"
+        extra={<Button href="/tasks">返回任务列表</Button>}
       />
 
       <div className="task-form-layout">
-        <SectionCard title="任务配置">
+        <SectionCard title="任务配置" description="填写巡检条件后即可发起一次新的异步扫描。">
           <ProForm
             submitter={false}
             onFinish={async () => {
@@ -107,7 +108,7 @@ export default function NewTaskPage() {
           </ProForm>
         </SectionCard>
 
-        <SectionCard title="执行提示">
+        <SectionCard title="执行提示" description="结合当前班次安排合理设置扫描范围。">
           <div className="task-form-layout__tips">
             <div>
               <Title level={5}>任务说明</Title>
@@ -118,8 +119,8 @@ export default function NewTaskPage() {
               <Paragraph>如需精准定位，请同时设置关键词范围、时间区间与文章编号，避免误扫无关内容。</Paragraph>
             </div>
             <div>
-              <Title level={5}>值守建议</Title>
-              <Paragraph>任务提交后请及时返回“检测任务”页查看执行进展，并在“风险结果”页完成处置闭环。</Paragraph>
+              <Title level={5}>处理建议</Title>
+              <Paragraph>任务提交后可返回“检测任务”页查看执行进展，并在“风险结果”页继续后续处置。</Paragraph>
             </div>
           </div>
         </SectionCard>
