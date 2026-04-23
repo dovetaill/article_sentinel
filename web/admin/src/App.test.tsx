@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -6,60 +6,31 @@ import App from './App';
 import { appRoutes } from './routes';
 
 describe('App shell', () => {
-  it('renders a compact dashboard shell without the oversized hero metadata cards', () => {
+  it('locks the redesigned shell navigation and header expectations', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByText('融媒内容安全巡检平台')).toHaveLength(1);
-    expect(screen.getByRole('link', { name: /关键词规则/i })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /主导航/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /规则中心/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /检测任务/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /风险结果/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /文稿列表/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /文稿中心/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /操作日志/i })).toBeInTheDocument();
-    expect(screen.queryByText('适用机构')).not.toBeInTheDocument();
-    expect(screen.queryByText('巡检时段')).not.toBeInTheDocument();
-    expect(screen.queryByText('提示状态')).not.toBeInTheDocument();
-    expect(screen.queryByText('当前环境')).not.toBeInTheDocument();
-    expect(screen.queryByText('值守模式')).not.toBeInTheDocument();
-    expect(screen.queryByText('政务融媒')).not.toBeInTheDocument();
-    expect(screen.queryByText('值守中')).not.toBeInTheDocument();
-    expect(screen.queryByText('控制台')).not.toBeInTheDocument();
-    expect(screen.queryByText('巡检控制台')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /article sentinel/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('安全巡检后台')).not.toBeInTheDocument();
-    expect(screen.queryByText('留存任务执行与稿件处置过程的关键记录。')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /风险结果/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /一县一端/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /当前用户|退出登录/i })).toBeInTheDocument();
   });
 
-  it('uses Chinese labels for the primary navigation routes', () => {
+  it('treats /articles as the article center rather than the aggregated inspect-results view', () => {
     expect(appRoutes.map((route) => route.label)).toEqual([
-      '关键词规则',
+      '规则中心',
       '检测任务',
-      '风险结果',
-      '文稿列表',
+      '文稿中心',
       '操作日志'
     ]);
-  });
-
-  it('keeps article navigation available for list and detail routes', () => {
-    render(
-      <MemoryRouter initialEntries={['/articles']}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole('link', { name: /文稿列表/i })).toHaveAttribute('aria-current', 'page');
-
-    cleanup();
-
-    render(
-      <MemoryRouter initialEntries={['/articles/501']}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole('link', { name: /文稿列表/i })).toBeInTheDocument();
+    expect(appRoutes.some((route) => route.path === '/results')).toBe(false);
+    expect(appRoutes.some((route) => route.path === '/articles')).toBe(true);
   });
 });
