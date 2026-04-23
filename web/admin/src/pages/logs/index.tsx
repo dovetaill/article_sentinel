@@ -2,7 +2,6 @@ import { ProTable } from '@ant-design/pro-components';
 import { Button, Input, Modal } from 'antd';
 import { useState } from 'react';
 
-import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
@@ -20,11 +19,6 @@ export default function LogsPage() {
 
   return (
     <>
-      <PageHeader
-        title="操作日志"
-        description="查询任务执行、结果处置与请求快照。"
-      />
-
       <SectionCard title="日志检索" description="按稿件、任务和操作人回看关键记录。">
         <ToolbarStrip>
           <div className="toolbar-strip__group">

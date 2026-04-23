@@ -2,7 +2,6 @@ import { ProTable } from '@ant-design/pro-components';
 import { Button, Modal, Typography, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 
-import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
@@ -58,11 +57,6 @@ export default function ResultsPage() {
   return (
     <>
       {contextHolder}
-      <PageHeader
-        title="风险结果"
-        description="集中查看命中文稿、风险等级与处置状态，按批次完成研判、下线与整改。"
-      />
-
       <div className="summary-card-grid">
         <SummaryCard label="本页结果数" value={summary.total} helper="当前分页已加载记录数量" />
         <SummaryCard label="高风险" value={summary.highRisk} helper="需优先复核的记录数" />

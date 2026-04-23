@@ -2,7 +2,6 @@ import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '
 import { Button, Space, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 
-import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import {
@@ -58,9 +57,9 @@ export default function KeywordsPage() {
   return (
     <>
       {contextHolder}
-      <PageHeader
-        title="关键词规则"
-        description="统一维护规则词库、匹配方式、风险等级与建议处置。"
+      <SectionCard
+        title="规则列表"
+        description="统一查看当前生效规则、风险等级和适用范围。"
         extra={(
           <Button
             type="primary"
@@ -72,8 +71,7 @@ export default function KeywordsPage() {
             新增规则
           </Button>
         )}
-      />
-      <SectionCard title="规则列表" description="统一查看当前生效规则、风险等级和适用范围。">
+      >
         <ProTable<KeywordRecord>
           rowKey="id"
           actionRef={actionRef as never}

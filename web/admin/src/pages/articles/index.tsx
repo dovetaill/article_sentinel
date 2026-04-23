@@ -1,7 +1,6 @@
 import { Button, Empty, Spin, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 
-import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { listArticles, type ArticleListItem } from '../../services/articles';
@@ -34,11 +33,6 @@ export default function ArticlesPage() {
 
   return (
     <>
-      <PageHeader
-        title="文稿列表"
-        description="按稿件维度查看巡检命中、处置状态与最近任务，便于持续跟进单篇稿件。"
-      />
-
       <SectionCard title="巡检稿件" description="基于现有巡检结果聚合出的稿件工作台视图。">
         {loading ? (
           <div style={{ padding: '32px 0', textAlign: 'center' }}>

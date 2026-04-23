@@ -2,7 +2,6 @@ import { ProTable } from '@ant-design/pro-components';
 import { Button, Input, Select } from 'antd';
 import { useMemo, useState } from 'react';
 
-import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
@@ -34,16 +33,6 @@ export default function TasksPage() {
 
   return (
     <>
-      <PageHeader
-        title="检测任务"
-        description="统一发起巡检任务，查看执行状态、扫描规模与命中情况。"
-        extra={(
-          <Button key="new-task" type="primary" href="/tasks/new">
-            新建任务
-          </Button>
-        )}
-      />
-
       <div className="summary-card-grid">
         <SummaryCard label="本页任务数" value={summary.total} helper="当前分页已加载任务数量" />
         <SummaryCard label="执行中" value={summary.running} helper="仍在巡检中的任务" />
@@ -51,7 +40,15 @@ export default function TasksPage() {
         <SummaryCard label="命中总量" value={summary.hits} helper="当前分页累计命中次数" />
       </div>
 
-      <SectionCard title="任务列表" description="按任务编号与执行状态浏览当前批次。">
+      <SectionCard
+        title="任务列表"
+        description="按任务编号与执行状态浏览当前批次。"
+        extra={(
+          <Button key="new-task" type="primary" href="/tasks/new">
+            新建任务
+          </Button>
+        )}
+      >
         <ToolbarStrip>
           <div className="toolbar-strip__group">
             <div className="toolbar-strip__controls">
