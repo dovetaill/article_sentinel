@@ -29,7 +29,8 @@ describe('admin visual tokens', () => {
   it('compresses shell rhythm and summary density toward the reference layout', () => {
     expect(layoutCss).toContain('width: 34px;');
     expect(layoutCss).toContain('height: 34px;');
-    expect(layoutCss).toContain('.admin-topbar {\n  display: flex;\n  gap: 12px;');
+    expect(layoutCss).not.toContain('.admin-topbar {');
+    expect(layoutCss).toContain('.admin-shell__content {\n  min-height: 100%;');
     expect(layoutCss).toContain('.summary-card {\n  padding: 12px 14px;');
   });
 

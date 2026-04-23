@@ -14,7 +14,6 @@ describe('App shell', () => {
     );
 
     expect(screen.getAllByText('融媒内容安全巡检平台')).toHaveLength(1);
-    expect(screen.getByRole('heading', { name: '关键词规则' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /关键词规则/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /检测任务/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /风险结果/i })).toBeInTheDocument();
@@ -44,14 +43,14 @@ describe('App shell', () => {
     ]);
   });
 
-  it('resolves article list and article detail as non-sidebar routes', () => {
+  it('keeps article navigation available for list and detail routes', () => {
     render(
       <MemoryRouter initialEntries={['/articles']}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole('heading', { name: '文稿列表' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /文稿列表/i })).toHaveAttribute('aria-current', 'page');
 
     cleanup();
 
@@ -61,6 +60,6 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole('heading', { name: '文稿详情' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /文稿列表/i })).toBeInTheDocument();
   });
 });

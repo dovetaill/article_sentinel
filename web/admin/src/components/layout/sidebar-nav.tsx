@@ -2,6 +2,7 @@ import {
   AlertOutlined,
   FileSearchOutlined,
   OrderedListOutlined,
+  ReadOutlined,
   SafetyCertificateOutlined
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
@@ -13,6 +14,7 @@ const routeIconMap: Record<string, ReactNode> = {
   keywords: <SafetyCertificateOutlined />,
   tasks: <OrderedListOutlined />,
   results: <AlertOutlined />,
+  articles: <ReadOutlined />,
   logs: <FileSearchOutlined />
 };
 
