@@ -106,13 +106,13 @@ func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input Update
 	}
 
 	var info ArticleInfo
-	if err := s.db.WithContext(ctx).Where("article_id = ?", input.ArticleID).First(&info).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ?", input.ArticleID).First(&info).Error; err != nil {
 		return nil, err
 	}
 
 	before := EditableArticleFields{
 		Title:      article.Title,
-		ShortTitle: article.ShortTitle,
+		ShortTitle: nullableStringToString(article.ShortTitle),
 		RichTitle:  article.RichTitle,
 		Keyword:    article.Keyword,
 		Desc:       article.Desc,
@@ -136,7 +136,7 @@ func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input Update
 			return err
 		}
 		if err := tx.Model(&ArticleInfo{}).
-			Where("article_id = ?", input.ArticleID).
+			Where("id = ?", input.ArticleID).
 			Update("body", input.Fields.Body).Error; err != nil {
 			return err
 		}

@@ -88,20 +88,25 @@ HTTP 路由统一在 `internal/api/register/router.go` 装配：
 
 当前页面：
 
-- `/keywords`: 关键词管理
+- `/rules/categories`: 规则分类
+- `/rules/keywords`: 规则管理
 - `/tasks`: 巡检任务列表
-- `/tasks/new`: 新建巡检任务
-- `/results`: 命中结果列表
+- `/tasks/new`: 新建巡检任务（按规则执行）
+- `/tasks/:taskId/results`: 单任务结果工作台
+- `/results`: 全局风险结果列表（辅助入口）
+- `/articles`: 文稿中心（独立浏览真实文稿）
+- `/articles/:articleId`: 文稿详情
 - `/articles/:articleId/rectify`: 整改编辑页
 - `/logs`: 操作日志页
 
 典型使用顺序：
 
-1. 在 `/keywords` 配置或调整规则
-2. 在 `/tasks/new` 发起巡检
-3. 在 `/results` 查看命中结果并做批量处置
-4. 在 `/articles/:articleId/rectify` 做整改
-5. 在 `/logs` 回看操作链路
+1. 在 `/rules/categories` 建立规则分类
+2. 在 `/rules/keywords` 配置具体规则
+3. 在 `/tasks/new` 选择规则并发起巡检
+4. 在 `/tasks/:taskId/results` 查看单任务结果并做批量处置
+5. 在 `/articles` 直接浏览真实文稿，必要时进入详情或整改
+6. 在 `/logs` 回看操作链路
 
 ## 目录结构
 
@@ -180,6 +185,7 @@ make up
 - MySQL `root` 会允许远程登录
 - Compose 还会自动创建一个业务账号，并授予 `MYSQL_DATABASE` 的全部权限
 - MySQL 官方镜像只会在数据目录首次初始化时应用这些账号/密码；如果你改了 `.env` 里的 MySQL 初始化参数，需要重新建卷，例如执行 `docker compose down -v`
+- `make up` 只负责启动 MySQL / Redis 容器；它不会顺带启动后端 API、worker 或前端开发服务器
 
 ### 3. 同步数据库结构
 
@@ -192,6 +198,8 @@ make migrate
 - 会通过当前注册的 GORM model 做 schema 同步
 - 一期巡检的显式 MySQL DDL 在 `migrations/20260420_01_article_inspection.sql`
 - 参考快照也放在 `ddl/xt_article_inspection.sql`
+- `make migrate` 只负责巡检业务表，不会把 `xt_article` / `xt_article_info` 重建成线上真实结构
+- 如果你要导入线上拉下来的真实文稿，必须额外执行 `ddl/xt_article.sql` 和 `ddl/xt_article_info.sql`
 
 ### 4. 启动后端 API
 
@@ -236,9 +244,61 @@ npm install
 npm run dev
 ```
 
-默认访问：`http://127.0.0.1:5173`
+默认访问：
 
-### 8. 导入 demo 数据
+- 本机：`http://127.0.0.1:5173`
+- 远程联调：`http://<server-ip>:5173`
+
+补充说明：
+
+- `web/admin/vite.config.ts` 已默认将 Vite dev server 绑定到 `0.0.0.0:5173`，方便远程联调
+- 如果公网仍然访问不到，请检查服务器防火墙、云安全组是否放行 `5173/tcp`
+- `5173` 仅建议用于开发联调；生产环境请执行 `npm run build`，并用 Nginx 或其他静态文件服务托管 `web/admin/dist`
+
+### 8. 导入真实文稿数据（推荐）
+
+如果你要让“文稿中心”直接展示线上拉下来的真实文稿，不要只导入 demo seed。推荐按下面顺序导入：
+
+建议在 `make migrate` 之后、启动 API / worker / 前端之前完成这一步。
+
+1. 先确保容器已启动：`make up`
+2. 如果之前已经用简化版本地表结构跑过环境，先重建 `xt_article` / `xt_article_info`
+3. 再导入真实数据文件：
+   - `/home/wwwroot/article_sentinel/scripts/xt_article.sql`
+   - `/home/wwwroot/article_sentinel/scripts/xt_article_info.sql`
+
+在仓库根目录执行：
+
+```bash
+set -a
+. ./.env
+set +a
+
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE IF EXISTS xt_article_info; DROP TABLE IF EXISTS xt_article; SET FOREIGN_KEY_CHECKS=1;"
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < ddl/xt_article.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < ddl/xt_article_info.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < /home/wwwroot/article_sentinel/scripts/xt_article.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < /home/wwwroot/article_sentinel/scripts/xt_article_info.sql
+```
+
+导入完成后可以快速确认行数：
+
+```bash
+set -a
+. ./.env
+set +a
+
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) AS article_count FROM xt_article; SELECT COUNT(*) AS info_count FROM xt_article_info;"
+```
+
+说明：
+
+- 这一步会直接替换本地 `xt_article` / `xt_article_info` 内容
+- `ddl/xt_article.sql`、`ddl/xt_article_info.sql` 是必须的，因为本地默认简化表结构无法直接吃下线上 dump
+- 当前代码已经按真实字段结构读取：`publish_at_time/create_at/update_at` 为时间戳，`xt_article_info.id` 直接对应文稿 ID
+- 文稿中心默认只展示在线文稿（`state=9`），更符合实际浏览场景
+
+### 9. 导入 demo 数据（可选）
 
 如果你沿用了 `.env.example` 默认值，可以直接使用 root 导入：
 
@@ -269,11 +329,152 @@ Redis 连通性示例：
 redis-cli -h 127.0.0.1 -p 6380 -a article_sentinel_redis ping
 ```
 
-### 9. 关闭依赖
+### 10. 关闭依赖
 
 ```bash
 make down
 ```
+
+## 开发环境启动顺序
+
+推荐按下面的顺序启动，本地联调最省事：
+
+### 0. 首次启动或改过密码时先确认配置
+
+```bash
+cp .env.example .env
+cp configs/config.example.yaml configs/config.local.yaml
+```
+
+然后检查两件事：
+
+- `.env` 里的 MySQL / Redis 账号、密码、端口
+- `configs/config.local.yaml` 里的 `database.mysql.*`、`redis.*` 是否和 `.env` 保持一致
+
+### 1. 如果你改过 `.env` 里的 MySQL 初始化账号或密码，先重建卷
+
+这是最容易踩坑的地方：
+
+- `.env` 只是 Compose 和 MySQL 初始化参数来源
+- MySQL 官方镜像只会在数据目录首次初始化时读取 `MYSQL_ROOT_PASSWORD`、`MYSQL_USER`、`MYSQL_PASSWORD`
+- 如果你已经执行过一次 `make up`，后来才改 `.env`，旧卷里的账号密码不会自动更新
+- 这时直接 `make dev`，就可能出现 `Access denied` 之类的报错
+
+开发环境推荐直接重建：
+
+```bash
+make down
+docker compose down -v
+make up
+```
+
+如果你不想删库，就需要用当前仍然有效的旧密码登录 MySQL，手动执行 `ALTER USER` 来更新账号密码。下面这个示例已经脱敏，按你的真实旧密码和新密码替换占位符即可：
+
+```bash
+docker compose exec -T mysql mysql -uroot -p'<current-root-password>' <<'SQL'
+ALTER USER 'root'@'%' IDENTIFIED BY '<new-root-password>';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '<new-root-password>';
+ALTER USER 'article_sentinel'@'%' IDENTIFIED BY '<new-app-password>';
+FLUSH PRIVILEGES;
+SQL
+```
+
+### 2. 启动依赖容器
+
+```bash
+make up
+```
+
+说明：
+
+- 只启动 `mysql` 和 `redis`
+- 命令会等待这两个容器健康检查通过后返回
+
+### 3. 同步数据库结构
+
+```bash
+make migrate
+```
+
+### 4. 推荐：导入真实文稿数据
+
+```bash
+set -a
+. ./.env
+set +a
+
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE IF EXISTS xt_article_info; DROP TABLE IF EXISTS xt_article; SET FOREIGN_KEY_CHECKS=1;"
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < ddl/xt_article.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < ddl/xt_article_info.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < /home/wwwroot/article_sentinel/scripts/xt_article.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" < /home/wwwroot/article_sentinel/scripts/xt_article_info.sql
+```
+
+### 5. 可选：导入 demo 数据
+
+```bash
+mysql -h127.0.0.1 -P3307 -uroot -p<your-root-password> article_sentinel < scripts/article_inspection_seed.sql
+```
+
+### 6. 启动后端 API
+
+在终端 A 执行：
+
+```bash
+make dev
+```
+
+说明：
+
+- 这是前台常驻进程，不会自动返回 shell
+- 正常现象不是“卡住”，而是服务在持续运行
+- 默认监听 `http://127.0.0.1:8080`
+
+### 7. 启动异步 worker
+
+在终端 B 执行：
+
+```bash
+go run ./cmd/worker -config configs/config.local.yaml
+```
+
+说明：
+
+- 不启动 worker 也能访问后端接口
+- 但真正的异步巡检任务不会被消费
+
+### 8. 启动前端管理台
+
+在终端 C 执行：
+
+```bash
+cd web/admin
+npm install
+npm run dev
+```
+
+默认访问：
+
+- 本机：`http://127.0.0.1:5173`
+- 远程联调：`http://<server-ip>:5173`
+
+### 9. 可选：启动 scheduler
+
+如果你要验证调度入口，再开一个终端：
+
+```bash
+go run ./cmd/scheduler -config configs/config.local.yaml
+```
+
+一期默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`。
+
+### 10. 开发环境最常用的检查点
+
+- 后端健康检查：`http://127.0.0.1:8080/healthz`
+- 后端就绪检查：`http://127.0.0.1:8080/readyz`
+- OpenAPI：`http://127.0.0.1:8080/openapi.json`
+- 文档页：`http://127.0.0.1:8080/docs`
+- 前端开发页：`http://127.0.0.1:5173`
 
 ## 前后端如何联调
 
@@ -283,23 +484,24 @@ make down
 2. `cp configs/config.example.yaml configs/config.local.yaml`
 3. `make up`
 4. `make migrate`
-5. 导入 `scripts/article_inspection_seed.sql`
+5. 导入 `/home/wwwroot/article_sentinel/scripts/xt_article.sql` 和 `/home/wwwroot/article_sentinel/scripts/xt_article_info.sql`
 6. 启动 `make dev`
 7. 启动 `go run ./cmd/worker -config configs/config.local.yaml`
 8. 启动 `cd web/admin && npm run dev`
 9. 访问前端页面：
-   - `/keywords`
+   - `/rules/categories`
+   - `/rules/keywords`
    - `/tasks`
-   - `/results`
+   - `/articles`
    - `/logs`
 
 ### 推荐验收路径
 
-1. 在 `/keywords` 确认 demo 关键词存在
-2. 在 `/tasks` 确认任务状态与统计
-3. 在 `/results` 查看高风险命中、打开详情抽屉
-4. 在整改页修改标题/摘要/正文并提交
-5. 在 `/logs` 按文章 ID、任务 ID、操作人过滤，检查日志链路
+1. 在 `/rules/categories` 新建或确认规则分类
+2. 在 `/rules/keywords` 新建规则，并确认规则已归属到正确分类
+3. 在 `/tasks/new` 选择规则发起任务，然后进入 `/tasks/:taskId/results`
+4. 从结果页或 `/articles` 打开真实文稿详情，确认富文本标题/正文可正常渲染
+5. 在整改页修改标题/摘要/正文并“保存并提交复核”，再到 `/logs` 检查链路
 
 ## 常用命令
 
@@ -329,6 +531,90 @@ npm run dev
 npm run build
 npm test -- --runInBand
 ```
+
+## 生产部署命令清单
+
+当前仓库只内置了开发用 `docker-compose.yml`，用于启动 MySQL / Redis；仓库里没有现成的生产 `Dockerfile`、`systemd`、`nginx` 或发布脚本。所以正式部署通常按“后端二进制 + 前端静态资源 + 外部 MySQL/Redis”来做。
+
+### 1. 准备生产配置
+
+```bash
+cp configs/config.example.yaml configs/config.prod.yaml
+```
+
+然后至少修改这些内容：
+
+- `app.env`
+- `database.mysql.host` / `port` / `user` / `password` / `dbname`
+- `redis.addr` / `password`
+- `auth.jwt.secret`
+- `log.*`
+
+### 2. 构建后端二进制
+
+```bash
+mkdir -p bin
+go build -o bin/article-sentinel-server ./cmd/server
+go build -o bin/article-sentinel-worker ./cmd/worker
+go build -o bin/article-sentinel-migrate ./cmd/migrate
+go build -o bin/article-sentinel-scheduler ./cmd/scheduler
+```
+
+### 3. 构建前端静态资源
+
+```bash
+cd web/admin
+npm ci
+npm run build
+```
+
+构建产物默认在 `web/admin/dist`。
+
+### 4. 发布前校验
+
+```bash
+make test
+make smoke
+```
+
+如果是纯生产环境、没有本地 compose 依赖，也至少建议执行：
+
+```bash
+go test ./...
+cd web/admin && npm test -- --runInBand
+```
+
+### 5. 执行数据库迁移
+
+```bash
+./bin/article-sentinel-migrate -config configs/config.prod.yaml
+```
+
+### 6. 启动生产服务
+
+启动 API：
+
+```bash
+./bin/article-sentinel-server -config configs/config.prod.yaml
+```
+
+启动 worker：
+
+```bash
+./bin/article-sentinel-worker -config configs/config.prod.yaml
+```
+
+如果启用了调度任务，再启动 scheduler：
+
+```bash
+./bin/article-sentinel-scheduler -config configs/config.prod.yaml
+```
+
+### 7. 接入 Web 服务
+
+- 用 Nginx 或同类反向代理把 API 转发到后端服务端口
+- 用 Nginx、CDN 或静态文件服务托管 `web/admin/dist`
+- 如果你需要进程守护，建议额外配置 `systemd`、Supervisor、PM2 或容器编排系统
 
 ## API 与页面文档
 

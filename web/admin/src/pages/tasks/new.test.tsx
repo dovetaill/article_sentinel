@@ -44,8 +44,8 @@ describe('NewTaskPage', () => {
       pageSize: 20,
       total: 2,
       items: [
-        { id: 7, name: 'spam', orgid: 29, category_id: 501, category_name: '政策红线' },
-        { id: 8, name: 'scam', orgid: 29, category_id: 502, category_name: '高频违规' }
+        { id: 7, name: 'spam', orgid: 29, category_id: 501, category_name: '政策红线', enabled: true },
+        { id: 8, name: 'scam', orgid: 29, category_id: 502, category_name: '高频违规', enabled: true }
       ]
     } as never);
     mockedCreateTask.mockResolvedValue({ id: 88, task_no: 'inspect-20260420-88' } as never);
@@ -66,10 +66,20 @@ describe('NewTaskPage', () => {
     expect(screen.queryByLabelText('文章编号')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('标题检索')).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('一县一端')).toBeDisabled();
+    await waitFor(() => {
+      expect(mockedListKeywords).toHaveBeenCalledWith(expect.objectContaining({
+        orgid: 29,
+        enabled: true
+      }));
+    });
 
     const ruleSelect = await screen.findByRole('combobox', { name: '规则选择' });
     await user.click(ruleSelect);
-    await user.click(await screen.findByRole('option', { name: 'spam' }));
+    await user.click(await screen.findByText('政策红线 / spam'));
+    await waitFor(() => {
+      expect(screen.getAllByText('政策红线 / spam').length).toBeGreaterThan(1);
+    });
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('switch', { name: '是否检索正文' }));
     await user.click(screen.getByRole('button', { name: '提交任务' }));
 

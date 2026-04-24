@@ -1,13 +1,18 @@
 import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
 import { Button, Empty, Form, Space, Spin, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { useOrgContext } from '../../context/org-context';
-import { getArticleRectify, rectifyArticle, type RectifyArticleRecord } from '../../services/results';
+import {
+  getArticleDetail,
+  rectifyArticle,
+  republishArticle,
+  type ArticleDetailRecord
+} from '../../services/articles';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -19,13 +24,17 @@ type RectifyFormValues = {
 
 export default function RectifyPage() {
   const { articleId } = useParams();
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm<RectifyFormValues>();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
-  const [record, setRecord] = useState<RectifyArticleRecord | null>(null);
+  const [record, setRecord] = useState<ArticleDetailRecord | null>(null);
   const { activeOrgId } = useOrgContext();
 
   const currentOrgId = activeOrgId ?? 29;
+  const taskIdFromSearch = Number(searchParams.get('task_id') || 0) || undefined;
+  const resultIdFromSearch = Number(searchParams.get('result_id') || 0) || undefined;
+  const returnTarget = searchParams.get('return_to') || `/articles/${articleId ?? ''}`;
 
   useEffect(() => {
     if (!articleId) {
@@ -34,7 +43,7 @@ export default function RectifyPage() {
     }
 
     setLoading(true);
-    void getArticleRectify(Number(articleId), currentOrgId)
+    void getArticleDetail(Number(articleId), currentOrgId)
       .then((data) => {
         setRecord(data);
         form.setFieldsValue({
@@ -42,6 +51,9 @@ export default function RectifyPage() {
           desc: data.desc,
           body: data.body
         });
+      })
+      .catch(() => {
+        setRecord(null);
       })
       .finally(() => setLoading(false));
   }, [articleId, currentOrgId, form]);
@@ -54,7 +66,7 @@ export default function RectifyPage() {
     return [
       {
         label: '文章编号',
-        value: `#${record.article_id}`,
+        value: `#${record.id}`,
         helper: '当前进入整改流程的稿件编号'
       },
       {
@@ -76,18 +88,33 @@ export default function RectifyPage() {
   }, [record]);
 
   async function submitRectification(targetArticleState?: number) {
-    if (!articleId) {
+    if (!articleId || !record) {
       return;
     }
 
     const values = await form.validateFields();
+    const taskId = taskIdFromSearch ?? record.latest_task_id;
+    const resultId = resultIdFromSearch ?? record.latest_result_id;
+
     await rectifyArticle(Number(articleId), {
       orgid: currentOrgId,
+      task_id: taskId,
+      result_id: resultId,
       title: values.title,
+      short_title: record.short_title,
+      rich_title: record.rich_title,
+      keyword: record.keyword,
       desc: values.desc,
-      body: values.body,
-      target_article_state: targetArticleState
+      body: values.body
     });
+
+    if (targetArticleState === 1) {
+      await republishArticle(Number(articleId), {
+        orgid: currentOrgId,
+        task_id: taskId,
+        result_id: resultId
+      });
+    }
 
     messageApi.success(targetArticleState === 1 ? '整改内容已保存并提交复核' : '整改内容已保存');
   }
@@ -99,7 +126,7 @@ export default function RectifyPage() {
         title="内容整改"
         extra={(
           <Space wrap>
-            <Button href={`/articles/${articleId ?? ''}`}>返回文稿详情</Button>
+            <Button href={returnTarget}>返回上一页</Button>
             <Text type="secondary">整改稿件：{articleId ? `#${articleId}` : '未识别'}</Text>
           </Space>
         )}
@@ -173,7 +200,11 @@ export default function RectifyPage() {
                   </div>
                   <div className="rectify-reference__item">
                     <span className="rectify-reference__label">原正文</span>
-                    <pre className="rectify-reference__body">{record.body}</pre>
+                    {record.body ? (
+                      <div className="rectify-reference__body" dangerouslySetInnerHTML={{ __html: record.body }} />
+                    ) : (
+                      <p className="rectify-reference__value">暂无正文</p>
+                    )}
                   </div>
                 </div>
               </SectionCard>
@@ -201,7 +232,7 @@ export default function RectifyPage() {
 
       {!loading && !record ? (
         <SectionCard title="未获取到整改信息" description="当前稿件未返回可编辑内容。">
-          <Empty description="当前文章暂无可用整改内容，请返回结果列表重新进入。" />
+          <Empty description="当前文章暂无可用整改内容，请返回文稿详情或任务结果重新进入。" />
         </SectionCard>
       ) : null}
     </>

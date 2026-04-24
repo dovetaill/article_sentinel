@@ -1,6 +1,7 @@
 import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
 import { Button, Space, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
@@ -48,6 +49,7 @@ export default function KeywordsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingKeyword, setEditingKeyword] = useState<KeywordRecord | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [searchParams] = useSearchParams();
   const { activeOrgId, activeOrgName } = useOrgContext();
 
   useEffect(() => {
@@ -76,12 +78,13 @@ export default function KeywordsPage() {
 
   const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
+  const categoryIdFromSearch = Number(searchParams.get('category_id') || 0) || undefined;
 
   const initialValues = useMemo<Partial<KeywordFormValues>>(() => {
     if (!editingKeyword) {
       return {
         org_name: currentOrgName,
-        category_id: categoryOptions[0]?.value,
+        category_id: categoryIdFromSearch ?? categoryOptions[0]?.value,
         match_type: 'contains',
         risk_level: 'high',
         suggest_action: 'offline',
@@ -101,24 +104,27 @@ export default function KeywordsPage() {
       remark: editingKeyword.remark,
       scopes: editingKeyword.scopes
     };
-  }, [categoryOptions, currentOrgName, editingKeyword]);
+  }, [categoryIdFromSearch, categoryOptions, currentOrgName, editingKeyword]);
 
   return (
     <>
       {contextHolder}
       <SectionCard
         title="规则列表"
-        description="统一查看当前生效规则、风险等级和适用范围。"
+        description="新建规则时先选择分类；执行检测任务时再按规则进行勾选。"
         extra={(
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditingKeyword(null);
-              setModalOpen(true);
-            }}
-          >
-            新增规则
-          </Button>
+          <Space wrap>
+            <Button href="/rules/categories">查看分类</Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditingKeyword(null);
+                setModalOpen(true);
+              }}
+            >
+              新增规则
+            </Button>
+          </Space>
         )}
       >
         <ProTable<KeywordRecord>
@@ -135,7 +141,7 @@ export default function KeywordsPage() {
               ? params.category_id
               : typeof params.category_id === 'string' && params.category_id
                 ? Number(params.category_id)
-                : undefined;
+                : categoryIdFromSearch;
 
             const result = await listKeywords({
               orgid: currentOrgId,

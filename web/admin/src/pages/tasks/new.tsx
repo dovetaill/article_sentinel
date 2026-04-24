@@ -32,13 +32,36 @@ export default function NewTaskPage() {
   const currentOrgName = activeOrgName || '一县一端';
 
   useEffect(() => {
-    void listKeywords({ orgid: currentOrgId, page: 1, pageSize: 100 }).then((result) => {
-      setKeywords(result.items);
-      setDraft((current) => current.keyword_ids.length || result.items.length === 0
-        ? current
-        : { ...current, keyword_ids: [result.items[0].id] });
-    });
+    void listKeywords({ orgid: currentOrgId, page: 1, pageSize: 100, enabled: true })
+      .then((result) => {
+        setKeywords(result.items.filter((item) => item.enabled));
+      })
+      .catch(() => {
+        setKeywords([]);
+      });
   }, [currentOrgId]);
+
+  const keywordOptions = keywords.map((item) => ({
+    value: item.id,
+    label: `${item.category_name || '未分类规则'} / ${item.name}`
+  }));
+
+  async function submitTask() {
+    if (draft.keyword_ids.length === 0) {
+      messageApi.error('请先选择至少一条规则');
+      return;
+    }
+
+    await createTask({
+      orgid: currentOrgId,
+      keyword_ids: draft.keyword_ids,
+      publish_time_start: draft.publish_time_start || undefined,
+      publish_time_end: draft.publish_time_end || undefined,
+      include_body: draft.include_body,
+      article_state: 9
+    });
+    messageApi.success('检测任务已提交');
+  }
 
   return (
     <>
@@ -51,21 +74,7 @@ export default function NewTaskPage() {
 
       <div className="task-form-layout">
         <SectionCard title="任务配置" description="填写巡检条件后即可发起一次新的异步扫描。">
-          <ProForm
-            submitter={false}
-            onFinish={async () => {
-              await createTask({
-                orgid: currentOrgId,
-                keyword_ids: draft.keyword_ids,
-                publish_time_start: draft.publish_time_start || undefined,
-                publish_time_end: draft.publish_time_end || undefined,
-                include_body: draft.include_body,
-                article_state: 9
-              });
-              messageApi.success('检测任务已提交');
-              return true;
-            }}
-          >
+          <ProForm submitter={false}>
             <Form.Item label="所属机构">
               <Input aria-label="所属机构" disabled value={currentOrgName} />
             </Form.Item>
@@ -76,10 +85,8 @@ export default function NewTaskPage() {
                 showSearch
                 optionFilterProp="label"
                 value={draft.keyword_ids}
-                options={keywords.map((item) => ({
-                  value: item.id,
-                  label: item.name
-                }))}
+                options={keywordOptions}
+                placeholder={keywords.length ? '先按分类选择要执行的规则' : '请先到规则管理新增规则'}
                 onChange={(value) => setDraft((current) => ({
                   ...current,
                   keyword_ids: value.map((item) => Number(item))
@@ -96,9 +103,10 @@ export default function NewTaskPage() {
               <Switch aria-label="是否检索正文" checked={draft.include_body} onChange={(checked) => setDraft((current) => ({ ...current, include_body: checked }))} />
             </Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" onClick={() => void submitTask()}>
                 提交任务
               </Button>
+              <Button href="/rules/keywords">去规则管理</Button>
             </Space>
           </ProForm>
         </SectionCard>

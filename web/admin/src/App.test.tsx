@@ -14,7 +14,8 @@ describe('App shell', () => {
     );
 
     expect(screen.getByRole('navigation', { name: /主导航/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /规则中心/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /规则分类/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /规则管理/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /检测任务/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /文稿中心/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /操作日志/i })).toBeInTheDocument();
@@ -26,7 +27,8 @@ describe('App shell', () => {
 
   it('treats /articles as the article center rather than the aggregated inspect-results view', () => {
     expect(appRoutes.map((route) => route.label)).toEqual([
-      '规则中心',
+      '规则分类',
+      '规则管理',
       '检测任务',
       '文稿中心',
       '操作日志'

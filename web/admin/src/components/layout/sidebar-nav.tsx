@@ -10,7 +10,8 @@ import { NavLink } from 'react-router-dom';
 import type { AppRouteGroup } from '../../routes';
 
 const routeIconMap: Record<string, ReactNode> = {
-  rules: <SafetyCertificateOutlined />,
+  categories: <SafetyCertificateOutlined />,
+  keywords: <SafetyCertificateOutlined />,
   tasks: <OrderedListOutlined />,
   articles: <FolderOpenOutlined />,
   logs: <FileSearchOutlined />
@@ -41,7 +42,7 @@ export function SidebarNav({ collapsed, groups }: SidebarNavProps) {
                   key={route.key}
                   to={route.path}
                   className={({ isActive }) => `admin-sidebar__link${isActive ? ' is-active' : ''}`}
-                  end={route.path !== '/tasks' && route.path !== '/articles' && route.path !== '/rules'}
+                  end={route.path !== '/tasks' && route.path !== '/articles'}
                   aria-label={collapsed ? route.label : undefined}
                 >
                   <span className="admin-sidebar__icon">{routeIconMap[route.key]}</span>

@@ -1,6 +1,9 @@
 package articleinspect
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type InspectionTimestamps struct {
 	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
@@ -243,16 +246,16 @@ func (InspectionFieldChangeLog) TableName() string {
 }
 
 type Article struct {
-	ID            uint64     `gorm:"column:id;primaryKey" json:"id"`
-	OrgID         uint64     `gorm:"column:orgid;not null;index" json:"orgid"`
-	Title         string     `gorm:"column:title;size:255;not null;default:''" json:"title"`
-	ShortTitle    string     `gorm:"column:short_title;size:255;not null;default:''" json:"short_title"`
-	RichTitle     string     `gorm:"column:rich_title;size:255;not null;default:''" json:"rich_title"`
-	Keyword       string     `gorm:"column:keyword;size:255;not null;default:''" json:"keyword"`
-	Desc          string     `gorm:"column:desc;type:text" json:"desc"`
-	State         int8       `gorm:"column:state;not null;default:0" json:"state"`
-	PublishAtTime *time.Time `gorm:"column:publish_at_time" json:"publish_at_time"`
-	UpdateAt      time.Time  `gorm:"column:update_at;not null" json:"update_at"`
+	ID            uint64         `gorm:"column:id;primaryKey" json:"id"`
+	OrgID         uint64         `gorm:"column:orgid;not null;index" json:"orgid"`
+	Title         string         `gorm:"column:title;size:240;not null;default:''" json:"title"`
+	ShortTitle    sql.NullString `gorm:"column:short_title;size:100" json:"short_title"`
+	RichTitle     string         `gorm:"column:rich_title;size:1000;not null;default:''" json:"rich_title"`
+	Keyword       string         `gorm:"column:keyword;size:240;not null;default:''" json:"keyword"`
+	Desc          string         `gorm:"column:desc;size:250;not null;default:''" json:"desc"`
+	State         int8           `gorm:"column:state;not null;default:0" json:"state"`
+	PublishAtUnix int64          `gorm:"column:publish_at_time;not null;default:0" json:"publish_at_time"`
+	UpdateAtUnix  int64          `gorm:"column:update_at;not null;default:0" json:"update_at"`
 }
 
 func (Article) TableName() string {
@@ -260,9 +263,12 @@ func (Article) TableName() string {
 }
 
 type ArticleInfo struct {
-	ArticleID uint64    `gorm:"column:article_id;primaryKey" json:"article_id"`
-	Body      string    `gorm:"column:body;type:longtext" json:"body"`
-	UpdateAt  time.Time `gorm:"column:update_at;not null" json:"update_at"`
+	ID        uint64 `gorm:"column:id;primaryKey" json:"id"`
+	OrgID     uint64 `gorm:"column:orgid;not null;default:0" json:"orgid"`
+	Body      string `gorm:"column:body;type:longtext" json:"body"`
+	Media     string `gorm:"column:media;type:text" json:"media"`
+	Relate    string `gorm:"column:relate;type:text" json:"relate"`
+	ShareInfo string `gorm:"column:share_info;type:text" json:"share_info"`
 }
 
 func (ArticleInfo) TableName() string {

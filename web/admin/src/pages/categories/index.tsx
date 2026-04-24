@@ -68,9 +68,12 @@ export default function CategoriesPage() {
     <>
       {contextHolder}
       <SectionCard
+        title="规则分类"
+        description="先维护规则分类，再到规则管理里把具体规则挂到分类下。"
         extra={(
           <Space size={12} wrap>
             <Text>当前机构：{currentOrgName}</Text>
+            <Button href="/rules/keywords">查看规则</Button>
             <Button
               type="primary"
               onClick={() => {
@@ -155,6 +158,9 @@ export default function CategoriesPage() {
                   }}
                 >
                   编辑分类
+                </Button>,
+                <Button key="keywords" type="link" href={`/rules/keywords?category_id=${record.id}`}>
+                  查看规则
                 </Button>,
                 <Button
                   key="toggle"

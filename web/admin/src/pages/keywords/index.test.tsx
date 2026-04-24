@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
@@ -94,9 +95,11 @@ describe('KeywordsPage', () => {
 
     render(
       <ConfigProvider>
-        <OrgProvider>
-          <KeywordsPage />
-        </OrgProvider>
+        <MemoryRouter initialEntries={['/rules/keywords']}>
+          <OrgProvider>
+            <KeywordsPage />
+          </OrgProvider>
+        </MemoryRouter>
       </ConfigProvider>,
     );
 

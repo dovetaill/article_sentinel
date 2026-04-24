@@ -1,7 +1,7 @@
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Empty, Space, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
@@ -46,6 +46,7 @@ function escapePattern(value: string) {
 
 export default function TaskResultsPage() {
   const { taskId } = useParams();
+  const location = useLocation();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState<TaskRecord | null>(null);
@@ -57,6 +58,7 @@ export default function TaskResultsPage() {
 
   const currentOrgId = activeOrgId ?? 29;
   const numericTaskId = Number(taskId || 0);
+  const returnTo = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     if (!numericTaskId) {
@@ -232,10 +234,22 @@ export default function TaskResultsPage() {
                   title: '操作',
                   valueType: 'option',
                   render: (_, record) => [
-                    <Button key="detail" type="link" href={`/articles/${record.article_id}`}>
+                    <Button
+                      key="detail"
+                      type="link"
+                      href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                    >
                       查看详情
                     </Button>,
-                    <Button key="rectify" type="link" href={`/articles/${record.article_id}/rectify`}>
+                    <Button
+                      key="rectify"
+                      type="link"
+                      href={`/articles/${record.article_id}/rectify?${new URLSearchParams({
+                        return_to: returnTo,
+                        task_id: String(numericTaskId),
+                        result_id: String(record.id)
+                      }).toString()}`}
+                    >
                       进入整改
                     </Button>,
                     <Button key="offline" type="link" danger onClick={() => void runBatchAction('offline', [record.id])}>

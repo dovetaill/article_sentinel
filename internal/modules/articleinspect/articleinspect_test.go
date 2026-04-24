@@ -677,6 +677,40 @@ func TestArticleInspectWorker(t *testing.T) {
 	})
 }
 
+func TestDecodeTaskRulesFromKeywordDTOJSON(t *testing.T) {
+	snapshot, err := json.Marshal([]KeywordDTO{
+		{
+			ID:            9101013,
+			OrgID:         29,
+			Name:          "svg",
+			CategoryID:    502,
+			CategoryName:  "高频违规",
+			MatchType:     MatchTypeContains,
+			RiskLevel:     RiskLevelHigh,
+			SuggestAction: SuggestActionOffline,
+			Enabled:       true,
+			Scopes:        []string{KeywordScopeTitle},
+		},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	rules, err := decodeTaskRules(string(snapshot))
+	if err != nil {
+		t.Fatalf("decodeTaskRules() error = %v", err)
+	}
+	if len(rules) != 1 {
+		t.Fatalf("decodeTaskRules() len = %d, want %d", len(rules), 1)
+	}
+	if rules[0].Name != "svg" || rules[0].MatchType != MatchTypeContains || rules[0].RiskLevel != RiskLevelHigh || rules[0].SuggestAction != SuggestActionOffline {
+		t.Fatalf("decodeTaskRules() rule = %+v, want populated match metadata", rules[0])
+	}
+	if len(rules[0].Scopes) != 1 || rules[0].Scopes[0] != KeywordScopeTitle {
+		t.Fatalf("decodeTaskRules() scopes = %#v, want %#v", rules[0].Scopes, []string{KeywordScopeTitle})
+	}
+}
+
 func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -727,20 +761,20 @@ func seedCandidateArticles(t *testing.T, db *gorm.DB) {
 	t.Helper()
 
 	articles := []Article{
-		{ID: 1, OrgID: 100, Title: "Alpha news", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T10:00:00Z"))},
-		{ID: 2, OrgID: 100, Title: "Beta update", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T11:00:00Z"))},
-		{ID: 3, OrgID: 100, Title: "Gamma draft", State: ArticleStateDraft, PublishAtTime: timePointer(mustTime(t, "2026-04-20T12:00:00Z"))},
-		{ID: 4, OrgID: 200, Title: "Other org", State: ArticleStateOnline, PublishAtTime: timePointer(mustTime(t, "2026-04-20T10:30:00Z"))},
+		{ID: 1, OrgID: 100, Title: "Alpha news", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T10:00:00Z").Unix()},
+		{ID: 2, OrgID: 100, Title: "Beta update", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T11:00:00Z").Unix()},
+		{ID: 3, OrgID: 100, Title: "Gamma draft", State: ArticleStateDraft, PublishAtUnix: mustTime(t, "2026-04-20T12:00:00Z").Unix()},
+		{ID: 4, OrgID: 200, Title: "Other org", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T10:30:00Z").Unix()},
 	}
 	if err := db.Create(&articles).Error; err != nil {
 		t.Fatalf("seed articles error = %v", err)
 	}
 
 	infos := []ArticleInfo{
-		{ArticleID: 1, Body: "body one"},
-		{ArticleID: 2, Body: "body two"},
-		{ArticleID: 3, Body: "body three"},
-		{ArticleID: 4, Body: "body four"},
+		{ID: 1, OrgID: 100, Body: "body one"},
+		{ID: 2, OrgID: 100, Body: "body two"},
+		{ID: 3, OrgID: 100, Body: "body three"},
+		{ID: 4, OrgID: 200, Body: "body four"},
 	}
 	if err := db.Create(&infos).Error; err != nil {
 		t.Fatalf("seed article infos error = %v", err)
@@ -1678,7 +1712,11 @@ func seedLifecycleArticles(t *testing.T, db *gorm.DB) {
 	if err := db.Create(&articles).Error; err != nil {
 		t.Fatalf("seed lifecycle articles error = %v", err)
 	}
-	if err := db.Create(&[]ArticleInfo{{ArticleID: 10, Body: "body a"}, {ArticleID: 11, Body: "body b"}, {ArticleID: 12, Body: "body c"}}).Error; err != nil {
+	if err := db.Create(&[]ArticleInfo{
+		{ID: 10, OrgID: 100, Body: "body a"},
+		{ID: 11, OrgID: 100, Body: "body b"},
+		{ID: 12, OrgID: 100, Body: "body c"},
+	}).Error; err != nil {
 		t.Fatalf("seed lifecycle article info error = %v", err)
 	}
 }
@@ -1752,18 +1790,18 @@ func seedArticleCenterFixtures(t *testing.T, db *gorm.DB) {
 	olderActionAt := mustTime(t, "2026-04-21T11:00:00Z")
 
 	articles := []Article{
-		{ID: 9001, OrgID: 29, Title: "县域要闻一", State: ArticleStateOnline, PublishAtTime: &publishAt, UpdateAt: latestActionAt},
-		{ID: 9002, OrgID: 29, Title: "县域要闻二", State: ArticleStateOffline, PublishAtTime: &laterPublishAt, UpdateAt: laterPublishAt},
-		{ID: 9901, OrgID: 30, Title: "外部组织稿件", State: ArticleStateOnline, PublishAtTime: &publishAt, UpdateAt: publishAt},
+		{ID: 9001, OrgID: 29, Title: "县域要闻一", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: latestActionAt.Unix()},
+		{ID: 9002, OrgID: 29, Title: "县域要闻二", State: ArticleStateOffline, PublishAtUnix: laterPublishAt.Unix(), UpdateAtUnix: laterPublishAt.Unix()},
+		{ID: 9901, OrgID: 30, Title: "外部组织稿件", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: publishAt.Unix()},
 	}
 	if err := db.Create(&articles).Error; err != nil {
 		t.Fatalf("seed article center articles error = %v", err)
 	}
 
 	infos := []ArticleInfo{
-		{ArticleID: 9001, Body: "<p>real body one</p>", UpdateAt: latestActionAt},
-		{ArticleID: 9002, Body: "<p>real body two</p>", UpdateAt: laterPublishAt},
-		{ArticleID: 9901, Body: "<p>other org body</p>", UpdateAt: publishAt},
+		{ID: 9001, OrgID: 29, Body: "<p>real body one</p>"},
+		{ID: 9002, OrgID: 29, Body: "<p>real body two</p>"},
+		{ID: 9901, OrgID: 30, Body: "<p>other org body</p>"},
 	}
 	if err := db.Create(&infos).Error; err != nil {
 		t.Fatalf("seed article center infos error = %v", err)

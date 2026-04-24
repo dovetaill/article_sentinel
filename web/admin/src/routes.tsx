@@ -35,9 +35,14 @@ type RouteMeta = {
 
 export const appRoutes: AppRoute[] = [
   {
-    key: 'rules',
-    path: '/rules',
-    label: '规则中心'
+    key: 'categories',
+    path: '/rules/categories',
+    label: '规则分类'
+  },
+  {
+    key: 'keywords',
+    path: '/rules/keywords',
+    label: '规则管理'
   },
   {
     key: 'tasks',
@@ -60,12 +65,12 @@ export const appRouteGroups: AppRouteGroup[] = [
   {
     key: 'inspection',
     label: '巡检业务',
-    routes: appRoutes.slice(0, 3)
+    routes: appRoutes.slice(0, 4)
   },
   {
     key: 'audit',
     label: '审计留痕',
-    routes: appRoutes.slice(3)
+    routes: appRoutes.slice(4)
   }
 ];
 
@@ -149,8 +154,8 @@ export function AppRouteOutlet() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/" element={<Navigate to="/rules" replace />} />
-        <Route path="/rules" element={<Navigate to="/rules/categories" replace />} />
+        <Route path="/" element={<Navigate to="/rules/keywords" replace />} />
+        <Route path="/rules" element={<Navigate to="/rules/keywords" replace />} />
         <Route path="/keywords" element={<Navigate to="/rules/keywords" replace />} />
         <Route path="/rules/categories" element={<CategoriesPage />} />
         <Route path="/rules/keywords" element={<KeywordsPage />} />

@@ -1,4 +1,4 @@
-import { Button, Empty, Spin, Table, Typography } from 'antd';
+import { Button, Empty, Space, Spin, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
@@ -21,18 +21,6 @@ function renderArticleState(value?: number) {
   }
 }
 
-function renderDispositionStatus(value?: string) {
-  if (value === 'pending') {
-    return <span className="status-badge status-badge--warning">待处置</span>;
-  }
-
-  if (value === 'processed') {
-    return <span className="status-badge status-badge--success">已处置</span>;
-  }
-
-  return '-';
-}
-
 export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArticleListItem[]>([]);
@@ -42,7 +30,7 @@ export default function ArticlesPage() {
 
   useEffect(() => {
     setLoading(true);
-    void listArticles({ orgid: currentOrgId, page: 1, pageSize: 20 })
+    void listArticles({ orgid: currentOrgId, page: 1, pageSize: 20, state: 9 })
       .then((result) => setItems(result.items))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -82,19 +70,21 @@ export default function ArticlesPage() {
                 render: (value?: number) => renderArticleState(value)
               },
               {
-                title: '最新风险',
+                title: '发布时间',
+                dataIndex: 'publish_at_time',
+                render: (value?: string) => value || '-'
+              },
+              {
+                title: '最近巡检',
                 dataIndex: 'latest_risk_level',
-                render: (value?: string) => value ? <StatusBadge kind="risk" value={value} /> : '-'
-              },
-              {
-                title: '最近任务',
-                dataIndex: 'latest_task_id',
-                render: (value?: number) => value ? `#${value}` : '-'
-              },
-              {
-                title: '处置状态',
-                dataIndex: 'latest_disposition_status',
-                render: (value?: string) => renderDispositionStatus(value)
+                render: (_, record) => record.latest_task_id
+                  ? (
+                    <Space size={8} wrap>
+                      <Text>任务 #{record.latest_task_id}</Text>
+                      {record.latest_risk_level ? <StatusBadge kind="risk" value={record.latest_risk_level} /> : null}
+                    </Space>
+                  )
+                  : '-'
               },
               {
                 title: '操作',

@@ -131,8 +131,14 @@ describe('TaskResultsPage', () => {
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
     expect(screen.getByText('Spam alert')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/articles/501');
-    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute('href', '/articles/501/rectify');
+    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute(
+      'href',
+      '/articles/501?return_to=%2Ftasks%2F77%2Fresults',
+    );
+    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute(
+      'href',
+      '/articles/501/rectify?return_to=%2Ftasks%2F77%2Fresults&task_id=77&result_id=11',
+    );
     expect(screen.getByRole('button', { name: '下线处置' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量忽略' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量标记已处理' })).toBeInTheDocument();

@@ -46,6 +46,15 @@ export interface ArticleLifecycleInput {
   reason?: string;
 }
 
+export interface ArticleRectifyInput extends ArticleLifecycleInput {
+  title: string;
+  short_title?: string;
+  rich_title?: string;
+  keyword?: string;
+  desc: string;
+  body: string;
+}
+
 export interface ArticleLifecycleResult {
   article_id: number;
   status: string;
@@ -88,4 +97,16 @@ export function offlineArticle(articleId: number, input: ArticleLifecycleInput):
 
 export function republishArticle(articleId: number, input: ArticleLifecycleInput): Promise<ArticleLifecycleResult> {
   return postArticleAction(`/api/v1/article-inspect/articles/${articleId}/republish`, input);
+}
+
+export function rectifyArticle(articleId: number, input: ArticleRectifyInput) {
+  return apiRequest<Array<{
+    field_name: string;
+    before_value: string;
+    after_value: string;
+    diff_summary: string;
+  }>>(`/api/v1/article-inspect/articles/${articleId}/rectify`, {
+    method: 'PUT',
+    body: JSON.stringify(input)
+  });
 }

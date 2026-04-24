@@ -37,8 +37,10 @@ export interface ResultOperationRecord {
 export interface ResultFieldChangeRecord {
   id: number;
   field_name: string;
-  old_value: string;
-  new_value: string;
+  old_value?: string;
+  new_value?: string;
+  before_value?: string;
+  after_value?: string;
 }
 
 export interface ResultDetailRecord extends ResultRecord {
@@ -118,7 +120,38 @@ export async function listResults(params: ResultListParams): Promise<ResultListR
 }
 
 export function getResultDetail(id: number, orgid = 100): Promise<ResultDetailRecord> {
-  return apiRequest<ResultDetailRecord>(`/api/v1/article-inspect/results/${id}?orgid=${orgid}`);
+  return apiRequest<
+    ResultDetailRecord | {
+      result: ResultRecord;
+      hits?: ResultHitRecord[];
+      operation_logs?: ResultOperationRecord[];
+      field_change_logs?: ResultFieldChangeRecord[];
+    }
+  >(`/api/v1/article-inspect/results/${id}?orgid=${orgid}`).then((data) => {
+    if ('result' in data) {
+      return {
+        ...data.result,
+        hits: data.hits ?? [],
+        operation_logs: data.operation_logs ?? [],
+        field_changes: (data.field_change_logs ?? []).map((item) => ({
+          ...item,
+          old_value: item.old_value ?? item.before_value,
+          new_value: item.new_value ?? item.after_value
+        }))
+      };
+    }
+
+    return {
+      ...data,
+      hits: data.hits ?? [],
+      operation_logs: data.operation_logs ?? [],
+      field_changes: (data.field_changes ?? []).map((item) => ({
+        ...item,
+        old_value: item.old_value ?? item.before_value,
+        new_value: item.new_value ?? item.after_value
+      }))
+    };
+  });
 }
 
 function postBatchAction(path: string, input: BatchOfflineInput): Promise<{ action_no: string }> {

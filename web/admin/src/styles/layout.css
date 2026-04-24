@@ -755,9 +755,19 @@
 .rectify-reference__body {
   margin: 0;
   color: var(--admin-ink-body);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  white-space: pre-wrap;
+  line-height: 1.75;
   word-break: break-word;
+}
+
+.rectify-reference__body img,
+.rectify-reference__body video,
+.rectify-reference__body iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+.rectify-reference__body p:last-child {
+  margin-bottom: 0;
 }
 
 .rectify-notes .ant-typography {

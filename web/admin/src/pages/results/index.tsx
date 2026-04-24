@@ -1,11 +1,13 @@
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Modal, Typography, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
+import { useOrgContext } from '../../context/org-context';
 import { batchOfflineResults, listResults, type ResultRecord } from '../../services/results';
 
 type ActionRef = {
@@ -33,11 +35,15 @@ function escapePattern(value: string) {
 
 export default function ResultsPage() {
   const actionRef = useRef<ActionRef>({});
+  const location = useLocation();
   const [messageApi, contextHolder] = message.useMessage();
   const [pageRows, setPageRows] = useState<ResultRecord[]>([]);
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
+  const { activeOrgId } = useOrgContext();
 
+  const currentOrgId = activeOrgId ?? 29;
+  const returnTo = `${location.pathname}${location.search}`;
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
   const confirmTitle = useMemo(() => confirmIds.length > 1 ? '批量下线处置' : '下线处置', [confirmIds.length]);
@@ -101,7 +107,7 @@ export default function ResultsPage() {
           }}
           request={async (params) => {
             const result = await listResults({
-              orgid: 100,
+              orgid: currentOrgId,
               page: params.current,
               pageSize: params.pageSize
             });
@@ -116,7 +122,11 @@ export default function ResultsPage() {
             {
               title: '文章标题',
               dataIndex: 'article_title',
-              render: (_, record) => <a href={`/articles/${record.article_id}`}>{record.article_title}</a>
+              render: (_, record) => (
+                <a href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}>
+                  {record.article_title}
+                </a>
+              )
             },
             {
               title: '风险等级',
@@ -142,13 +152,25 @@ export default function ResultsPage() {
               title: '操作',
               valueType: 'option',
               render: (_, record) => [
-                <Button key="detail" type="link" href={`/articles/${record.article_id}`}>
+                <Button
+                  key="detail"
+                  type="link"
+                  href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                >
                   查看详情
                 </Button>,
                 <Button key="offline" type="link" danger onClick={() => setConfirmIds([record.id])}>
                   下线处置
                 </Button>,
-                <Button key="rectify" type="link" href={`/articles/${record.article_id}/rectify`}>
+                <Button
+                  key="rectify"
+                  type="link"
+                  href={`/articles/${record.article_id}/rectify?${new URLSearchParams({
+                    return_to: returnTo,
+                    task_id: String(record.task_id),
+                    result_id: String(record.id)
+                  }).toString()}`}
+                >
                   进入整改
                 </Button>
               ]
@@ -165,7 +187,7 @@ export default function ResultsPage() {
         onCancel={() => setConfirmIds([])}
         onOk={async () => {
           await batchOfflineResults({
-            orgid: 100,
+            orgid: currentOrgId,
             result_ids: confirmIds,
             reason: 'manual batch offline'
           });

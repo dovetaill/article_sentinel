@@ -4,10 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OrgProvider } from '../../context/org-context';
 import TaskDetailPage from './detail';
 import { listOperationLogs } from '../../services/logs';
+import { listOrgs } from '../../services/orgs';
 import { listResults } from '../../services/results';
 import { getTaskDetail } from '../../services/tasks';
+
+vi.mock('../../services/orgs', () => ({
+  listOrgs: vi.fn()
+}));
 
 vi.mock('../../services/tasks', () => ({
   listTasks: vi.fn(),
@@ -29,6 +35,7 @@ vi.mock('../../services/logs', () => ({
   listArticleFieldChanges: vi.fn()
 }));
 
+const mockedListOrgs = vi.mocked(listOrgs);
 const mockedGetTaskDetail = vi.mocked(getTaskDetail);
 const mockedListResults = vi.mocked(listResults);
 const mockedListOperationLogs = vi.mocked(listOperationLogs);
@@ -36,9 +43,12 @@ const mockedListOperationLogs = vi.mocked(listOperationLogs);
 describe('TaskDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
+    ]);
     mockedGetTaskDetail.mockResolvedValue({
       id: 77,
-      orgid: 100,
+      orgid: 29,
       task_no: 'inspect-20260420-01',
       status: 'running',
       total_scanned: 42,
@@ -57,7 +67,7 @@ describe('TaskDetailPage', () => {
       items: [
         {
           id: 11,
-          orgid: 100,
+          orgid: 29,
           task_id: 77,
           article_id: 501,
           article_title: 'Spam alert',
@@ -78,7 +88,7 @@ describe('TaskDetailPage', () => {
       items: [
         {
           id: 9,
-          orgid: 100,
+          orgid: 29,
           article_id: 501,
           task_id: 77,
           operation_type: 'offline',
@@ -97,11 +107,13 @@ describe('TaskDetailPage', () => {
 
     render(
       <ConfigProvider>
-        <MemoryRouter initialEntries={['/tasks/77']}>
-          <Routes>
-            <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
-          </Routes>
-        </MemoryRouter>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/tasks/77']}>
+            <Routes>
+              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
       </ConfigProvider>,
     );
 
@@ -112,7 +124,10 @@ describe('TaskDetailPage', () => {
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '请求快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '关联日志' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute('href', '/articles/501');
+    expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute(
+      'href',
+      '/articles/501?return_to=%2Ftasks%2F77',
+    );
 
     await user.click(screen.getByRole('tab', { name: '关联日志' }));
     expect(screen.getAllByText(/task reviewed by auditor/i).length).toBeGreaterThan(0);

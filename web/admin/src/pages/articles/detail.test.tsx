@@ -79,7 +79,7 @@ describe('ArticleDetailPage', () => {
     mockedListArticleFieldChanges.mockResolvedValue({ page: 1, pageSize: 20, total: 0, items: [] });
   });
 
-  it('renders the real article body, latest inspect summary, and lifecycle actions', async () => {
+  it('renders the real article body, rich title preview, and rectify entry', async () => {
     render(
       <ConfigProvider>
         <OrgProvider>
@@ -97,8 +97,12 @@ describe('ArticleDetailPage', () => {
     expect(screen.getByText('真实正文')).toBeInTheDocument();
     expect(screen.getByText(/最近巡检摘要/)).toBeInTheDocument();
     expect(screen.getByText(/最新风险/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute('href', '/articles/501/rectify');
-    expect(screen.getByRole('button', { name: '下线处置' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute(
+      'href',
+      '/articles/501/rectify?return_to=%2Farticles&task_id=208',
+    );
+    expect(screen.getByText('县域融媒今日要闻 rich')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '下线处置' })).not.toBeInTheDocument();
     expect(screen.queryByText('集中查看单篇文稿的命中情况、正文快照、处置记录与整改入口。')).not.toBeInTheDocument();
   });
 });

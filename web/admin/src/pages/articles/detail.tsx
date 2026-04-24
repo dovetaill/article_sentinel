@@ -1,18 +1,13 @@
-import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography, message } from 'antd';
+import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { useOrgContext } from '../../context/org-context';
-import {
-  getArticleDetail,
-  offlineArticle,
-  republishArticle,
-  type ArticleDetailRecord
-} from '../../services/articles';
+import { getArticleDetail, type ArticleDetailRecord } from '../../services/articles';
 import {
   listArticleFieldChanges,
   listArticleOperationLogs,
@@ -22,8 +17,6 @@ import {
 import { getResultDetail, type ResultDetailRecord } from '../../services/results';
 
 const { Paragraph, Text } = Typography;
-
-type LifecycleAction = 'offline' | 'republish' | null;
 
 function renderArticleState(value?: number) {
   switch (value) {
@@ -64,18 +57,17 @@ function renderSuggestAction(value?: string) {
 
 export default function ArticleDetailPage() {
   const { articleId } = useParams();
-  const [messageApi, contextHolder] = message.useMessage();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<LifecycleAction>(null);
   const [detail, setDetail] = useState<ArticleDetailRecord | null>(null);
   const [inspectDetail, setInspectDetail] = useState<ResultDetailRecord | null>(null);
   const [operationLogs, setOperationLogs] = useState<OperationLogRecord[]>([]);
   const [fieldChanges, setFieldChanges] = useState<FieldChangeLogRecord[]>([]);
-  const [refreshSeed, setRefreshSeed] = useState(0);
   const { activeOrgId } = useOrgContext();
 
   const currentOrgId = activeOrgId ?? 29;
   const numericArticleId = Number(articleId || 0);
+  const returnTarget = searchParams.get('return_to') || '/articles';
 
   useEffect(() => {
     if (!numericArticleId) {
@@ -107,7 +99,7 @@ export default function ArticleDetailPage() {
         setFieldChanges([]);
       })
       .finally(() => setLoading(false));
-  }, [currentOrgId, numericArticleId, refreshSeed]);
+  }, [currentOrgId, numericArticleId]);
 
   const metrics = useMemo(() => {
     if (!detail) {
@@ -125,36 +117,6 @@ export default function ArticleDetailPage() {
       }
     ];
   }, [detail]);
-
-  async function handleLifecycle(kind: Exclude<LifecycleAction, null>) {
-    if (!detail) {
-      return;
-    }
-
-    setActionLoading(kind);
-
-    try {
-      if (kind === 'offline') {
-        await offlineArticle(detail.id, {
-          orgid: currentOrgId,
-          task_id: detail.latest_task_id,
-          result_id: detail.latest_result_id
-        });
-        messageApi.success('下线处置已提交');
-      } else {
-        await republishArticle(detail.id, {
-          orgid: currentOrgId,
-          task_id: detail.latest_task_id,
-          result_id: detail.latest_result_id
-        });
-        messageApi.success('重新发布已提交');
-      }
-
-      setRefreshSeed((current) => current + 1);
-    } finally {
-      setActionLoading(null);
-    }
-  }
 
   const tabItems = useMemo(() => [
     {
@@ -216,25 +178,22 @@ export default function ArticleDetailPage() {
 
   return (
     <>
-      {contextHolder}
       <PageHeader
-        title="文章详情"
-        description="查看文章原文、最新巡检摘要和历史处置记录。"
+        title="文稿详情"
+        description="查看真实文稿原文，并附带最近一次巡检留痕作为参考。"
         extra={(
           <Space wrap>
-            <Button href="/articles">返回列表</Button>
-            <Button type="primary" href={`/articles/${articleId ?? ''}/rectify`}>
+            <Button href={returnTarget}>返回上一页</Button>
+            <Button
+              type="primary"
+              href={`/articles/${articleId ?? ''}/rectify?${new URLSearchParams({
+                return_to: returnTarget,
+                ...(detail?.latest_task_id ? { task_id: String(detail.latest_task_id) } : {}),
+                ...(detail?.latest_result_id ? { result_id: String(detail.latest_result_id) } : {})
+              }).toString()}`}
+            >
               进入整改
             </Button>
-            {detail?.state === 8 ? (
-              <Button loading={actionLoading === 'republish'} onClick={() => void handleLifecycle('republish')}>
-                重新发布
-              </Button>
-            ) : (
-              <Button danger loading={actionLoading === 'offline'} onClick={() => void handleLifecycle('offline')}>
-                下线处置
-              </Button>
-            )}
           </Space>
         )}
       />
@@ -278,7 +237,11 @@ export default function ArticleDetailPage() {
                   <Descriptions.Item label="摘要">{detail.desc || '暂无摘要'}</Descriptions.Item>
                   <Descriptions.Item label="关键词">{detail.keyword || '-'}</Descriptions.Item>
                   <Descriptions.Item label="短标题">{detail.short_title || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="富标题">{detail.rich_title || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="富标题">
+                    {detail.rich_title ? (
+                      <div dangerouslySetInnerHTML={{ __html: detail.rich_title }} />
+                    ) : '-'}
+                  </Descriptions.Item>
                   <Descriptions.Item label="正文快照">
                     {detail.body ? (
                       <div dangerouslySetInnerHTML={{ __html: detail.body }} />

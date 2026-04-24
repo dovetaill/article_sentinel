@@ -21,13 +21,13 @@ type CandidateArticle struct {
 }
 
 type KeywordRule struct {
-	ID            uint64
-	Name          string
-	Category      string
-	MatchType     string
-	RiskLevel     string
-	SuggestAction string
-	Scopes        []string
+	ID            uint64   `json:"id"`
+	Name          string   `json:"name"`
+	Category      string   `json:"category_name"`
+	MatchType     string   `json:"match_type"`
+	RiskLevel     string   `json:"risk_level"`
+	SuggestAction string   `json:"suggest_action"`
+	Scopes        []string `json:"scopes"`
 }
 
 type Hit struct {

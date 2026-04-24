@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import RectifyPage from './rectify';
-import { getArticleRectify, rectifyArticle } from '../../services/results';
+import { getArticleDetail, rectifyArticle, republishArticle } from '../../services/articles';
 
 const { mockedListOrgs } = vi.hoisted(() => ({
   mockedListOrgs: vi.fn()
@@ -21,13 +21,20 @@ vi.mock('../../services/results', () => ({
   getResultDetail: vi.fn(),
   batchOfflineResults: vi.fn(),
   batchIgnoreResults: vi.fn(),
-  batchProcessResults: vi.fn(),
-  getArticleRectify: vi.fn(),
+  batchProcessResults: vi.fn()
+}));
+
+vi.mock('../../services/articles', () => ({
+  listArticles: vi.fn(),
+  getArticleDetail: vi.fn(),
+  offlineArticle: vi.fn(),
+  republishArticle: vi.fn(),
   rectifyArticle: vi.fn()
 }));
 
-const mockedGetArticleRectify = vi.mocked(getArticleRectify);
+const mockedGetArticleDetail = vi.mocked(getArticleDetail);
 const mockedRectifyArticle = vi.mocked(rectifyArticle);
+const mockedRepublishArticle = vi.mocked(republishArticle);
 
 describe('RectifyPage', () => {
   beforeEach(() => {
@@ -35,17 +42,24 @@ describe('RectifyPage', () => {
     mockedListOrgs.mockResolvedValue([
       { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
     ]);
-    mockedGetArticleRectify.mockResolvedValue({
-      article_id: 501,
+    mockedGetArticleDetail.mockResolvedValue({
+      id: 501,
       orgid: 29,
       title: 'Old title',
+      short_title: 'Old short',
+      rich_title: '<strong>Old rich</strong>',
+      keyword: 'old-keyword',
       desc: 'Old summary',
-      body: '<p>Old body</p>'
+      body: '<p>Old body</p>',
+      state: 8,
+      latest_task_id: 77,
+      latest_result_id: 9001
     } as never);
-    mockedRectifyArticle.mockResolvedValue({ article_id: 501, status: 'saved' } as never);
+    mockedRectifyArticle.mockResolvedValue([] as never);
+    mockedRepublishArticle.mockResolvedValue({ article_id: 501, status: 'success' } as never);
   });
 
-  it('submits rectification against the active org context', async () => {
+  it('loads from article detail and preserves untouched fields on save', async () => {
     const user = userEvent.setup();
 
     render(
@@ -73,10 +87,41 @@ describe('RectifyPage', () => {
     await waitFor(() => {
       expect(mockedRectifyArticle).toHaveBeenCalledWith(501, {
         orgid: 29,
+        task_id: 77,
+        result_id: 9001,
         title: 'New title',
+        short_title: 'Old short',
+        rich_title: '<strong>Old rich</strong>',
+        keyword: 'old-keyword',
         desc: 'New summary',
-        body: '<p>Old body</p>',
-        target_article_state: undefined
+        body: '<p>Old body</p>'
+      });
+    });
+  });
+
+  it('republishes after saving when submitting for review', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/articles/501/rectify']}>
+            <Routes>
+              <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '保存并提交复核' }));
+
+    await waitFor(() => {
+      expect(mockedRepublishArticle).toHaveBeenCalledWith(501, {
+        orgid: 29,
+        task_id: 77,
+        result_id: 9001
       });
     });
   });

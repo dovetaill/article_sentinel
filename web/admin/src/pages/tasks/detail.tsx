@@ -1,11 +1,12 @@
 import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
+import { useOrgContext } from '../../context/org-context';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 import { listResults, type ResultRecord } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
@@ -33,10 +34,15 @@ function taskStatusLabel(status: string | undefined) {
 
 export default function TaskDetailPage() {
   const { taskId } = useParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [results, setResults] = useState<ResultRecord[]>([]);
   const [logs, setLogs] = useState<OperationLogRecord[]>([]);
+  const { activeOrgId } = useOrgContext();
+
+  const currentOrgId = activeOrgId ?? 29;
+  const returnTo = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     if (!taskId) {
@@ -47,9 +53,9 @@ export default function TaskDetailPage() {
     setLoading(true);
 
     void Promise.all([
-      getTaskDetail(Number(taskId), 100),
-      listResults({ orgid: 100, task_id: Number(taskId), page: 1, pageSize: 20 }),
-      listOperationLogs({ orgid: 100, task_id: Number(taskId), page: 1, pageSize: 20 })
+      getTaskDetail(Number(taskId), currentOrgId),
+      listResults({ orgid: currentOrgId, task_id: Number(taskId), page: 1, pageSize: 20 }),
+      listOperationLogs({ orgid: currentOrgId, task_id: Number(taskId), page: 1, pageSize: 20 })
     ])
       .then(([taskDetail, resultList, logList]) => {
         setTask(taskDetail);
@@ -62,7 +68,7 @@ export default function TaskDetailPage() {
         setLogs([]);
       })
       .finally(() => setLoading(false));
-  }, [taskId]);
+  }, [currentOrgId, taskId]);
 
   const metrics = useMemo(() => {
     if (!task) {
@@ -89,7 +95,12 @@ export default function TaskDetailPage() {
             renderItem={(item) => (
               <List.Item>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <a className="detail-list__title" href={`/articles/${item.article_id}`}>{item.article_title}</a>
+                  <a
+                    className="detail-list__title"
+                    href={`/articles/${item.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                  >
+                    {item.article_title}
+                  </a>
                   <Space size={8} wrap>
                     <StatusBadge kind="risk" value={item.risk_level} />
                     <Text type="secondary">命中 {item.hit_count} 次</Text>
@@ -209,7 +220,10 @@ export default function TaskDetailPage() {
                   <Button href={`/tasks/${task.id}/results`}>前往任务结果</Button>
                   <Button href="/articles">前往文稿列表</Button>
                   {results[0] ? (
-                    <Button type="link" href={`/articles/${results[0].article_id}`}>
+                    <Button
+                      type="link"
+                      href={`/articles/${results[0].article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                    >
                       查看首条命中文稿
                     </Button>
                   ) : (

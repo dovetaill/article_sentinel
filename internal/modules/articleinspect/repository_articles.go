@@ -2,6 +2,7 @@ package articleinspect
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -49,10 +50,10 @@ func (r *ArticleRepository) ListCandidateArticles(ctx context.Context, filter Ca
 		Where("orgid = ?", filter.OrgID).
 		Where("state = ?", state)
 	if filter.PublishTimeStart != nil {
-		query = query.Where("publish_at_time >= ?", *filter.PublishTimeStart)
+		query = query.Where("publish_at_time >= ?", filter.PublishTimeStart.Unix())
 	}
 	if filter.PublishTimeEnd != nil {
-		query = query.Where("publish_at_time <= ?", *filter.PublishTimeEnd)
+		query = query.Where("publish_at_time <= ?", filter.PublishTimeEnd.Unix())
 	}
 	if filter.ArticleID != 0 {
 		query = query.Where("id = ?", filter.ArticleID)
@@ -83,13 +84,13 @@ func (r *ArticleRepository) ListCandidateArticles(ctx context.Context, filter Ca
 			ID:            article.ID,
 			OrgID:         article.OrgID,
 			Title:         article.Title,
-			ShortTitle:    article.ShortTitle,
+			ShortTitle:    nullableStringToString(article.ShortTitle),
 			RichTitle:     article.RichTitle,
 			Keyword:       article.Keyword,
 			Desc:          article.Desc,
 			Body:          bodyByArticleID[article.ID],
 			State:         article.State,
-			PublishAtTime: article.PublishAtTime,
+			PublishAtTime: unixSecondsPointer(article.PublishAtUnix),
 		})
 	}
 
@@ -137,7 +138,7 @@ func (r *ArticleRepository) ListArticles(ctx context.Context, input ArticleListI
 			OrgID:               article.OrgID,
 			Title:               article.Title,
 			State:               article.State,
-			PublishAtTime:       article.PublishAtTime,
+			PublishAtTime:       unixSecondsPointer(article.PublishAtUnix),
 			LatestRiskLevel:     summary.LatestRiskLevel,
 			LatestTaskID:        summary.LatestTaskID,
 			LatestResultID:      summary.LatestResultID,
@@ -177,13 +178,13 @@ func (r *ArticleRepository) GetArticleDetail(ctx context.Context, orgID, article
 		ID:                  article.ID,
 		OrgID:               article.OrgID,
 		Title:               article.Title,
-		ShortTitle:          article.ShortTitle,
+		ShortTitle:          nullableStringToString(article.ShortTitle),
 		RichTitle:           article.RichTitle,
 		Keyword:             article.Keyword,
 		Desc:                article.Desc,
 		Body:                bodyByArticleID[articleID],
 		State:               article.State,
-		PublishAtTime:       article.PublishAtTime,
+		PublishAtTime:       unixSecondsPointer(article.PublishAtUnix),
 		LatestRiskLevel:     summary.LatestRiskLevel,
 		LatestTaskID:        summary.LatestTaskID,
 		LatestResultID:      summary.LatestResultID,
@@ -201,11 +202,11 @@ func (r *ArticleRepository) loadBodies(ctx context.Context, articleIDs []uint64)
 	}
 
 	infos := make([]ArticleInfo, 0, len(articleIDs))
-	if err := r.db.WithContext(ctx).Where("article_id IN ?", articleIDs).Find(&infos).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id IN ?", articleIDs).Find(&infos).Error; err != nil {
 		return nil, err
 	}
 	for _, info := range infos {
-		result[info.ArticleID] = info.Body
+		result[info.ID] = info.Body
 	}
 	return result, nil
 }
@@ -248,4 +249,19 @@ func extractArticleIDsFromModels(items []Article) []uint64 {
 		ids = append(ids, item.ID)
 	}
 	return ids
+}
+
+func unixSecondsPointer(value int64) *time.Time {
+	if value <= 0 {
+		return nil
+	}
+	timestamp := time.Unix(value, 0).UTC()
+	return &timestamp
+}
+
+func nullableStringToString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
 }
