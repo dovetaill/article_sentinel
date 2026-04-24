@@ -97,6 +97,57 @@ stop_pid() {
   kill -KILL "$process_pid" >/dev/null 2>&1 || true
 }
 
+stale_process_matches() {
+  local process_pid="$1"
+  local process_args="$2"
+
+  case "$process_args" in
+    *article-sentinel-server*|*article-sentinel-worker*|*article-sentinel-scheduler*)
+      return 0
+      ;;
+  esac
+
+  local process_cwd=""
+  if [[ -L "/proc/$process_pid/cwd" ]]; then
+    process_cwd="$(readlink -f "/proc/$process_pid/cwd" 2>/dev/null || true)"
+  fi
+
+  if [[ "$process_cwd" == "$ROOT_DIR" ]]; then
+    case "$process_args" in
+      *"go run ./cmd/server"*|*"go run ./cmd/worker"*|*"go run ./cmd/scheduler"*)
+        return 0
+        ;;
+    esac
+  fi
+
+  if [[ "$process_cwd" == "$ADMIN_DIR" ]]; then
+    case "$process_args" in
+      *vite*|*"npm run dev -- --host 0.0.0.0"*)
+        return 0
+        ;;
+    esac
+  fi
+
+  return 1
+}
+
+stop_stale_dev_processes() {
+  local line process_pid process_args
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+
+    process_pid="${line%% *}"
+    process_args="${line#* }"
+
+    [[ "$process_pid" =~ ^[0-9]+$ ]] || continue
+    [[ "$process_pid" != "$$" ]] || continue
+
+    if stale_process_matches "$process_pid" "$process_args"; then
+      stop_pid "$process_pid"
+    fi
+  done < <(ps -eo pid=,args=)
+}
+
 stop_session() {
   local session_id="${1:-}"
   if [[ -z "$session_id" ]]; then
@@ -124,10 +175,12 @@ stop_session() {
 stop_current_session() {
   local session_id
   if ! session_id="$(current_session_id)"; then
+    stop_stale_dev_processes
     return 0
   fi
 
   stop_session "$session_id"
+  stop_stale_dev_processes
 }
 
 prepare_go_env() {
