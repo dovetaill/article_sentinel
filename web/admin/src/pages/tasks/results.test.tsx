@@ -130,6 +130,10 @@ describe('TaskResultsPage', () => {
     );
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.queryByText('围绕单个任务查看命中结果、执行摘要和处置日志。')).not.toBeInTheDocument();
+    expect(screen.queryByText('查看当前任务的执行概况与责任信息。')).not.toBeInTheDocument();
+    expect(screen.queryByText('在当前任务上下文中完成单条或批量处置。')).not.toBeInTheDocument();
+    expect(screen.queryByText('跟踪该任务下的处置动作和状态变化。')).not.toBeInTheDocument();
     expect(screen.getByText('Spam alert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute(
       'href',

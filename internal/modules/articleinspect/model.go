@@ -253,6 +253,7 @@ type Article struct {
 	RichTitle     string         `gorm:"column:rich_title;size:1000;not null;default:''" json:"rich_title"`
 	Keyword       string         `gorm:"column:keyword;size:240;not null;default:''" json:"keyword"`
 	Desc          string         `gorm:"column:desc;size:250;not null;default:''" json:"desc"`
+	Thumbnail     string         `gorm:"column:thumbnail;size:600;not null;default:''" json:"thumbnail"`
 	State         int8           `gorm:"column:state;not null;default:0" json:"state"`
 	PublishAtUnix int64          `gorm:"column:publish_at_time;not null;default:0" json:"publish_at_time"`
 	UpdateAtUnix  int64          `gorm:"column:update_at;not null;default:0" json:"update_at"`

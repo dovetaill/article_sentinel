@@ -37,13 +37,14 @@ export default function TasksPage() {
   return (
     <>
       <div className="summary-card-grid">
-        <SummaryCard label="本页任务数" value={summary.total} helper="当前分页已加载任务数量" />
-        <SummaryCard label="执行中" value={summary.running} helper="仍在巡检中的任务" />
-        <SummaryCard label="已完成" value={summary.success} helper="已完成的任务批次" />
-        <SummaryCard label="命中总量" value={summary.hits} helper="当前分页累计命中次数" />
+        <SummaryCard label="本页任务数" value={summary.total} />
+        <SummaryCard label="执行中" value={summary.running} />
+        <SummaryCard label="已完成" value={summary.success} />
+        <SummaryCard label="命中总量" value={summary.hits} />
       </div>
 
       <SectionCard
+        title="任务列表"
         extra={(
           <Button key="new-task" type="primary" href="/tasks/new">
             新建任务
@@ -74,7 +75,6 @@ export default function TasksPage() {
                 onChange={(value) => setDraftFilters((current) => ({ ...current, status: value }))}
               />
             </div>
-            <span className="toolbar-strip__meta">更快筛出进行中的批次或定位单个任务编号。</span>
           </div>
 
           <div className="toolbar-strip__actions">

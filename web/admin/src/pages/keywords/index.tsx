@@ -111,10 +111,8 @@ export default function KeywordsPage() {
       {contextHolder}
       <SectionCard
         title="规则列表"
-        description="新建规则时先选择分类；执行检测任务时再按规则进行勾选。"
         extra={(
           <Space wrap>
-            <Button href="/rules/categories">查看分类</Button>
             <Button
               type="primary"
               onClick={() => {

@@ -1,5 +1,5 @@
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Empty, Space, Typography, message } from 'antd';
+import { Button, Empty, Space, Spin, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
@@ -18,7 +18,7 @@ import {
 } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
 
-const { Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 function taskStatusLabel(status: string | undefined) {
   if (status === 'running') return '执行中';
@@ -129,7 +129,6 @@ export default function TaskResultsPage() {
       {contextHolder}
       <PageHeader
         title="任务结果"
-        description="围绕单个任务查看命中结果、执行摘要和处置日志。"
         extra={(
           <Space wrap>
             <Button href="/tasks">返回任务列表</Button>
@@ -139,13 +138,15 @@ export default function TaskResultsPage() {
       />
 
       {loading ? (
-        <SectionCard title="任务结果" description="正在加载任务结果工作台。">
-          <Paragraph>正在汇总任务、命中结果与日志记录。</Paragraph>
+        <SectionCard title="任务结果">
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <Spin />
+          </div>
         </SectionCard>
       ) : null}
 
       {!loading && !task ? (
-        <SectionCard title="任务结果" description="未返回可展示的任务结果。">
+        <SectionCard title="任务结果">
           <Empty description="未查询到该任务的结果工作台数据。" />
         </SectionCard>
       ) : null}
@@ -153,13 +154,13 @@ export default function TaskResultsPage() {
       {!loading && task ? (
         <>
           <div className="summary-card-grid">
-            <SummaryCard label="命中结果" value={summary.total} helper="当前任务命中结果总数" />
-            <SummaryCard label="高风险" value={summary.highRisk} helper="需优先处置的命中记录" />
-            <SummaryCard label="待处置" value={summary.pending} helper="尚未完成处置的记录" />
-            <SummaryCard label="关联日志" value={summary.logs} helper="当前任务已记录的操作条目" />
+            <SummaryCard label="命中结果" value={summary.total} />
+            <SummaryCard label="高风险" value={summary.highRisk} />
+            <SummaryCard label="待处置" value={summary.pending} />
+            <SummaryCard label="关联日志" value={summary.logs} />
           </div>
 
-          <SectionCard title="任务摘要" description="查看当前任务的执行概况与责任信息。">
+          <SectionCard title="任务摘要">
             <Space direction="vertical" size={10} style={{ width: '100%' }}>
               <Space wrap>
                 <StatusBadge kind="task" value={task.status} />
@@ -173,7 +174,7 @@ export default function TaskResultsPage() {
             </Space>
           </SectionCard>
 
-          <SectionCard title="结果列表" description="在当前任务上下文中完成单条或批量处置。">
+          <SectionCard title="结果列表">
             <Space size={8} wrap style={{ marginBottom: 12 }}>
               <Button onClick={() => setSelectedResultIds(results.map((item) => item.id))}>本页全选</Button>
               <Button disabled={selectedResultIds.length === 0} onClick={() => void runBatchAction('ignore', selectedResultIds)}>
@@ -267,7 +268,7 @@ export default function TaskResultsPage() {
             />
           </SectionCard>
 
-          <SectionCard title="关联日志" description="跟踪该任务下的处置动作和状态变化。">
+          <SectionCard title="关联日志">
             {logs.length ? (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 {logs.map((item) => (

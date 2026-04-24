@@ -1423,6 +1423,9 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 		if articleInspectStringField(t, data, "body") != "<p>real body one</p>" {
 			t.Fatalf("article detail body = %q, want %q", articleInspectStringField(t, data, "body"), "<p>real body one</p>")
 		}
+		if articleInspectStringField(t, data, "thumbnail") != "https://example.com/article-9001.png" {
+			t.Fatalf("article detail thumbnail = %q, want %q", articleInspectStringField(t, data, "thumbnail"), "https://example.com/article-9001.png")
+		}
 		if articleInspectUint64Field(t, data, "latest_task_id") != 702 {
 			t.Fatalf("article detail latest_task_id = %d, want %d", articleInspectUint64Field(t, data, "latest_task_id"), 702)
 		}
@@ -1790,7 +1793,7 @@ func seedArticleCenterFixtures(t *testing.T, db *gorm.DB) {
 	olderActionAt := mustTime(t, "2026-04-21T11:00:00Z")
 
 	articles := []Article{
-		{ID: 9001, OrgID: 29, Title: "县域要闻一", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: latestActionAt.Unix()},
+		{ID: 9001, OrgID: 29, Title: "县域要闻一", Thumbnail: "https://example.com/article-9001.png", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: latestActionAt.Unix()},
 		{ID: 9002, OrgID: 29, Title: "县域要闻二", State: ArticleStateOffline, PublishAtUnix: laterPublishAt.Unix(), UpdateAtUnix: laterPublishAt.Unix()},
 		{ID: 9901, OrgID: 30, Title: "外部组织稿件", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: publishAt.Unix()},
 	}

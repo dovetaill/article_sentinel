@@ -14,12 +14,18 @@ import {
   type ArticleDetailRecord
 } from '../../services/articles';
 
-const { Paragraph, Text, Title } = Typography;
+const { Text } = Typography;
 
 type RectifyFormValues = {
   title: string;
   desc: string;
   body: string;
+};
+
+type SummaryMetric = {
+  label: string;
+  value: string | number;
+  helper?: string;
 };
 
 export default function RectifyPage() {
@@ -58,7 +64,7 @@ export default function RectifyPage() {
       .finally(() => setLoading(false));
   }, [articleId, currentOrgId, form]);
 
-  const metrics = useMemo(() => {
+  const metrics = useMemo<SummaryMetric[]>(() => {
     if (!record) {
       return [];
     }
@@ -66,23 +72,19 @@ export default function RectifyPage() {
     return [
       {
         label: '文章编号',
-        value: `#${record.id}`,
-        helper: '当前进入整改流程的稿件编号'
+        value: `#${record.id}`
       },
       {
         label: '原标题字数',
-        value: record.title.length,
-        helper: '用于对照整改前标题长度'
+        value: record.title.length
       },
       {
         label: '原摘要字数',
-        value: record.desc.length,
-        helper: '便于保持摘要信息完整'
+        value: record.desc.length
       },
       {
         label: '原文字数',
-        value: record.body.length,
-        helper: '按原始内容核验调整范围'
+        value: record.body.length
       }
     ];
   }, [record]);
@@ -133,7 +135,7 @@ export default function RectifyPage() {
       />
 
       {loading ? (
-        <SectionCard title="整改载入中" description="正在读取稿件原文与当前整改版本。">
+        <SectionCard title="整改载入中">
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />
           </div>
@@ -149,12 +151,8 @@ export default function RectifyPage() {
           </div>
 
           <div className="rectify-layout">
-            <SectionCard title="整改内容" description="在保留事实准确性的前提下完成风险修订。">
+            <SectionCard title="整改内容">
               <div className="rectify-form">
-                <Paragraph className="rectify-form__intro">
-                  请在保持稿件主旨准确的前提下，对存在风险的标题、摘要与正文进行审慎修订，避免再次触发同类规则。
-                </Paragraph>
-
                 <ProForm<RectifyFormValues> form={form} submitter={false}>
                   <ProFormText
                     name="title"
@@ -188,7 +186,7 @@ export default function RectifyPage() {
             </SectionCard>
 
             <div className="rectify-layout__side">
-              <SectionCard title="原稿对照" description="对照原始标题、摘要与正文，确保修改范围可控。">
+              <SectionCard title="原稿对照">
                 <div className="rectify-reference">
                   <div className="rectify-reference__item">
                     <span className="rectify-reference__label">原标题</span>
@@ -208,30 +206,13 @@ export default function RectifyPage() {
                   </div>
                 </div>
               </SectionCard>
-
-              <SectionCard title="办理提示" description="按当前处置流程完成暂存或提交复核。">
-                <div className="rectify-notes">
-                  <div>
-                    <Title level={5}>处置原则</Title>
-                    <Paragraph>
-                      修改内容应与原稿事实一致，重点消除敏感表述、误导措辞与不当扩散风险，不得新增未经核验的信息。
-                    </Paragraph>
-                  </div>
-                  <div>
-                    <Title level={5}>提交流程</Title>
-                    <Paragraph>
-                      “保存整改”适用于暂存调整结果；如需进入后续审核，请选择“保存并提交复核”。
-                    </Paragraph>
-                  </div>
-                </div>
-              </SectionCard>
             </div>
           </div>
         </>
       ) : null}
 
       {!loading && !record ? (
-        <SectionCard title="未获取到整改信息" description="当前稿件未返回可编辑内容。">
+        <SectionCard title="未获取到整改信息">
           <Empty description="当前文章暂无可用整改内容，请返回文稿详情或任务结果重新进入。" />
         </SectionCard>
       ) : null}

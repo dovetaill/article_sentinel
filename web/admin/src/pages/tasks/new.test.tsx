@@ -63,8 +63,17 @@ describe('NewTaskPage', () => {
     );
 
     expect(screen.getByRole('heading', { name: '新建检测任务' })).toBeInTheDocument();
+    expect(screen.queryByText('选择当前机构的规则集合并设定时间范围，任务提交后将在结果工作台继续处置。')).not.toBeInTheDocument();
+    expect(screen.queryByText('执行提示')).not.toBeInTheDocument();
+    expect(screen.queryByText('任务说明')).not.toBeInTheDocument();
+    expect(screen.queryByText('范围建议')).not.toBeInTheDocument();
+    expect(screen.queryByText('处理建议')).not.toBeInTheDocument();
+    expect(screen.queryByText('填写巡检条件后即可发起一次新的异步扫描。')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('文章编号')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('标题检索')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: '是否检索正文' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('发布时间起')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('发布时间止')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('一县一端')).toBeDisabled();
     await waitFor(() => {
       expect(mockedListKeywords).toHaveBeenCalledWith(expect.objectContaining({
@@ -80,7 +89,6 @@ describe('NewTaskPage', () => {
       expect(screen.getAllByText('政策红线 / spam').length).toBeGreaterThan(1);
     });
     await user.keyboard('{Escape}');
-    await user.click(screen.getByRole('switch', { name: '是否检索正文' }));
     await user.click(screen.getByRole('button', { name: '提交任务' }));
 
     await waitFor(() => {

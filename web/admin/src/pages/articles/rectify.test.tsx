@@ -77,6 +77,10 @@ describe('RectifyPage', () => {
     expect(await screen.findByText(/old title/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '内容整改' })).toBeInTheDocument();
     expect(screen.queryByText(/围绕当前稿件进行标题、摘要与正文修订。/)).not.toBeInTheDocument();
+    expect(screen.queryByText('在保留事实准确性的前提下完成风险修订。')).not.toBeInTheDocument();
+    expect(screen.queryByText('请在保持稿件主旨准确的前提下，对存在风险的标题、摘要与正文进行审慎修订，避免再次触发同类规则。')).not.toBeInTheDocument();
+    expect(screen.queryByText('对照原始标题、摘要与正文，确保修改范围可控。')).not.toBeInTheDocument();
+    expect(screen.queryByText('办理提示')).not.toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('整改标题'));
     await user.type(screen.getByLabelText('整改标题'), 'New title');

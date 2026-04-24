@@ -120,6 +120,10 @@ describe('TaskDetailPage', () => {
     expect((await screen.findAllByText('inspect-20260420-01')).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '返回任务列表' })).toHaveAttribute('href', '/tasks');
     expect(screen.queryByText('集中查看任务配置、命中结果与关联日志。')).not.toBeInTheDocument();
+    expect(screen.queryByText('查看当前批次的规则快照、执行摘要与命中概况。')).not.toBeInTheDocument();
+    expect(screen.queryByText('帮助快速判断这批任务是否还需要继续跟进。')).not.toBeInTheDocument();
+    expect(screen.queryByText('继续进入稿件和结果工作台。')).not.toBeInTheDocument();
+    expect(screen.queryByText('查看命中结果、规则快照、请求参数与关联日志。')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '命中结果' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '请求快照' })).toBeInTheDocument();

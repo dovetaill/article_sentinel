@@ -1,4 +1,4 @@
-import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
+import { Button, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -17,6 +17,12 @@ import {
 import { getResultDetail, type ResultDetailRecord } from '../../services/results';
 
 const { Paragraph, Text } = Typography;
+
+type SummaryMetric = {
+  label: string;
+  value: string | number;
+  helper?: string;
+};
 
 function renderArticleState(value?: number) {
   switch (value) {
@@ -101,19 +107,18 @@ export default function ArticleDetailPage() {
       .finally(() => setLoading(false));
   }, [currentOrgId, numericArticleId]);
 
-  const metrics = useMemo(() => {
+  const metrics = useMemo<SummaryMetric[]>(() => {
     if (!detail) {
       return [];
     }
 
     return [
-      { label: '文章编号', value: `#${detail.id}`, helper: '真实文章中心编号' },
-      { label: '当前状态', value: renderArticleState(detail.state), helper: '当前稿件生命周期状态' },
-      { label: '最新任务', value: detail.latest_task_id ? `#${detail.latest_task_id}` : '-', helper: '最近一次巡检任务' },
+      { label: '文章编号', value: `#${detail.id}` },
+      { label: '当前状态', value: renderArticleState(detail.state) },
+      { label: '最新任务', value: detail.latest_task_id ? `#${detail.latest_task_id}` : '-' },
       {
         label: '处置状态',
-        value: renderDispositionStatus(detail.latest_disposition_status),
-        helper: '最近一次巡检结果的处置进度'
+        value: renderDispositionStatus(detail.latest_disposition_status)
       }
     ];
   }, [detail]);
@@ -180,7 +185,6 @@ export default function ArticleDetailPage() {
     <>
       <PageHeader
         title="文稿详情"
-        description="查看真实文稿原文，并附带最近一次巡检留痕作为参考。"
         extra={(
           <Space wrap>
             <Button href={returnTarget}>返回上一页</Button>
@@ -199,7 +203,7 @@ export default function ArticleDetailPage() {
       />
 
       {loading ? (
-        <SectionCard title="文章详情" description="正在加载当前文章中心数据。">
+        <SectionCard title="文章详情">
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />
           </div>
@@ -207,7 +211,7 @@ export default function ArticleDetailPage() {
       ) : null}
 
       {!loading && !detail ? (
-        <SectionCard title="文章详情" description="未返回可展示的文章数据。">
+        <SectionCard title="文章详情">
           <Empty description="未查询到该文章的中心数据。" />
         </SectionCard>
       ) : null}
@@ -221,7 +225,7 @@ export default function ArticleDetailPage() {
           </div>
 
           <div className="rectify-layout">
-            <SectionCard title={detail.title} description="查看文章基本字段、摘要和正文快照。">
+            <SectionCard title={detail.title}>
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <Space wrap>
                   <span className="status-badge status-badge--neutral">{renderArticleState(detail.state)}</span>
@@ -232,27 +236,54 @@ export default function ArticleDetailPage() {
                     </span>
                   ) : null}
                 </Space>
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="文章编号">#{detail.id}</Descriptions.Item>
-                  <Descriptions.Item label="摘要">{detail.desc || '暂无摘要'}</Descriptions.Item>
-                  <Descriptions.Item label="关键词">{detail.keyword || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="短标题">{detail.short_title || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="富标题">
-                    {detail.rich_title ? (
-                      <div dangerouslySetInnerHTML={{ __html: detail.rich_title }} />
-                    ) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="正文快照">
-                    {detail.body ? (
-                      <div dangerouslySetInnerHTML={{ __html: detail.body }} />
-                    ) : '暂无正文快照'}
-                  </Descriptions.Item>
-                </Descriptions>
+                <div className="article-detail__meta">
+                  <div className="article-detail__meta-row">
+                    <span className="article-detail__meta-label">文章编号</span>
+                    <span className="article-detail__meta-value">#{detail.id}</span>
+                  </div>
+                  <div className="article-detail__meta-row">
+                    <span className="article-detail__meta-label">摘要</span>
+                    <span className="article-detail__meta-value">{detail.desc || '暂无摘要'}</span>
+                  </div>
+                  <div className="article-detail__meta-row">
+                    <span className="article-detail__meta-label">关键词</span>
+                    <span className="article-detail__meta-value">{detail.keyword || '-'}</span>
+                  </div>
+                  <div className="article-detail__meta-row">
+                    <span className="article-detail__meta-label">短标题</span>
+                    <span className="article-detail__meta-value">{detail.short_title || '-'}</span>
+                  </div>
+                </div>
+
+                {detail.thumbnail ? (
+                  <div className="article-detail__section">
+                    <span className="article-detail__section-title">封面图</span>
+                    <div className="article-detail__cover">
+                      <img src={detail.thumbnail} alt="文稿封面" />
+                    </div>
+                  </div>
+                ) : null}
+
+                {detail.rich_title ? (
+                  <div className="article-detail__section">
+                    <span className="article-detail__section-title">富标题</span>
+                    <div className="article-detail__html" dangerouslySetInnerHTML={{ __html: detail.rich_title }} />
+                  </div>
+                ) : null}
+
+                <div className="article-detail__section">
+                  <span className="article-detail__section-title">正文</span>
+                  {detail.body ? (
+                    <div className="article-detail__html" dangerouslySetInnerHTML={{ __html: detail.body }} />
+                  ) : (
+                    <span className="article-detail__meta-value">暂无正文快照</span>
+                  )}
+                </div>
               </Space>
             </SectionCard>
 
             <div className="rectify-layout__side">
-              <SectionCard title="最近巡检摘要" description="结合最近一次巡检补充信息做出处置判断。">
+              <SectionCard title="最近巡检摘要">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
                   <Text>最新任务：{detail.latest_task_id ? `#${detail.latest_task_id}` : '-'}</Text>
                   <Text>最新风险：{detail.latest_risk_level || '-'}</Text>
@@ -265,7 +296,7 @@ export default function ArticleDetailPage() {
             </div>
           </div>
 
-          <SectionCard title="详情记录" description="查看最近命中记录、操作留痕和字段变更。">
+          <SectionCard title="详情记录">
             <Tabs defaultActiveKey="hits" items={tabItems} />
           </SectionCard>
         </>

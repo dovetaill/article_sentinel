@@ -1,5 +1,5 @@
 import { ModalForm, ProFormDigit, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
-import { Button, Popconfirm, Space, Typography, message } from 'antd';
+import { Button, Popconfirm, Space, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
@@ -13,8 +13,6 @@ import {
   type CategoryRecord,
   updateCategory
 } from '../../services/categories';
-
-const { Text } = Typography;
 
 type ActionRef = {
   reload?: () => void;
@@ -69,11 +67,8 @@ export default function CategoriesPage() {
       {contextHolder}
       <SectionCard
         title="规则分类"
-        description="先维护规则分类，再到规则管理里把具体规则挂到分类下。"
         extra={(
           <Space size={12} wrap>
-            <Text>当前机构：{currentOrgName}</Text>
-            <Button href="/rules/keywords">查看规则</Button>
             <Button
               type="primary"
               onClick={() => {

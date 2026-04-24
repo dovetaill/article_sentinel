@@ -13,6 +13,12 @@ import { getTaskDetail, type TaskRecord } from '../../services/tasks';
 
 const { Paragraph, Text } = Typography;
 
+type SummaryMetric = {
+  label: string;
+  value: string | number;
+  helper?: string;
+};
+
 function formatSnapshot(snapshot: string | undefined, fallback: string) {
   if (!snapshot) {
     return fallback;
@@ -70,16 +76,16 @@ export default function TaskDetailPage() {
       .finally(() => setLoading(false));
   }, [currentOrgId, taskId]);
 
-  const metrics = useMemo(() => {
+  const metrics = useMemo<SummaryMetric[]>(() => {
     if (!task) {
       return [];
     }
 
     return [
-      { label: '任务编号', value: task.task_no, helper: '当前巡检批次编号' },
-      { label: '执行状态', value: taskStatusLabel(task.status), helper: '任务当前执行进度' },
-      { label: '已扫描数量', value: task.total_scanned ?? 0, helper: '当前任务已扫描文章数' },
-      { label: '命中结果', value: `${task.hit_articles ?? 0} / ${task.hit_count ?? 0}`, helper: '命中文稿数 / 命中次数' }
+      { label: '任务编号', value: task.task_no },
+      { label: '执行状态', value: taskStatusLabel(task.status) },
+      { label: '已扫描数量', value: task.total_scanned ?? 0 },
+      { label: '命中结果', value: `${task.hit_articles ?? 0} / ${task.hit_count ?? 0}` }
     ];
   }, [task]);
 
@@ -165,7 +171,7 @@ export default function TaskDetailPage() {
       />
 
       {loading ? (
-        <SectionCard title="任务详情" description="正在加载当前任务的执行信息。">
+        <SectionCard title="任务详情">
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />
           </div>
@@ -173,7 +179,7 @@ export default function TaskDetailPage() {
       ) : null}
 
       {!loading && !task ? (
-        <SectionCard title="任务详情" description="未返回可展示的任务内容。">
+        <SectionCard title="任务详情">
           <Empty description="未查询到该任务的详细记录。" />
         </SectionCard>
       ) : null}
@@ -187,7 +193,7 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="detail-workspace">
-            <SectionCard title={task.task_no} description="查看当前批次的规则快照、执行摘要与命中概况。">
+            <SectionCard title={task.task_no}>
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 <Space wrap>
                   <StatusBadge kind="task" value={task.status} />
@@ -206,7 +212,7 @@ export default function TaskDetailPage() {
             </SectionCard>
 
             <div className="detail-workspace__side">
-              <SectionCard title="当前状态" description="帮助快速判断这批任务是否还需要继续跟进。">
+              <SectionCard title="当前状态">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
                   <Text>执行状态：{taskStatusLabel(task.status)}</Text>
                   <Text>命中文稿：{task.hit_articles ?? 0} 篇</Text>
@@ -215,7 +221,7 @@ export default function TaskDetailPage() {
                 </Space>
               </SectionCard>
 
-              <SectionCard title="快捷入口" description="继续进入稿件和结果工作台。">
+              <SectionCard title="快捷入口">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
                   <Button href={`/tasks/${task.id}/results`}>前往任务结果</Button>
                   <Button href="/articles">前往文稿列表</Button>
@@ -234,7 +240,7 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
-          <SectionCard title="任务记录" description="查看命中结果、规则快照、请求参数与关联日志。">
+          <SectionCard title="任务记录">
             <Tabs defaultActiveKey="results" items={tabItems} />
           </SectionCard>
         </>

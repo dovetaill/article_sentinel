@@ -105,6 +105,8 @@ describe('KeywordsPage', () => {
 
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByText('政策红线')).toBeInTheDocument();
+    expect(screen.queryByText('新建规则时先选择分类；执行检测任务时再按规则进行勾选。')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '查看分类' })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockedListKeywords).toHaveBeenCalledWith(expect.objectContaining({ orgid: 29 }));

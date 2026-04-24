@@ -75,6 +75,7 @@ describe('ResultsPage', () => {
 
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
     expect(screen.queryByText('集中查看命中文稿、风险等级与处置状态，按批次完成研判、下线与整改。')).not.toBeInTheDocument();
+    expect(screen.queryByText('按当前筛选条件查看命中文稿并执行批量处置。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute(
       'href',
       '/articles/501?return_to=%2Fresults',

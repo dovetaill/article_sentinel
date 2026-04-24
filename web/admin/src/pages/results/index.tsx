@@ -64,13 +64,13 @@ export default function ResultsPage() {
     <>
       {contextHolder}
       <div className="summary-card-grid">
-        <SummaryCard label="本页结果数" value={summary.total} helper="当前分页已加载记录数量" />
-        <SummaryCard label="高风险" value={summary.highRisk} helper="需优先复核的记录数" />
-        <SummaryCard label="待处置" value={summary.pending} helper="尚未完成处置的记录数" />
-        <SummaryCard label="命中总量" value={summary.hitCount} helper="当前分页累计命中次数" />
+        <SummaryCard label="本页结果数" value={summary.total} />
+        <SummaryCard label="高风险" value={summary.highRisk} />
+        <SummaryCard label="待处置" value={summary.pending} />
+        <SummaryCard label="命中总量" value={summary.hitCount} />
       </div>
 
-      <SectionCard title="结果列表" description="按当前筛选条件查看命中文稿并执行批量处置。">
+      <SectionCard title="结果列表">
         <ToolbarStrip>
           <Text>已选 {selectedCount} 项</Text>
           <div className="toolbar-strip__actions">

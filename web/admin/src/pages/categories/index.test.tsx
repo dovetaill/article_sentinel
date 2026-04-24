@@ -112,6 +112,9 @@ describe('CategoriesPage', () => {
 
     expect(await screen.findByText('政策红线')).toBeInTheDocument();
     expect(screen.getByText('一县一端')).toBeInTheDocument();
+    expect(screen.queryByText('先维护规则分类，再到规则管理里把具体规则挂到分类下。')).not.toBeInTheDocument();
+    expect(screen.queryByText('当前机构：一县一端')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: '查看规则' })).toHaveLength(1);
     expect(screen.queryByText('按机构维护关键词规则分类，统一控制启停和排序。')).not.toBeInTheDocument();
 
     await waitFor(() => {

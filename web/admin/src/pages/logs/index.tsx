@@ -49,7 +49,6 @@ export default function LogsPage() {
                 onChange={(event) => setDraftFilters((current) => ({ ...current, operator: event.target.value }))}
               />
             </div>
-            <span className="toolbar-strip__meta">快速串联任务、文章与操作人三个维度的记录。</span>
           </div>
 
           <div className="toolbar-strip__actions">

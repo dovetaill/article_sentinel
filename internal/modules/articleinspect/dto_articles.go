@@ -14,6 +14,7 @@ type ArticleListItem struct {
 	ID                  uint64     `json:"id"`
 	OrgID               uint64     `json:"orgid"`
 	Title               string     `json:"title"`
+	Thumbnail           string     `json:"thumbnail,omitempty"`
 	State               int8       `json:"state"`
 	PublishAtTime       *time.Time `json:"publish_at_time"`
 	LatestRiskLevel     string     `json:"latest_risk_level,omitempty"`
@@ -41,6 +42,7 @@ type ArticleDetail struct {
 	Keyword             string     `json:"keyword"`
 	Desc                string     `json:"desc"`
 	Body                string     `json:"body"`
+	Thumbnail           string     `json:"thumbnail,omitempty"`
 	State               int8       `json:"state"`
 	PublishAtTime       *time.Time `json:"publish_at_time"`
 	LatestRiskLevel     string     `json:"latest_risk_level,omitempty"`

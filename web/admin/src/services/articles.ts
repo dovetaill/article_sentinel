@@ -12,6 +12,7 @@ export interface ArticleListItem {
   id: number;
   orgid: number;
   title: string;
+  thumbnail?: string;
   state: number;
   publish_at_time?: string;
   latest_risk_level?: string;

@@ -63,10 +63,11 @@ describe('ArticleDetailPage', () => {
       orgid: 29,
       title: '县域融媒今日要闻',
       short_title: '今日要闻',
-      rich_title: '县域融媒今日要闻 rich',
+      rich_title: '<p>县域融媒今日要闻 rich</p><img alt="富标题配图" src="https://example.com/rich.png" />',
       keyword: 'spam',
       desc: '真实摘要',
-      body: '<p>真实正文</p>',
+      body: '<p>真实正文</p><img alt="正文配图" src="https://example.com/body.png" />',
+      thumbnail: 'https://example.com/thumb.png',
       state: 9,
       latest_risk_level: 'high',
       latest_task_id: 208,
@@ -95,6 +96,9 @@ describe('ArticleDetailPage', () => {
     expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
     expect(screen.getByText('真实摘要')).toBeInTheDocument();
     expect(screen.getByText('真实正文')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '文稿封面' })).toHaveAttribute('src', 'https://example.com/thumb.png');
+    expect(screen.getByRole('img', { name: '富标题配图' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '正文配图' })).toBeInTheDocument();
     expect(screen.getByText(/最近巡检摘要/)).toBeInTheDocument();
     expect(screen.getByText(/最新风险/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute(
@@ -102,6 +106,9 @@ describe('ArticleDetailPage', () => {
       '/articles/501/rectify?return_to=%2Farticles&task_id=208',
     );
     expect(screen.getByText('县域融媒今日要闻 rich')).toBeInTheDocument();
+    expect(screen.queryByText('查看真实文稿原文，并附带最近一次巡检留痕作为参考。')).not.toBeInTheDocument();
+    expect(screen.queryByText('结合最近一次巡检补充信息做出处置判断。')).not.toBeInTheDocument();
+    expect(screen.queryByText('最近一次巡检任务')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '下线处置' })).not.toBeInTheDocument();
     expect(screen.queryByText('集中查看单篇文稿的命中情况、正文快照、处置记录与整改入口。')).not.toBeInTheDocument();
   });

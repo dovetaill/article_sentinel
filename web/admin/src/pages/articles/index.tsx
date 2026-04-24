@@ -1,8 +1,9 @@
-import { Button, Empty, Space, Spin, Table, Typography } from 'antd';
+import { Button, Empty, Input, Space, Spin, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
+import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { listArticles, type ArticleListItem } from '../../services/articles';
 
@@ -24,21 +25,73 @@ function renderArticleState(value?: number) {
 export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArticleListItem[]>([]);
+  const [draftQuery, setDraftQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
   const { activeOrgId } = useOrgContext();
 
   const currentOrgId = activeOrgId ?? 29;
 
   useEffect(() => {
     setLoading(true);
-    void listArticles({ orgid: currentOrgId, page: 1, pageSize: 20, state: 9 })
-      .then((result) => setItems(result.items))
-      .catch(() => setItems([]))
+    void listArticles({
+      orgid: currentOrgId,
+      page,
+      pageSize,
+      state: 9,
+      query: submittedQuery || undefined
+    })
+      .then((result) => {
+        setItems(result.items);
+        setTotal(result.total);
+      })
+      .catch(() => {
+        setItems([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, [currentOrgId]);
+  }, [currentOrgId, page, pageSize, submittedQuery]);
 
   return (
     <>
       <SectionCard>
+        <ToolbarStrip>
+          <div className="toolbar-strip__group">
+            <div className="toolbar-strip__controls">
+              <Input
+                aria-label="搜索文稿"
+                className="toolbar-strip__control"
+                placeholder="按标题关键词搜索"
+                value={draftQuery}
+                onChange={(event) => setDraftQuery(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="toolbar-strip__actions">
+            <Button
+              onClick={() => {
+                setDraftQuery('');
+                setSubmittedQuery('');
+                setPage(1);
+              }}
+            >
+              重置
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setSubmittedQuery(draftQuery.trim());
+                setPage(1);
+              }}
+            >
+              查询文稿
+            </Button>
+          </div>
+        </ToolbarStrip>
+
         {loading ? (
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />
@@ -50,7 +103,16 @@ export default function ArticlesPage() {
         {!loading && items.length > 0 ? (
           <Table<ArticleListItem>
             rowKey="id"
-            pagination={false}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: false,
+              onChange: (nextPage, nextPageSize) => {
+                setPage(nextPage);
+                setPageSize(nextPageSize);
+              }
+            }}
             columns={[
               {
                 title: '文章标题',
