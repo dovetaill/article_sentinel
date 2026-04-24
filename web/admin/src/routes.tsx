@@ -8,6 +8,7 @@ const KeywordsPage = lazy(() => import('./pages/keywords'));
 const TasksPage = lazy(() => import('./pages/tasks'));
 const NewTaskPage = lazy(() => import('./pages/tasks/new'));
 const TaskDetailPage = lazy(() => import('./pages/tasks/detail'));
+const TaskResultsPage = lazy(() => import('./pages/tasks/results'));
 const ResultsPage = lazy(() => import('./pages/results'));
 const LogsPage = lazy(() => import('./pages/logs'));
 const ArticlesPage = lazy(() => import('./pages/articles'));
@@ -156,7 +157,7 @@ export function AppRouteOutlet() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/new" element={<NewTaskPage />} />
         <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
-        <Route path="/tasks/:taskId/results" element={<ResultsPage />} />
+        <Route path="/tasks/:taskId/results" element={<TaskResultsPage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/articles" element={<ArticlesPage />} />
         <Route path="/articles/:articleId" element={<ArticleDetailPage />} />

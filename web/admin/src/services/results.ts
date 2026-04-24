@@ -121,11 +121,23 @@ export function getResultDetail(id: number, orgid = 100): Promise<ResultDetailRe
   return apiRequest<ResultDetailRecord>(`/api/v1/article-inspect/results/${id}?orgid=${orgid}`);
 }
 
-export function batchOfflineResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
-  return apiRequest<{ action_no: string }>('/api/v1/article-inspect/actions/batch-offline', {
+function postBatchAction(path: string, input: BatchOfflineInput): Promise<{ action_no: string }> {
+  return apiRequest<{ action_no: string }>(path, {
     method: 'POST',
     body: JSON.stringify(input)
   });
+}
+
+export function batchOfflineResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+  return postBatchAction('/api/v1/article-inspect/actions/batch-offline', input);
+}
+
+export function batchIgnoreResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+  return postBatchAction('/api/v1/article-inspect/actions/batch-ignore', input);
+}
+
+export function batchProcessResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+  return postBatchAction('/api/v1/article-inspect/actions/batch-process', input);
 }
 
 export function getArticleRectify(articleId: number, orgid = 100): Promise<RectifyArticleRecord> {

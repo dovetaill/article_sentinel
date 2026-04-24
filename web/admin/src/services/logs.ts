@@ -73,6 +73,15 @@ export async function listOperationLogs(params: OperationLogListParams): Promise
   };
 }
 
+export function listTaskOperationLogs(taskId: number, orgid = 100, page = 1, pageSize = 20): Promise<OperationLogListResult> {
+  return listOperationLogs({
+    orgid,
+    task_id: taskId,
+    page,
+    pageSize
+  });
+}
+
 export async function listArticleOperationLogs(articleId: number, orgid = 100, page = 1, pageSize = 20): Promise<OperationLogListResult> {
   const query = new URLSearchParams({
     orgid: String(orgid),

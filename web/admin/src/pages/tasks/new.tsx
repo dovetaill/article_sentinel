@@ -1,47 +1,51 @@
 import { ProForm } from '@ant-design/pro-components';
-import { Button, Form, Input, Space, Switch, Typography, message } from 'antd';
+import { Button, Form, Input, Select, Space, Switch, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { useOrgContext } from '../../context/org-context';
 import { listKeywords, type KeywordRecord } from '../../services/keywords';
 import { createTask } from '../../services/tasks';
 
 const { Paragraph, Title } = Typography;
 
 type TaskDraft = {
-  orgid: string;
   keyword_ids: number[];
   publish_time_start: string;
   publish_time_end: string;
   include_body: boolean;
-  article_id: string;
-  title_like: string;
 };
 
 export default function NewTaskPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [keywords, setKeywords] = useState<KeywordRecord[]>([]);
   const [draft, setDraft] = useState<TaskDraft>({
-    orgid: '',
     keyword_ids: [],
     publish_time_start: '',
     publish_time_end: '',
-    include_body: false,
-    article_id: '',
-    title_like: ''
+    include_body: false
   });
+  const { activeOrgId, activeOrgName } = useOrgContext();
+
+  const currentOrgId = activeOrgId ?? 29;
+  const currentOrgName = activeOrgName || '一县一端';
 
   useEffect(() => {
-    void listKeywords({ orgid: 100, page: 1, pageSize: 100 }).then((result) => setKeywords(result.items));
-  }, []);
+    void listKeywords({ orgid: currentOrgId, page: 1, pageSize: 100 }).then((result) => {
+      setKeywords(result.items);
+      setDraft((current) => current.keyword_ids.length || result.items.length === 0
+        ? current
+        : { ...current, keyword_ids: [result.items[0].id] });
+    });
+  }, [currentOrgId]);
 
   return (
     <>
       {contextHolder}
       <PageHeader
         title="新建检测任务"
-        description="设置巡检范围、关键词条件与筛选口径，发起后将按异步任务方式执行。"
+        description="选择当前机构的规则集合并设定时间范围，任务提交后将在结果工作台继续处置。"
         extra={<Button href="/tasks">返回任务列表</Button>}
       />
 
@@ -51,13 +55,11 @@ export default function NewTaskPage() {
             submitter={false}
             onFinish={async () => {
               await createTask({
-                orgid: Number(draft.orgid),
+                orgid: currentOrgId,
                 keyword_ids: draft.keyword_ids,
                 publish_time_start: draft.publish_time_start || undefined,
                 publish_time_end: draft.publish_time_end || undefined,
                 include_body: draft.include_body,
-                article_id: draft.article_id ? Number(draft.article_id) : undefined,
-                title_like: draft.title_like || undefined,
                 article_state: 9
               });
               messageApi.success('检测任务已提交');
@@ -65,25 +67,24 @@ export default function NewTaskPage() {
             }}
           >
             <Form.Item label="所属机构">
-              <Input aria-label="所属机构" value={draft.orgid} onChange={(event) => setDraft((current) => ({ ...current, orgid: event.target.value }))} />
+              <Input aria-label="所属机构" disabled value={currentOrgName} />
             </Form.Item>
-            <Form.Item label="关键词范围">
-              <select
-                aria-label="关键词范围"
-                multiple
-                className="task-form-layout__select"
-                value={draft.keyword_ids.map(String)}
-                onChange={(event) => {
-                  const values = Array.from(event.currentTarget.selectedOptions, (option) => Number(option.value));
-                  setDraft((current) => ({ ...current, keyword_ids: values }));
-                }}
-              >
-                {keywords.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+            <Form.Item label="规则选择">
+              <Select
+                aria-label="规则选择"
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                value={draft.keyword_ids}
+                options={keywords.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                }))}
+                onChange={(value) => setDraft((current) => ({
+                  ...current,
+                  keyword_ids: value.map((item) => Number(item))
+                }))}
+              />
             </Form.Item>
             <Form.Item label="发布时间起">
               <Input aria-label="发布时间起" value={draft.publish_time_start} onChange={(event) => setDraft((current) => ({ ...current, publish_time_start: event.target.value }))} />
@@ -93,12 +94,6 @@ export default function NewTaskPage() {
             </Form.Item>
             <Form.Item label="是否检索正文">
               <Switch aria-label="是否检索正文" checked={draft.include_body} onChange={(checked) => setDraft((current) => ({ ...current, include_body: checked }))} />
-            </Form.Item>
-            <Form.Item label="文章编号">
-              <Input aria-label="文章编号" value={draft.article_id} onChange={(event) => setDraft((current) => ({ ...current, article_id: event.target.value }))} />
-            </Form.Item>
-            <Form.Item label="标题检索">
-              <Input aria-label="标题检索" value={draft.title_like} onChange={(event) => setDraft((current) => ({ ...current, title_like: event.target.value }))} />
             </Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
@@ -116,11 +111,11 @@ export default function NewTaskPage() {
             </div>
             <div>
               <Title level={5}>范围建议</Title>
-              <Paragraph>如需精准定位，请同时设置关键词范围、时间区间与文章编号，避免误扫无关内容。</Paragraph>
+              <Paragraph>优先从高风险规则组合开始巡检，再按发布时间逐步扩大范围，减少首轮噪音。</Paragraph>
             </div>
             <div>
               <Title level={5}>处理建议</Title>
-              <Paragraph>任务提交后可返回“检测任务”页查看执行进展，并在“风险结果”页继续后续处置。</Paragraph>
+              <Paragraph>任务提交后可直接在“任务结果”工作台查看命中文稿、批量处置与跟踪日志。</Paragraph>
             </div>
           </div>
         </SectionCard>

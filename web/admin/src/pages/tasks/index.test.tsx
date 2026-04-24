@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OrgProvider } from '../../context/org-context';
+import { listOrgs } from '../../services/orgs';
 import TasksPage from './index';
 import { listTasks } from '../../services/tasks';
 
@@ -12,19 +14,33 @@ vi.mock('../../services/tasks', () => ({
   createTask: vi.fn()
 }));
 
+vi.mock('../../services/orgs', () => ({
+  listOrgs: vi.fn()
+}));
+
 const mockedListTasks = vi.mocked(listTasks);
+const mockedListOrgs = vi.mocked(listOrgs);
 
 describe('TasksPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      {
+        id: 29,
+        name: '一县一端',
+        cateid: 0,
+        enabled: true,
+        sort: 1
+      }
+    ]);
     mockedListTasks.mockResolvedValue({
       page: 1,
       pageSize: 20,
       total: 1,
       items: [
         {
-          id: 77,
-          orgid: 100,
+          id: 501,
+          orgid: 29,
           task_no: 'inspect-20260420-01',
           status: 'running',
           total_scanned: 42,
@@ -37,20 +53,20 @@ describe('TasksPage', () => {
     });
   });
 
-  it('renders task status tags and routes detail action to the full detail page', async () => {
+  it('shows the task-results entry as the primary row action', async () => {
     render(
       <ConfigProvider>
-        <MemoryRouter>
-          <TasksPage />
-        </MemoryRouter>
+        <OrgProvider>
+          <MemoryRouter>
+            <TasksPage />
+          </MemoryRouter>
+        </OrgProvider>
       </ConfigProvider>,
     );
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
-    expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();
-    expect(screen.getAllByText('执行中').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '新建任务' })).toHaveAttribute('href', '/tasks/new');
-    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/tasks/77');
-    expect(screen.queryByText(/spam keyword/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '运行结果' })).toHaveAttribute('href', '/tasks/501/results');
+    expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();
   });
 });

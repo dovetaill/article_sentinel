@@ -146,8 +146,8 @@ export default function TaskDetailPage() {
         extra={(
           <Space wrap>
             <Button href="/tasks">返回任务列表</Button>
-            <Button type="primary" href="/results">
-              查看风险结果
+            <Button type="primary" href={`/tasks/${task?.id ?? taskId}/results`}>
+              查看任务结果
             </Button>
           </Space>
         )}
@@ -206,7 +206,7 @@ export default function TaskDetailPage() {
 
               <SectionCard title="快捷入口" description="继续进入稿件和结果工作台。">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
-                  <Button href="/results">前往风险结果</Button>
+                  <Button href={`/tasks/${task.id}/results`}>前往任务结果</Button>
                   <Button href="/articles">前往文稿列表</Button>
                   {results[0] ? (
                     <Button type="link" href={`/articles/${results[0].article_id}`}>

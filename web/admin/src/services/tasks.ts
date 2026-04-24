@@ -34,8 +34,6 @@ export interface CreateTaskInput {
   keyword_ids: number[];
   publish_time_start?: string;
   publish_time_end?: string;
-  article_id?: number;
-  title_like?: string;
   include_body: boolean;
   article_state?: number;
 }

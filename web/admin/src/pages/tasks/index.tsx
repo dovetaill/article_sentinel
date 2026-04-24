@@ -6,6 +6,7 @@ import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
+import { useOrgContext } from '../../context/org-context';
 import { listTasks, type TaskRecord } from '../../services/tasks';
 
 type Filters = {
@@ -17,7 +18,9 @@ export default function TasksPage() {
   const [pageRows, setPageRows] = useState<TaskRecord[]>([]);
   const [draftFilters, setDraftFilters] = useState({ taskNo: '', status: undefined as string | undefined });
   const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
+  const { activeOrgId } = useOrgContext();
 
+  const currentOrgId = activeOrgId ?? 29;
   const summary = useMemo(() => {
     const running = pageRows.filter((item) => item.status === 'running').length;
     const success = pageRows.filter((item) => item.status === 'success').length;
@@ -105,12 +108,12 @@ export default function TasksPage() {
           headerTitle={false}
           size="small"
           search={false}
-          params={submittedFilters}
+          params={{ ...submittedFilters, orgid: currentOrgId }}
           options={false}
           toolBarRender={false}
           request={async (params) => {
             const result = await listTasks({
-              orgid: 100,
+              orgid: currentOrgId,
               page: params.current,
               pageSize: params.pageSize,
               task_no: submittedFilters.task_no,
@@ -142,8 +145,8 @@ export default function TasksPage() {
               title: '操作',
               valueType: 'option',
               render: (_, record) => [
-                <Button key="detail" type="link" href={`/tasks/${record.id}`}>
-                  查看详情
+                <Button key="results" type="link" href={`/tasks/${record.id}/results`}>
+                  运行结果
                 </Button>
               ]
             }

@@ -1,0 +1,143 @@
+import { ConfigProvider } from 'antd';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { OrgProvider } from '../../context/org-context';
+import { listOperationLogs } from '../../services/logs';
+import { listOrgs } from '../../services/orgs';
+import {
+  batchIgnoreResults,
+  batchOfflineResults,
+  batchProcessResults,
+  listResults
+} from '../../services/results';
+import { getTaskDetail } from '../../services/tasks';
+import TaskResultsPage from './results';
+
+vi.mock('../../services/orgs', () => ({
+  listOrgs: vi.fn()
+}));
+
+vi.mock('../../services/tasks', () => ({
+  listTasks: vi.fn(),
+  getTaskDetail: vi.fn(),
+  createTask: vi.fn()
+}));
+
+vi.mock('../../services/results', () => ({
+  listResults: vi.fn(),
+  getResultDetail: vi.fn(),
+  batchOfflineResults: vi.fn(),
+  batchIgnoreResults: vi.fn(),
+  batchProcessResults: vi.fn(),
+  getArticleRectify: vi.fn(),
+  rectifyArticle: vi.fn()
+}));
+
+vi.mock('../../services/logs', () => ({
+  listOperationLogs: vi.fn(),
+  listArticleOperationLogs: vi.fn(),
+  listArticleFieldChanges: vi.fn()
+}));
+
+const mockedListOrgs = vi.mocked(listOrgs);
+const mockedGetTaskDetail = vi.mocked(getTaskDetail);
+const mockedListResults = vi.mocked(listResults);
+const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
+const mockedBatchIgnoreResults = vi.mocked(batchIgnoreResults);
+const mockedBatchProcessResults = vi.mocked(batchProcessResults);
+const mockedListOperationLogs = vi.mocked(listOperationLogs);
+
+describe('TaskResultsPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      {
+        id: 29,
+        name: '一县一端',
+        cateid: 0,
+        enabled: true,
+        sort: 1
+      }
+    ]);
+    mockedGetTaskDetail.mockResolvedValue({
+      id: 77,
+      orgid: 29,
+      task_no: 'inspect-20260420-01',
+      status: 'running',
+      total_scanned: 42,
+      hit_articles: 4,
+      hit_count: 8,
+      creator_name: 'operator',
+      created_at: '2026-04-20 12:00:00'
+    } as never);
+    mockedListResults.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      items: [
+        {
+          id: 11,
+          orgid: 29,
+          task_id: 77,
+          article_id: 501,
+          article_title: 'Spam alert',
+          risk_level: 'high',
+          suggest_action: 'offline',
+          disposition_status: 'pending',
+          hit_count: 3,
+          matched_keyword: 'spam',
+          snippet: 'This spam alert keeps repeating'
+        }
+      ]
+    } as never);
+    mockedListOperationLogs.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      items: [
+        {
+          id: 9,
+          orgid: 29,
+          article_id: 501,
+          task_id: 77,
+          operation_type: 'offline',
+          before_state: 'online',
+          after_state: 'offline',
+          summary: 'Task reviewed by auditor',
+          operator_name: 'auditor',
+          created_at: '2026-04-20 16:00:00'
+        }
+      ]
+    } as never);
+    mockedBatchOfflineResults.mockResolvedValue({ action_no: 'offline-11' } as never);
+    mockedBatchIgnoreResults.mockResolvedValue({ action_no: 'ignore-11' } as never);
+    mockedBatchProcessResults.mockResolvedValue({ action_no: 'process-11' } as never);
+  });
+
+  it('renders the dedicated task-results workspace with result actions, batch actions, and log section', async () => {
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/tasks/77/results']}>
+            <Routes>
+              <Route path="/tasks/:taskId/results" element={<TaskResultsPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.getByText('Spam alert')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/articles/501');
+    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute('href', '/articles/501/rectify');
+    expect(screen.getByRole('button', { name: '下线处置' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '批量忽略' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '批量标记已处理' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '关联日志' })).toBeInTheDocument();
+    expect(screen.getByText('Task reviewed by auditor')).toBeInTheDocument();
+  });
+});
