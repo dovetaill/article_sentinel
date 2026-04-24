@@ -23,7 +23,6 @@ export function HeaderBar({ pageTitle, sectionLabel, sidebarCollapsed, onToggleS
           onClick={onToggleSidebar}
         />
         <div className="admin-header__title-block">
-          <span className="admin-header__eyebrow">{sectionLabel}</span>
           <h1 className="admin-header__title">{pageTitle}</h1>
         </div>
       </div>

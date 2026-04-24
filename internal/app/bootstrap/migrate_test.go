@@ -1,11 +1,14 @@
 package bootstrap
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/pkg/config"
 	"github.com/dovetaill/article-sentinel/pkg/database"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -79,14 +82,17 @@ func TestBuildMigrateConfigUsesPrimaryDatabaseConfig(t *testing.T) {
 func TestRunMigrateCommandRunsStarterSchemaSync(t *testing.T) {
 	origLoadConfig := loadConfigFn
 	origBootstrapDatabase := bootstrapDatabaseFn
+	origApplySQLMigrations := applySQLMigrationsFn
 	origAutoMigrate := autoMigrateBusinessTablesFn
 	t.Cleanup(func() {
 		loadConfigFn = origLoadConfig
 		bootstrapDatabaseFn = origBootstrapDatabase
+		applySQLMigrationsFn = origApplySQLMigrations
 		autoMigrateBusinessTablesFn = origAutoMigrate
 	})
 
 	bootstrapCalls := 0
+	callOrder := make([]string, 0, 2)
 	autoMigrateCalls := 0
 	loadConfigFn = func(path string) (*config.Config, error) {
 		return &config.Config{
@@ -110,7 +116,12 @@ func TestRunMigrateCommandRunsStarterSchemaSync(t *testing.T) {
 		bootstrapCalls++
 		return &database.Resources{DB: &gorm.DB{}}, nil
 	}
+	applySQLMigrationsFn = func(db *gorm.DB, sourceURL string) error {
+		callOrder = append(callOrder, "sql:"+sourceURL)
+		return nil
+	}
 	autoMigrateBusinessTablesFn = func(migrator schemaMigrator) error {
+		callOrder = append(callOrder, "auto")
 		autoMigrateCalls++
 		return nil
 	}
@@ -123,6 +134,9 @@ func TestRunMigrateCommandRunsStarterSchemaSync(t *testing.T) {
 	}
 	if autoMigrateCalls != 1 {
 		t.Fatalf("auto migrate call count = %d, want %d", autoMigrateCalls, 1)
+	}
+	if got, want := strings.Join(callOrder, ","), "sql:file://migrations,auto"; got != want {
+		t.Fatalf("call order = %q, want %q", got, want)
 	}
 }
 
@@ -144,5 +158,48 @@ func TestMigrateCommandRejectsUnsupportedDriver(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupported database driver") {
 		t.Fatalf("error = %v, want contains %q", err, "unsupported database driver")
+	}
+}
+
+func TestApplySQLMigrationsExecutesStatementsFromFiles(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "migrate.db")
+
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "001_create_widgets.sql"), []byte(`
+-- create table
+CREATE TABLE widgets (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL
+);
+`), 0o644); err != nil {
+		t.Fatalf("write create migration: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "002_seed_widgets.sql"), []byte(`
+-- seed row
+INSERT INTO widgets (id, name)
+VALUES (1, 'alpha');
+`), 0o644); err != nil {
+		t.Fatalf("write seed migration: %v", err)
+	}
+
+	if err := ApplySQLMigrations(db, "file://"+dir); err != nil {
+		t.Fatalf("ApplySQLMigrations() error = %v", err)
+	}
+
+	var got struct {
+		ID   int
+		Name string
+	}
+	if err := db.Table("widgets").First(&got, "id = ?", 1).Error; err != nil {
+		t.Fatalf("load seeded widget: %v", err)
+	}
+	if got.Name != "alpha" {
+		t.Fatalf("seeded widget name = %q, want %q", got.Name, "alpha")
 	}
 }

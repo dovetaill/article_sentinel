@@ -15,6 +15,7 @@ var (
 	newLoggerFn                 = logger.New
 	bootstrapDatabaseFn         = database.Bootstrap
 	businessModels              []any
+	applySQLMigrationsFn        = ApplySQLMigrations
 	autoMigrateBusinessTablesFn = AutoMigrateBusinessTables
 )
 

@@ -1,14 +1,18 @@
 package bootstrap
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"net"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/dovetaill/article-sentinel/pkg/config"
+	"gorm.io/gorm"
 )
 
 const migrationsSourceURL = "file://migrations"
@@ -51,7 +55,8 @@ func RunMigrateCommand(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	if _, err := BuildMigrateConfig(cfg); err != nil {
+	migrateCfg, err := BuildMigrateConfig(cfg)
+	if err != nil {
 		return fmt.Errorf("build migrate config: %w", err)
 	}
 
@@ -67,11 +72,95 @@ func RunMigrateCommand(configPath string) error {
 	if resources == nil || resources.DB == nil {
 		return errors.New("starter database is required")
 	}
+	if err := applySQLMigrationsFn(resources.DB, migrateCfg.SourceURL); err != nil {
+		return fmt.Errorf("apply sql migrations: %w", err)
+	}
 	if err := autoMigrateBusinessTablesFn(resources.DB); err != nil {
 		return fmt.Errorf("auto migrate starter schema: %w", err)
 	}
 
 	return nil
+}
+
+func ApplySQLMigrations(db *gorm.DB, sourceURL string) error {
+	if db == nil {
+		return errors.New("database is required")
+	}
+
+	dir, err := migrationDirectoryFromSource(sourceURL)
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("read migration directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+
+		path := filepath.Join(dir, entry.Name())
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read migration file %s: %w", entry.Name(), err)
+		}
+
+		statements := splitSQLStatements(string(content))
+		for _, statement := range statements {
+			if err := db.Exec(statement).Error; err != nil {
+				return fmt.Errorf("execute migration statement from %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func migrationDirectoryFromSource(sourceURL string) (string, error) {
+	if !strings.HasPrefix(sourceURL, "file://") {
+		return "", fmt.Errorf("unsupported migration source: %s", sourceURL)
+	}
+
+	dir := strings.TrimSpace(strings.TrimPrefix(sourceURL, "file://"))
+	if dir == "" {
+		return "", errors.New("migration directory is required")
+	}
+	return dir, nil
+}
+
+func splitSQLStatements(content string) []string {
+	statements := make([]string, 0)
+	var current strings.Builder
+
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "--") || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		if current.Len() > 0 {
+			current.WriteByte('\n')
+		}
+		current.WriteString(line)
+
+		if strings.HasSuffix(line, ";") {
+			statement := strings.TrimSpace(strings.TrimSuffix(current.String(), ";"))
+			if statement != "" {
+				statements = append(statements, statement)
+			}
+			current.Reset()
+		}
+	}
+
+	if trailing := strings.TrimSpace(current.String()); trailing != "" {
+		statements = append(statements, trailing)
+	}
+
+	return statements
 }
 
 func normalizeDatabaseDriver(driver string) string {
