@@ -2,34 +2,24 @@ import { Button, Descriptions, Empty, List, Space, Spin, Tabs, Typography } from
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
+import { HitPreview } from '../../components/ui/hit-preview';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { useOrgContext } from '../../context/org-context';
+import { formatInspectionSnapshot } from '../../lib/inspection-snapshot';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 import { listResults, type ResultRecord } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
 
-const { Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 type SummaryMetric = {
   label: string;
   value: string | number;
   helper?: string;
 };
-
-function formatSnapshot(snapshot: string | undefined, fallback: string) {
-  if (!snapshot) {
-    return fallback;
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(snapshot), null, 2);
-  } catch {
-    return snapshot;
-  }
-}
 
 function taskStatusLabel(status: string | undefined) {
   if (status === 'running') return '执行中';
@@ -112,7 +102,13 @@ export default function TaskDetailPage() {
                     <Text type="secondary">命中 {item.hit_count} 次</Text>
                     <Text type="secondary">{item.disposition_status === 'pending' ? '待处置' : '已处置'}</Text>
                   </Space>
-                  <Paragraph className="detail-list__meta">{item.snippet || '暂无命中片段。'}</Paragraph>
+                  <HitPreview
+                    fieldName={item.preview_field_name}
+                    keywordText={item.preview_keyword_text ?? item.matched_keyword}
+                    matchedText={item.preview_matched_text ?? item.matched_keyword}
+                    snippet={item.preview_snippet ?? item.snippet}
+                    extraHitCount={item.extra_hit_count}
+                  />
                 </Space>
               </List.Item>
             )}
@@ -122,12 +118,12 @@ export default function TaskDetailPage() {
       {
         key: 'rule-snapshot',
         label: '规则快照',
-        children: <pre className="detail-code-block">{formatSnapshot(task?.rule_snapshot, '暂无规则快照。')}</pre>
+        children: <pre className="detail-code-block">{formatInspectionSnapshot(task?.rule_snapshot, '暂无规则快照。')}</pre>
       },
       {
         key: 'request-snapshot',
         label: '请求快照',
-        children: <pre className="detail-code-block">{formatSnapshot(task?.request_snapshot, '暂无请求快照。')}</pre>
+        children: <pre className="detail-code-block">{formatInspectionSnapshot(task?.request_snapshot, '暂无请求快照。')}</pre>
       },
       {
         key: 'logs',

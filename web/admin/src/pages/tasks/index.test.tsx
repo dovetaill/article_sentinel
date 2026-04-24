@@ -1,17 +1,19 @@
 import { ConfigProvider } from 'antd';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listOrgs } from '../../services/orgs';
 import TasksPage from './index';
-import { listTasks } from '../../services/tasks';
+import { deleteTask, listTasks } from '../../services/tasks';
 
 vi.mock('../../services/tasks', () => ({
   listTasks: vi.fn(),
   getTaskDetail: vi.fn(),
-  createTask: vi.fn()
+  createTask: vi.fn(),
+  deleteTask: vi.fn()
 }));
 
 vi.mock('../../services/orgs', () => ({
@@ -20,6 +22,7 @@ vi.mock('../../services/orgs', () => ({
 
 const mockedListTasks = vi.mocked(listTasks);
 const mockedListOrgs = vi.mocked(listOrgs);
+const mockedDeleteTask = vi.mocked(deleteTask);
 
 describe('TasksPage', () => {
   beforeEach(() => {
@@ -36,10 +39,21 @@ describe('TasksPage', () => {
     mockedListTasks.mockResolvedValue({
       page: 1,
       pageSize: 20,
-      total: 1,
+      total: 2,
       items: [
         {
           id: 501,
+          orgid: 29,
+          task_no: 'inspect-20260420-02',
+          status: 'pending',
+          total_scanned: 0,
+          hit_articles: 0,
+          hit_count: 0,
+          creator_name: 'operator',
+          created_at: '2026-04-20T12:00:00Z'
+        },
+        {
+          id: 502,
           orgid: 29,
           task_no: 'inspect-20260420-01',
           status: 'running',
@@ -51,9 +65,12 @@ describe('TasksPage', () => {
         }
       ]
     });
+    mockedDeleteTask.mockResolvedValue({ id: 501 } as never);
   });
 
-  it('shows the task-results entry as the primary row action', async () => {
+  it('shows task result navigation and only allows deleting pending tasks', async () => {
+    const user = userEvent.setup();
+
     render(
       <ConfigProvider>
         <OrgProvider>
@@ -65,11 +82,16 @@ describe('TasksPage', () => {
     );
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.getByText('inspect-20260420-02')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '任务列表' })).toBeInTheDocument();
     expect(screen.queryByText('按任务编号与执行状态浏览当前批次。')).not.toBeInTheDocument();
     expect(screen.queryByText('更快筛出进行中的批次或定位单个任务编号。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '新建任务' })).toHaveAttribute('href', '/tasks/new');
-    expect(screen.getByRole('link', { name: '运行结果' })).toHaveAttribute('href', '/tasks/501/results');
+    expect(screen.getAllByRole('link', { name: '运行结果' })[0]).toHaveAttribute('href', '/tasks/501/results');
+    expect(screen.getByText('已执行不可删')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '删除任务' }));
+    await user.click(await screen.findByRole('button', { name: '确认删除' }));
+    expect(mockedDeleteTask).toHaveBeenCalledWith(501, 29);
     expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();
   });
 });

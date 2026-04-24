@@ -8,7 +8,7 @@ import { OrgProvider } from '../../context/org-context';
 import { listEnabledCategories } from '../../services/categories';
 import { listOrgs } from '../../services/orgs';
 import KeywordsPage from './index';
-import { createKeyword, listKeywords, updateKeyword } from '../../services/keywords';
+import { createKeyword, deleteKeyword, listKeywords, updateKeyword } from '../../services/keywords';
 
 vi.mock('../../services/keywords', () => ({
   listKeywords: vi.fn(),
@@ -29,6 +29,7 @@ vi.mock('../../services/orgs', () => ({
 const mockedListKeywords = vi.mocked(listKeywords);
 const mockedCreateKeyword = vi.mocked(createKeyword);
 const mockedUpdateKeyword = vi.mocked(updateKeyword);
+const mockedDeleteKeyword = vi.mocked(deleteKeyword);
 const mockedListEnabledCategories = vi.mocked(listEnabledCategories);
 const mockedListOrgs = vi.mocked(listOrgs);
 
@@ -88,6 +89,7 @@ describe('KeywordsPage', () => {
 
     mockedCreateKeyword.mockResolvedValue({ id: 8, orgid: 29, name: 'new keyword' } as never);
     mockedUpdateKeyword.mockResolvedValue({ id: 7, orgid: 29, name: 'spam-updated' } as never);
+    mockedDeleteKeyword.mockResolvedValue({ id: 7 } as never);
   });
 
   it('renders category selection as a searchable select and submits category_id instead of raw text', async () => {
@@ -132,4 +134,27 @@ describe('KeywordsPage', () => {
       }));
     });
   }, 10_000);
+
+  it('deletes a keyword from the list after confirmation', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/rules/keywords']}>
+          <OrgProvider>
+            <KeywordsPage />
+          </OrgProvider>
+        </MemoryRouter>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText('spam')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '删除规则' }));
+    await user.click(await screen.findByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => {
+      expect(mockedDeleteKeyword).toHaveBeenCalledWith(7, 29);
+    });
+  });
 });

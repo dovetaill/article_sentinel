@@ -42,7 +42,7 @@ describe('LogsPage', () => {
           after_state: 'offline',
           summary: 'offline by operator',
           operator_name: 'alice',
-          request_snapshot: '{"reason":"spam"}',
+          request_snapshot: '{"include_body":true,"reason":"spam"}',
           created_at: '2026-04-20 17:00:00'
         }
       ]
@@ -85,5 +85,11 @@ describe('LogsPage', () => {
         }),
       );
     });
+
+    await user.click(screen.getByRole('button', { name: '查看快照' }));
+    expect(screen.getByRole('dialog', { name: '请求快照' })).toBeInTheDocument();
+    expect(screen.getByText(/reason/i)).toBeInTheDocument();
+    expect(screen.getByText(/spam/i)).toBeInTheDocument();
+    expect(screen.queryByText(/include_body/i)).not.toBeInTheDocument();
   });
 });

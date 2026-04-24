@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -564,6 +565,50 @@ func TestTaskCreation(t *testing.T) {
 	}
 }
 
+func TestTaskDelete(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	service := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+
+	t.Run("deletes pending task and dependent rows", func(t *testing.T) {
+		task := seedTaskForDeletion(t, db, 100, 901, TaskStatusPending)
+
+		if err := service.Delete(context.Background(), 100, task.ID); err != nil {
+			t.Fatalf("Delete() error = %v", err)
+		}
+
+		assertTaskOwnedRowsDeleted(t, db, 100, task.ID)
+	})
+
+	t.Run("deletes failed task and dependent rows", func(t *testing.T) {
+		task := seedTaskForDeletion(t, db, 100, 902, TaskStatusFailed)
+
+		if err := service.Delete(context.Background(), 100, task.ID); err != nil {
+			t.Fatalf("Delete(failed) error = %v", err)
+		}
+
+		assertTaskOwnedRowsDeleted(t, db, 100, task.ID)
+	})
+
+	for index, status := range []string{TaskStatusRunning, TaskStatusSuccess, TaskStatusPartialSuccess} {
+		t.Run("rejects "+status+" task deletion", func(t *testing.T) {
+			task := seedTaskForDeletion(t, db, 100, uint64(1001+index), status)
+
+			err := service.Delete(context.Background(), 100, task.ID)
+			if !errors.Is(err, ErrTaskDeleteNotAllowed) {
+				t.Fatalf("Delete(%s) error = %v, want %v", status, err, ErrTaskDeleteNotAllowed)
+			}
+
+			var count int64
+			if err := db.Model(&InspectionTask{}).Where("orgid = ? AND id = ?", 100, task.ID).Count(&count).Error; err != nil {
+				t.Fatalf("count task error = %v", err)
+			}
+			if count != 1 {
+				t.Fatalf("task count after rejected delete = %d, want %d", count, 1)
+			}
+		})
+	}
+}
+
 func TestArticleInspectWorker(t *testing.T) {
 	t.Run("successful batch updates task counters and status", func(t *testing.T) {
 		db := newArticleInspectTestDB(t)
@@ -929,6 +974,15 @@ func TestResultQuery(t *testing.T) {
 	if listed.Total != 1 || len(listed.Items) != 1 || listed.Items[0].ID != 1001 {
 		t.Fatalf("List() = %+v, want one matching result 1001", listed)
 	}
+	if listed.Items[0].PreviewFieldName != KeywordScopeTitle || listed.Items[0].PreviewKeywordText != "alpha" {
+		t.Fatalf("List() preview = %+v, want first title hit metadata", listed.Items[0])
+	}
+	if listed.Items[0].PreviewMatchedText != "Alpha" || listed.Items[0].PreviewSnippet != "Alpha news" {
+		t.Fatalf("List() preview text = %+v, want title snippet preview", listed.Items[0])
+	}
+	if listed.Items[0].ExtraHitCount != 1 {
+		t.Fatalf("List() extra hit count = %d, want %d", listed.Items[0].ExtraHitCount, 1)
+	}
 
 	byArticleID, err := service.List(context.Background(), ResultListInput{
 		OrgID:     100,
@@ -1178,6 +1232,10 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	if articleInspectStringField(t, detailTaskData, "task_no") != articleInspectStringField(t, createdTaskData, "task_no") {
 		t.Fatalf("task detail task_no = %q, want %q", articleInspectStringField(t, detailTaskData, "task_no"), articleInspectStringField(t, createdTaskData, "task_no"))
 	}
+	deletedTask := sendArticleInspectRequest(t, handler, http.MethodDelete, "/api/v1/article-inspect/tasks/"+strconv.FormatUint(taskID, 10)+"?orgid=100", nil)
+	if deletedTask.status != http.StatusOK {
+		t.Fatalf("delete task status = %d, want %d", deletedTask.status, http.StatusOK)
+	}
 
 	listedResults := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/results?orgid=100&task_id=501&risk_level=high&page=1&page_size=20", nil)
 	if listedResults.status != http.StatusOK {
@@ -1186,6 +1244,26 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	resultListData := articleInspectDataMap(t, listedResults.envelope.Data)
 	if total := articleInspectNumberField(t, resultListData, "total"); total != 1 {
 		t.Fatalf("list results total = %v, want %d", total, 1)
+	}
+	resultItems := articleInspectListField(t, resultListData, "items")
+	if len(resultItems) != 1 {
+		t.Fatalf("result list items len = %d, want %d", len(resultItems), 1)
+	}
+	firstResult := articleInspectDataMap(t, resultItems[0])
+	if articleInspectStringField(t, firstResult, "preview_field_name") != KeywordScopeTitle {
+		t.Fatalf("preview_field_name = %q, want %q", articleInspectStringField(t, firstResult, "preview_field_name"), KeywordScopeTitle)
+	}
+	if articleInspectStringField(t, firstResult, "preview_keyword_text") != "alpha" {
+		t.Fatalf("preview_keyword_text = %q, want %q", articleInspectStringField(t, firstResult, "preview_keyword_text"), "alpha")
+	}
+	if articleInspectStringField(t, firstResult, "preview_matched_text") != "Alpha" {
+		t.Fatalf("preview_matched_text = %q, want %q", articleInspectStringField(t, firstResult, "preview_matched_text"), "Alpha")
+	}
+	if articleInspectStringField(t, firstResult, "preview_snippet") != "Alpha news" {
+		t.Fatalf("preview_snippet = %q, want %q", articleInspectStringField(t, firstResult, "preview_snippet"), "Alpha news")
+	}
+	if articleInspectUint64Field(t, firstResult, "extra_hit_count") != 1 {
+		t.Fatalf("extra_hit_count = %d, want %d", articleInspectUint64Field(t, firstResult, "extra_hit_count"), 1)
 	}
 
 	detailResult := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/results/1001?orgid=100", nil)
@@ -1715,6 +1793,97 @@ func seedInspectionTaskForWorker(t *testing.T, db *gorm.DB, rules []KeywordRule)
 		t.Fatalf("create task error = %v", err)
 	}
 	return task
+}
+
+func seedTaskForDeletion(t *testing.T, db *gorm.DB, orgID, baseID uint64, status string) *InspectionTask {
+	t.Helper()
+
+	task := &InspectionTask{
+		ID:                 baseID,
+		OrgID:              orgID,
+		TaskNo:             fmt.Sprintf("inspect-delete-%d", baseID),
+		Status:             status,
+		ArticleStateFilter: "9",
+		RequestSnapshot:    "{}",
+		RuleSnapshot:       "[]",
+	}
+	if err := db.Create(task).Error; err != nil {
+		t.Fatalf("create deletion task error = %v", err)
+	}
+
+	taskKeywords := []InspectionTaskKeyword{
+		{ID: baseID * 10, OrgID: orgID, TaskID: task.ID, KeywordID: baseID + 1},
+	}
+	results := []InspectionResult{
+		{ID: baseID*10 + 1, OrgID: orgID, TaskID: task.ID, ArticleID: baseID + 100, ArticleTitle: "Delete me", DispositionStatus: ResultDispositionPending},
+	}
+	hits := []InspectionResultHit{
+		{ID: baseID*10 + 2, OrgID: orgID, TaskID: task.ID, ResultID: results[0].ID, ArticleID: results[0].ArticleID, KeywordID: baseID + 1, KeywordText: "delete", FieldName: KeywordScopeTitle, MatchType: MatchTypeContains, RiskLevel: RiskLevelHigh, SuggestAction: SuggestActionOffline, Snippet: "delete snippet"},
+	}
+	actions := []InspectionAction{
+		{ID: baseID*10 + 3, OrgID: orgID, ActionNo: fmt.Sprintf("act-%d", baseID), ActionType: ActionTypeBatchIgnore, TaskID: task.ID, Status: ActionStatusSuccess},
+	}
+	opLogs := []InspectionOperationLog{
+		{ID: baseID*10 + 4, OrgID: orgID, ActionID: actions[0].ID, TaskID: task.ID, ResultID: results[0].ID, ArticleID: results[0].ArticleID, OperationType: ActionTypeBatchIgnore, Status: ActionStatusSuccess},
+	}
+	changeLogs := []InspectionFieldChangeLog{
+		{ID: baseID*10 + 5, OrgID: orgID, ActionID: actions[0].ID, TaskID: task.ID, ResultID: results[0].ID, ArticleID: results[0].ArticleID, FieldName: KeywordScopeBody},
+	}
+
+	if err := db.Create(&taskKeywords).Error; err != nil {
+		t.Fatalf("create task keywords error = %v", err)
+	}
+	if err := db.Create(&results).Error; err != nil {
+		t.Fatalf("create results error = %v", err)
+	}
+	if err := db.Create(&hits).Error; err != nil {
+		t.Fatalf("create hits error = %v", err)
+	}
+	if err := db.Create(&actions).Error; err != nil {
+		t.Fatalf("create actions error = %v", err)
+	}
+	if err := db.Create(&opLogs).Error; err != nil {
+		t.Fatalf("create operation logs error = %v", err)
+	}
+	if err := db.Create(&changeLogs).Error; err != nil {
+		t.Fatalf("create field change logs error = %v", err)
+	}
+
+	return task
+}
+
+func assertTaskOwnedRowsDeleted(t *testing.T, db *gorm.DB, orgID, taskID uint64) {
+	t.Helper()
+
+	var taskCount int64
+	if err := db.Model(&InspectionTask{}).Where("orgid = ? AND id = ?", orgID, taskID).Count(&taskCount).Error; err != nil {
+		t.Fatalf("count task error = %v", err)
+	}
+	if taskCount != 0 {
+		t.Fatalf("task count = %d, want %d", taskCount, 0)
+	}
+
+	checks := []struct {
+		name  string
+		model any
+	}{
+		{name: "task keywords", model: &InspectionTaskKeyword{}},
+		{name: "results", model: &InspectionResult{}},
+		{name: "result hits", model: &InspectionResultHit{}},
+		{name: "actions", model: &InspectionAction{}},
+		{name: "operation logs", model: &InspectionOperationLog{}},
+		{name: "field change logs", model: &InspectionFieldChangeLog{}},
+	}
+
+	for _, check := range checks {
+		var count int64
+		if err := db.Model(check.model).Where("orgid = ? AND task_id = ?", orgID, taskID).Count(&count).Error; err != nil {
+			t.Fatalf("count %s error = %v", check.name, err)
+		}
+		if count != 0 {
+			t.Fatalf("%s count = %d, want %d", check.name, count, 0)
+		}
+	}
 }
 
 func marshalJSON(value any) (string, error) {

@@ -1,5 +1,5 @@
 import { ConfigProvider } from 'antd';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -127,6 +127,68 @@ describe('RectifyPage', () => {
         task_id: 77,
         result_id: 9001
       });
+    });
+  });
+
+  it('submits edited html source from the embedded editor', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/articles/501/rectify']}>
+            <Routes>
+              <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'HTML源码' }));
+    const sourceEditor = screen.getByRole('textbox', { name: '整改正文 HTML源码' });
+    await user.clear(sourceEditor);
+    await user.type(sourceEditor, '<section><p>Source body</p></section>');
+    await user.click(screen.getByRole('button', { name: '保存整改' }));
+
+    await waitFor(() => {
+      expect(mockedRectifyArticle).toHaveBeenLastCalledWith(501, expect.objectContaining({
+        body: '<section><p>Source body</p></section>'
+      }));
+    });
+  });
+
+  it('keeps visual editing and html source in sync', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/articles/501/rectify']}>
+            <Routes>
+              <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+
+    const visualEditor = screen.getByRole('textbox', { name: '整改正文 可视化编辑' });
+    visualEditor.innerHTML = '<p>Visual body</p><p>Second paragraph</p>';
+    fireEvent.input(visualEditor);
+
+    await user.click(screen.getByRole('tab', { name: 'HTML源码' }));
+    expect(screen.getByRole('textbox', { name: '整改正文 HTML源码' })).toHaveValue('<p>Visual body</p><p>Second paragraph</p>');
+
+    await user.click(screen.getByRole('button', { name: '保存整改' }));
+    await waitFor(() => {
+      expect(mockedRectifyArticle).toHaveBeenLastCalledWith(501, expect.objectContaining({
+        body: '<p>Visual body</p><p>Second paragraph</p>'
+      }));
     });
   });
 });

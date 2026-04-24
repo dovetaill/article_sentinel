@@ -87,8 +87,11 @@ describe('TaskResultsPage', () => {
           suggest_action: 'offline',
           disposition_status: 'pending',
           hit_count: 3,
-          matched_keyword: 'spam',
-          snippet: 'This spam alert keeps repeating'
+          preview_field_name: 'title',
+          preview_keyword_text: 'spam',
+          preview_matched_text: 'spam',
+          preview_snippet: 'This spam alert keeps repeating',
+          extra_hit_count: 2
         }
       ]
     } as never);
@@ -135,6 +138,10 @@ describe('TaskResultsPage', () => {
     expect(screen.queryByText('在当前任务上下文中完成单条或批量处置。')).not.toBeInTheDocument();
     expect(screen.queryByText('跟踪该任务下的处置动作和状态变化。')).not.toBeInTheDocument();
     expect(screen.getByText('Spam alert')).toBeInTheDocument();
+    expect(screen.getByText('标题')).toBeInTheDocument();
+    expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
+    expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
+    expect(screen.getByText('另有 2 条命中')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute(
       'href',
       '/articles/501?return_to=%2Ftasks%2F77%2Fresults',

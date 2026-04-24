@@ -1,20 +1,26 @@
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Input, Select } from 'antd';
-import { useMemo, useState } from 'react';
+import { Button, Input, Popconfirm, Select, message } from 'antd';
+import { useMemo, useRef, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
-import { listTasks, type TaskRecord } from '../../services/tasks';
+import { deleteTask, listTasks, type TaskRecord } from '../../services/tasks';
 
 type Filters = {
   task_no?: string;
   status?: string;
 };
 
+type ActionRef = {
+  reload?: () => void;
+};
+
 export default function TasksPage() {
+  const actionRef = useRef<ActionRef>({});
+  const [messageApi, contextHolder] = message.useMessage();
   const [pageRows, setPageRows] = useState<TaskRecord[]>([]);
   const [draftFilters, setDraftFilters] = useState({ taskNo: '', status: undefined as string | undefined });
   const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
@@ -36,6 +42,7 @@ export default function TasksPage() {
 
   return (
     <>
+      {contextHolder}
       <div className="summary-card-grid">
         <SummaryCard label="本页任务数" value={summary.total} />
         <SummaryCard label="执行中" value={summary.running} />
@@ -102,6 +109,7 @@ export default function TasksPage() {
 
         <ProTable<TaskRecord>
           rowKey="id"
+          actionRef={actionRef as never}
           cardBordered={false}
           headerTitle={false}
           size="small"
@@ -142,11 +150,42 @@ export default function TasksPage() {
             {
               title: '操作',
               valueType: 'option',
-              render: (_, record) => [
-                <Button key="results" type="link" href={`/tasks/${record.id}/results`}>
-                  运行结果
-                </Button>
-              ]
+              render: (_, record) => {
+                const actions = [
+                  <Button key="results" type="link" href={`/tasks/${record.id}/results`}>
+                    运行结果
+                  </Button>
+                ];
+
+                if (record.status === 'pending' || record.status === 'failed') {
+                  actions.push(
+                    <Popconfirm
+                      key="delete"
+                      title="删除任务"
+                      description="仅待执行或执行失败的任务允许删除。"
+                      okText="确认删除"
+                      cancelText="取消"
+                      onConfirm={async () => {
+                        await deleteTask(record.id, currentOrgId);
+                        messageApi.success('任务已删除');
+                        actionRef.current.reload?.();
+                      }}
+                    >
+                      <Button type="link" danger>
+                        删除任务
+                      </Button>
+                    </Popconfirm>,
+                  );
+                } else {
+                  actions.push(
+                    <span key="protected" className="status-badge status-badge--neutral">
+                      已执行不可删
+                    </span>,
+                  );
+                }
+
+                return actions;
+              }
             }
           ]}
         />

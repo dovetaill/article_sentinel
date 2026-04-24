@@ -3,6 +3,7 @@ import { Button, Modal, Typography, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { HitPreview } from '../../components/ui/hit-preview';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
@@ -15,23 +16,6 @@ type ActionRef = {
 };
 
 const { Text } = Typography;
-
-function renderSnippet(snippet?: string, keyword?: string) {
-  if (!snippet || !keyword) {
-    return snippet || '-';
-  }
-
-  const parts = snippet.split(new RegExp(`(${escapePattern(keyword)})`, 'gi'));
-  return parts.map((part, index) => (
-    part.toLowerCase() === keyword.toLowerCase()
-      ? <mark key={`${keyword}-${index}`}>{part}</mark>
-      : <span key={`${keyword}-${index}`}>{part}</span>
-  ));
-}
-
-function escapePattern(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 export default function ResultsPage() {
   const actionRef = useRef<ActionRef>({});
@@ -146,7 +130,15 @@ export default function ResultsPage() {
             {
               title: '命中片段',
               dataIndex: 'snippet',
-              render: (_, record) => renderSnippet(record.snippet, record.matched_keyword)
+              render: (_, record) => (
+                <HitPreview
+                  fieldName={record.preview_field_name}
+                  keywordText={record.preview_keyword_text ?? record.matched_keyword}
+                  matchedText={record.preview_matched_text ?? record.matched_keyword}
+                  snippet={record.preview_snippet ?? record.snippet}
+                  extraHitCount={record.extra_hit_count}
+                />
+              )
             },
             {
               title: '操作',

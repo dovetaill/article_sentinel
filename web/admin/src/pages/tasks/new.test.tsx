@@ -123,14 +123,14 @@ describe('NewTaskPage', () => {
     await waitFor(() => {
       expect(mockedCreateTask).toHaveBeenCalledWith(expect.objectContaining({
         orgid: 29,
-        keyword_ids: [7],
-        include_body: true
+        keyword_ids: [7]
       }));
     });
 
     const payload = mockedCreateTask.mock.calls[0]?.[0];
     expect(payload).not.toHaveProperty('article_id');
     expect(payload).not.toHaveProperty('title_like');
+    expect(payload).not.toHaveProperty('include_body');
   }, 10_000);
 
   it('prevents duplicate submits and redirects about 1 second after showing success', async () => {

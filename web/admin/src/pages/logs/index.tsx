@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
+import { formatInspectionSnapshot } from '../../lib/inspection-snapshot';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 
 type Filters = {
@@ -133,7 +134,9 @@ export default function LogsPage() {
       </SectionCard>
 
       <Modal open={Boolean(activeSnapshot)} footer={null} title="请求快照" onCancel={() => setActiveSnapshot(null)}>
-        <pre className="detail-code-block">{activeSnapshot?.request_snapshot || '暂无请求快照。'}</pre>
+        <pre className="detail-code-block">
+          {formatInspectionSnapshot(activeSnapshot?.request_snapshot, '暂无请求快照。')}
+        </pre>
       </Modal>
     </>
   );

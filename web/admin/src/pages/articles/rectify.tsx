@@ -1,8 +1,9 @@
-import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
+import { ProForm, ProFormText } from '@ant-design/pro-components';
 import { Button, Empty, Form, Space, Spin, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
+import HtmlBodyEditor from '../../components/ui/html-body-editor';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { SummaryCard } from '../../components/ui/summary-card';
@@ -166,12 +167,13 @@ export default function RectifyPage() {
                     rules={[{ required: true, message: '请填写整改摘要' }]}
                     fieldProps={{ 'aria-label': '整改摘要' }}
                   />
-                  <ProFormTextArea
+                  <Form.Item
                     name="body"
                     label="整改正文"
                     rules={[{ required: true, message: '请填写整改正文' }]}
-                    fieldProps={{ 'aria-label': '整改正文', rows: 12 }}
-                  />
+                  >
+                    <HtmlBodyEditor label="整改正文" />
+                  </Form.Item>
 
                   <Space wrap className="rectify-form__actions">
                     <Button type="primary" onClick={() => void submitRectification()}>

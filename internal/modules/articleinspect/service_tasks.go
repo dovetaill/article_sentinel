@@ -15,6 +15,7 @@ import (
 
 var ErrInvalidTaskInput = errors.New("invalid task input")
 var ErrTaskNotFound = errors.New("task not found")
+var ErrTaskDeleteNotAllowed = errors.New("task delete not allowed")
 
 type taskKeywordRepository interface {
 	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, error)
@@ -156,6 +157,62 @@ func (s *TaskService) Create(ctx context.Context, input CreateInspectionTaskInpu
 		return nil, err
 	}
 	return task, nil
+}
+
+func (s *TaskService) Delete(ctx context.Context, orgID, taskID uint64) error {
+	if s == nil || s.db == nil || orgID == 0 || taskID == 0 {
+		return ErrInvalidTaskInput
+	}
+
+	var task InspectionTask
+	if err := s.db.WithContext(ctx).Where("orgid = ? AND id = ?", orgID, taskID).First(&task).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTaskNotFound
+		}
+		return err
+	}
+
+	if !taskCanBeDeleted(task.Status) {
+		return ErrTaskDeleteNotAllowed
+	}
+
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionTaskKeyword{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionResultHit{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionResult{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionOperationLog{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionFieldChangeLog{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("orgid = ? AND task_id = ?", orgID, taskID).Delete(&InspectionAction{}).Error; err != nil {
+			return err
+		}
+		result := tx.Where("orgid = ? AND id = ?", orgID, taskID).Delete(&InspectionTask{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrTaskNotFound
+		}
+		return nil
+	})
+}
+
+func taskCanBeDeleted(status string) bool {
+	switch strings.TrimSpace(status) {
+	case TaskStatusPending, TaskStatusFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func buildKeywordSnapshots(keywords []KeywordRecord, scopesByKeyword map[uint64][]InspectionKeywordScope) []KeywordDTO {

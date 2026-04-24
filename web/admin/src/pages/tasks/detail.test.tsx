@@ -75,8 +75,11 @@ describe('TaskDetailPage', () => {
           suggest_action: 'offline',
           disposition_status: 'pending',
           hit_count: 3,
-          matched_keyword: 'spam',
-          snippet: 'This spam alert keeps repeating'
+          preview_field_name: 'title',
+          preview_keyword_text: 'spam',
+          preview_matched_text: 'spam',
+          preview_snippet: 'This spam alert keeps repeating',
+          extra_hit_count: 2
         }
       ]
     } as never);
@@ -132,6 +135,15 @@ describe('TaskDetailPage', () => {
       'href',
       '/articles/501?return_to=%2Ftasks%2F77',
     );
+    expect(screen.getByText('标题')).toBeInTheDocument();
+    expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
+    expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
+    expect(screen.getByText('另有 2 条命中')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: '请求快照' }));
+    expect(screen.getByText(/title_like/i)).toBeInTheDocument();
+    expect(screen.getByText(/alpha/i)).toBeInTheDocument();
+    expect(screen.queryByText(/include_body/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: '关联日志' }));
     expect(screen.getAllByText(/task reviewed by auditor/i).length).toBeGreaterThan(0);

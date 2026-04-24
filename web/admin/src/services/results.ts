@@ -13,6 +13,11 @@ export interface ResultRecord {
   hit_count: number;
   latest_operator_name?: string;
   latest_action_at?: string;
+  preview_field_name?: string;
+  preview_keyword_text?: string;
+  preview_matched_text?: string;
+  preview_snippet?: string;
+  extra_hit_count?: number;
   snippet?: string;
   matched_keyword?: string;
 }

@@ -14,10 +14,10 @@ type ResultService struct {
 }
 
 type ResultListResult struct {
-	Page     int                `json:"page"`
-	PageSize int                `json:"page_size"`
-	Total    int64              `json:"total"`
-	Items    []InspectionResult `json:"items"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
+	Total    int64            `json:"total"`
+	Items    []ResultListItem `json:"items"`
 }
 
 type ResultDetail struct {

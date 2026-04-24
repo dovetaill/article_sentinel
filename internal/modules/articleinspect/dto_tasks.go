@@ -35,6 +35,6 @@ type CreateInspectionTaskInput struct {
 	PublishTimeEnd   *time.Time `json:"publish_time_end,omitempty"`
 	ArticleID        uint64     `json:"article_id,omitempty"`
 	TitleLike        string     `json:"title_like,omitempty"`
-	IncludeBody      bool       `json:"include_body"`
+	IncludeBody      bool       `json:"include_body,omitempty"`
 	ArticleState     int8       `json:"article_state,omitempty"`
 }

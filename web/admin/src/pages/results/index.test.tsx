@@ -52,8 +52,11 @@ describe('ResultsPage', () => {
           suggest_action: 'offline',
           disposition_status: 'pending',
           hit_count: 3,
-          snippet: 'This spam alert keeps repeating',
-          matched_keyword: 'spam'
+          preview_field_name: 'title',
+          preview_keyword_text: 'spam',
+          preview_matched_text: 'spam',
+          preview_snippet: 'This spam alert keeps repeating',
+          extra_hit_count: 2
         }
       ]
     } as never);
@@ -80,6 +83,10 @@ describe('ResultsPage', () => {
       'href',
       '/articles/501?return_to=%2Fresults',
     );
+    expect(screen.getByText('标题')).toBeInTheDocument();
+    expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
+    expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
+    expect(screen.getByText('另有 2 条命中')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '本页全选' }));

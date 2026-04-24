@@ -1,5 +1,5 @@
 import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
-import { Button, Space, message } from 'antd';
+import { Button, Popconfirm, Space, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import { useOrgContext } from '../../context/org-context';
 import { listEnabledCategories } from '../../services/categories';
 import {
   createKeyword,
+  deleteKeyword,
   type KeywordMutationInput,
   type KeywordRecord,
   listKeywords,
@@ -205,7 +206,23 @@ export default function KeywordsPage() {
                   }}
                 >
                   编辑规则
-                </Button>
+                </Button>,
+                <Popconfirm
+                  key="delete"
+                  title="删除规则"
+                  description="删除后将移除该规则及其扫描范围配置。"
+                  okText="确认删除"
+                  cancelText="取消"
+                  onConfirm={async () => {
+                    await deleteKeyword(record.id, currentOrgId);
+                    messageApi.success('规则已删除');
+                    actionRef.current.reload?.();
+                  }}
+                >
+                  <Button type="link" danger>
+                    删除规则
+                  </Button>
+                </Popconfirm>
               ]
             }
           ]}

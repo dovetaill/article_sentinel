@@ -619,6 +619,22 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		}
 		return successEnvelope(http.StatusOK, "task detail", result), nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-task-delete",
+		Method:      http.MethodDelete,
+		Path:        "/api/v1/article-inspect/tasks/{id}",
+		Summary:     "delete article inspection task",
+	}, func(ctx context.Context, input *taskDetailRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid task input"), nil
+		}
+		if err := service.Delete(ctx, input.OrgID, id); err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "task deleted", map[string]uint64{"id": id}), nil
+	})
 }
 
 func registerResultRoutes(api huma.API, service *ResultService) {
@@ -965,6 +981,8 @@ func articleInspectStatusFromError(err error) (int, string) {
 		return http.StatusNotFound, "resource not found"
 	case errors.Is(err, ErrTaskNotFound):
 		return http.StatusNotFound, "resource not found"
+	case errors.Is(err, ErrTaskDeleteNotAllowed):
+		return http.StatusConflict, "task cannot be deleted"
 	case errors.Is(err, ErrInvalidCategoryInput):
 		return http.StatusBadRequest, "invalid category input"
 	case errors.Is(err, ErrInvalidKeywordInput):

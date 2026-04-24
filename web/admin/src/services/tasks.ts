@@ -36,7 +36,6 @@ export interface CreateTaskInput {
   keyword_ids: number[];
   publish_time_start?: string;
   publish_time_end?: string;
-  include_body: boolean;
   article_state?: number;
 }
 
@@ -69,6 +68,12 @@ export function createTask(input: CreateTaskInput): Promise<TaskRecord> {
     method: 'POST',
     body: JSON.stringify(input)
   }).then(normalizeTaskRecord);
+}
+
+export function deleteTask(id: number, orgid: number): Promise<{ id: number }> {
+  return apiRequest<{ id: number }>(`/api/v1/article-inspect/tasks/${id}?orgid=${orgid}`, {
+    method: 'DELETE'
+  });
 }
 
 function normalizeTaskRecord(record: TaskRecord): TaskRecord {

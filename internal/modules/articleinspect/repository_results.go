@@ -48,7 +48,7 @@ func NewResultRepository(db *gorm.DB) *ResultRepository {
 	return &ResultRepository{db: db}
 }
 
-func (r *ResultRepository) ListResults(ctx context.Context, input ResultListInput) ([]InspectionResult, int64, error) {
+func (r *ResultRepository) ListResults(ctx context.Context, input ResultListInput) ([]ResultListItem, int64, error) {
 	if r == nil || r.db == nil || input.OrgID == 0 {
 		return nil, 0, ErrInvalidResultQuery
 	}
@@ -74,11 +74,62 @@ func (r *ResultRepository) ListResults(ctx context.Context, input ResultListInpu
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	items := make([]InspectionResult, 0, pageSize)
-	if err := query.Order("id ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
+	rows := make([]InspectionResult, 0, pageSize)
+	if err := query.Order("id ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
 		return nil, 0, err
 	}
+	items := make([]ResultListItem, 0, len(rows))
+	if len(rows) == 0 {
+		return items, total, nil
+	}
+
+	resultIDs := make([]uint64, 0, len(rows))
+	for _, row := range rows {
+		resultIDs = append(resultIDs, row.ID)
+	}
+	hits, err := r.listHitsByResultIDs(ctx, input.OrgID, resultIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	hitPreviewByResultID := make(map[uint64]InspectionResultHit, len(resultIDs))
+	hitCountByResultID := make(map[uint64]int64, len(resultIDs))
+	for _, hit := range hits {
+		if _, ok := hitPreviewByResultID[hit.ResultID]; !ok {
+			hitPreviewByResultID[hit.ResultID] = hit
+		}
+		hitCountByResultID[hit.ResultID]++
+	}
+
+	for _, row := range rows {
+		item := ResultListItem{InspectionResult: row}
+		if preview, ok := hitPreviewByResultID[row.ID]; ok {
+			item.PreviewFieldName = preview.FieldName
+			item.PreviewKeywordText = preview.KeywordText
+			item.PreviewMatchedText = preview.MatchedText
+			item.PreviewSnippet = preview.Snippet
+			if count := hitCountByResultID[row.ID]; count > 1 {
+				item.ExtraHitCount = count - 1
+			}
+		}
+		items = append(items, item)
+	}
+
 	return items, total, nil
+}
+
+func (r *ResultRepository) listHitsByResultIDs(ctx context.Context, orgID uint64, resultIDs []uint64) ([]InspectionResultHit, error) {
+	if len(resultIDs) == 0 {
+		return []InspectionResultHit{}, nil
+	}
+	items := make([]InspectionResultHit, 0, len(resultIDs))
+	if err := r.db.WithContext(ctx).
+		Where("orgid = ? AND result_id IN ?", orgID, resultIDs).
+		Order("result_id ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (r *ResultRepository) GetResult(ctx context.Context, orgID, resultID uint64) (*InspectionResult, error) {

@@ -73,7 +73,6 @@ export default function NewTaskPage() {
         keyword_ids: draft.keyword_ids,
         publish_time_start: draft.publish_time_start?.format(timePayloadFormat),
         publish_time_end: draft.publish_time_end?.format(timePayloadFormat),
-        include_body: true,
         article_state: 9
       });
       messageApi.success('检测任务已提交');

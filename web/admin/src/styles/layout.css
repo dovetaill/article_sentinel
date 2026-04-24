@@ -673,6 +673,43 @@
   color: var(--admin-ink-muted);
 }
 
+.hit-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hit-preview__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hit-preview__extra {
+  color: var(--admin-ink-muted);
+  font-size: 0.8rem;
+}
+
+.hit-preview__snippet {
+  color: var(--admin-ink-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.hit-preview__snippet mark {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: rgba(161, 98, 7, 0.16);
+  color: inherit;
+}
+
 .detail-code-block {
   margin: 0;
   padding: 12px;
@@ -721,6 +758,66 @@
 
 .rectify-form__actions {
   margin-top: 8px;
+}
+
+.html-body-editor__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.html-body-editor__hint {
+  margin-bottom: 0 !important;
+}
+
+.html-body-editor__canvas,
+.html-body-editor__source {
+  border-radius: var(--admin-radius-md);
+}
+
+.html-body-editor__canvas {
+  min-height: 320px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: var(--admin-radius-md);
+  background: #fff;
+  color: var(--admin-ink-body);
+  line-height: 1.8;
+  word-break: break-word;
+  outline: none;
+}
+
+.html-body-editor__canvas:focus {
+  border-color: rgba(24, 24, 27, 0.28);
+  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.06);
+}
+
+.html-body-editor__canvas.is-disabled {
+  background: #fafafa;
+  color: var(--admin-ink-muted);
+  cursor: not-allowed;
+}
+
+.html-body-editor__canvas:empty::before {
+  content: attr(data-placeholder);
+  color: var(--admin-ink-faint);
+}
+
+.html-body-editor__canvas img,
+.html-body-editor__canvas video,
+.html-body-editor__canvas iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+.html-body-editor__canvas p:last-child {
+  margin-bottom: 0;
+}
+
+.html-body-editor__source textarea {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.84rem;
+  line-height: 1.65;
 }
 
 .rectify-reference,
