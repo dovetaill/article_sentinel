@@ -44,8 +44,6 @@ export default function TasksPage() {
       </div>
 
       <SectionCard
-        title="任务列表"
-        description="按任务编号与执行状态浏览当前批次。"
         extra={(
           <Button key="new-task" type="primary" href="/tasks/new">
             新建任务

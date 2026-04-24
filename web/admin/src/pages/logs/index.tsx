@@ -23,7 +23,7 @@ export default function LogsPage() {
 
   return (
     <>
-      <SectionCard title="日志检索" description="按稿件、任务和操作人回看关键记录。">
+      <SectionCard>
         <ToolbarStrip>
           <div className="toolbar-strip__group">
             <div className="toolbar-strip__controls">

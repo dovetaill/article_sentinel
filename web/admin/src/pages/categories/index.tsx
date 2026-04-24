@@ -68,8 +68,6 @@ export default function CategoriesPage() {
     <>
       {contextHolder}
       <SectionCard
-        title="规则分类"
-        description="按机构维护关键词规则分类，统一控制启停和排序。"
         extra={(
           <Space size={12} wrap>
             <Text>当前机构：{currentOrgName}</Text>

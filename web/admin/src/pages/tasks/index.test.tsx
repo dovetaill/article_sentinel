@@ -65,6 +65,7 @@ describe('TasksPage', () => {
     );
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.queryByText('按任务编号与执行状态浏览当前批次。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '新建任务' })).toHaveAttribute('href', '/tasks/new');
     expect(screen.getByRole('link', { name: '运行结果' })).toHaveAttribute('href', '/tasks/501/results');
     expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();

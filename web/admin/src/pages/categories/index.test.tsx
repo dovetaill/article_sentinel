@@ -112,6 +112,7 @@ describe('CategoriesPage', () => {
 
     expect(await screen.findByText('政策红线')).toBeInTheDocument();
     expect(screen.getByText('一县一端')).toBeInTheDocument();
+    expect(screen.queryByText('按机构维护关键词规则分类，统一控制启停和排序。')).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockedListCategories).toHaveBeenCalledWith(expect.objectContaining({ orgid: 29 }));

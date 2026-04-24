@@ -19,6 +19,7 @@ describe('App shell', () => {
     expect(screen.getByRole('link', { name: /文稿中心/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /操作日志/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /风险结果/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('内容巡检与处置工作台')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /一县一端/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /当前用户|退出登录/i })).toBeInTheDocument();
   });

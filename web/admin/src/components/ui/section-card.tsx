@@ -9,12 +9,14 @@ export interface SectionCardProps extends PropsWithChildren {
 export function SectionCard({ title, description, extra, children }: SectionCardProps) {
   return (
     <section className="section-card">
-      {(title || extra) ? (
+      {(title || description || extra) ? (
         <div className="section-card__header">
-          <div className="section-card__heading">
-            {title ? <h3>{title}</h3> : <span />}
-            {description ? <p className="section-card__description">{description}</p> : null}
-          </div>
+          {(title || description) ? (
+            <div className="section-card__heading">
+              {title ? <h3>{title}</h3> : null}
+              {description ? <p className="section-card__description">{description}</p> : null}
+            </div>
+          ) : null}
           {extra ? <div>{extra}</div> : null}
         </div>
       ) : null}

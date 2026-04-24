@@ -50,7 +50,7 @@ export default function ArticlesPage() {
 
   return (
     <>
-      <SectionCard title="文章中心" description="查看真实稿件元数据，并结合最近巡检结果快速进入处置。">
+      <SectionCard>
         {loading ? (
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <Spin />

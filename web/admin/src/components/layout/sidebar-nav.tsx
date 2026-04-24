@@ -28,7 +28,6 @@ export function SidebarNav({ collapsed, groups }: SidebarNavProps) {
         <span className="admin-sidebar__brand-badge">AS</span>
         <div className="admin-sidebar__brand-copy">
           <p className="admin-sidebar__brand-title">文章安全巡检后台</p>
-          <p className="admin-sidebar__brand-subtitle">内容巡检与处置工作台</p>
         </div>
       </div>
 

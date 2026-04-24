@@ -55,6 +55,7 @@ describe('ArticlesPage', () => {
     );
 
     expect(screen.queryByText('基于现有巡检结果聚合出的稿件工作台视图。')).not.toBeInTheDocument();
+    expect(screen.queryByText('查看真实稿件元数据，并结合最近巡检结果快速进入处置。')).not.toBeInTheDocument();
     expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
     expect(screen.getByText('#501')).toBeInTheDocument();
     expect(screen.getByText('#208')).toBeInTheDocument();
