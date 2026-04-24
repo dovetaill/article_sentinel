@@ -130,6 +130,19 @@ type taskCreateRequest struct {
 	Body CreateInspectionTaskInput
 }
 
+type taskQueryRequest struct {
+	OrgID    uint64 `query:"orgid"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"page_size"`
+	Status   string `query:"status"`
+	TaskNo   string `query:"task_no"`
+}
+
+type taskDetailRequest struct {
+	ID    string `path:"id"`
+	OrgID uint64 `query:"orgid"`
+}
+
 type resultListRequest struct {
 	OrgID             uint64 `query:"orgid"`
 	TaskID            uint64 `query:"task_id"`
@@ -543,6 +556,25 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 
 func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispatcher) {
 	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-task-list",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/tasks",
+		Summary:     "list article inspection tasks",
+	}, func(ctx context.Context, input *taskQueryRequest) (*envelopeOutput, error) {
+		result, err := service.List(ctx, TaskListInput{
+			OrgID:    input.OrgID,
+			Page:     input.Page,
+			PageSize: input.PageSize,
+			Status:   input.Status,
+			TaskNo:   input.TaskNo,
+		})
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "task list", result), nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID: "article-inspect-task-create",
 		Method:      http.MethodPost,
 		Path:        "/api/v1/article-inspect/tasks",
@@ -569,6 +601,23 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 			return failureEnvelope(http.StatusInternalServerError, "enqueue inspection task failed"), nil
 		}
 		return successEnvelope(http.StatusCreated, "task created", task), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "article-inspect-task-detail",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/article-inspect/tasks/{id}",
+		Summary:     "get article inspection task detail",
+	}, func(ctx context.Context, input *taskDetailRequest) (*envelopeOutput, error) {
+		id, err := parseUint64ID(input.ID)
+		if err != nil {
+			return failureEnvelope(http.StatusBadRequest, "invalid task input"), nil
+		}
+		result, err := service.Get(ctx, input.OrgID, id)
+		if err != nil {
+			return failureFromError(err)
+		}
+		return successEnvelope(http.StatusOK, "task detail", result), nil
 	})
 }
 
@@ -913,6 +962,8 @@ func articleInspectStatusFromError(err error) (int, string) {
 	case errors.Is(err, ErrKeywordNotFound), errors.Is(err, gorm.ErrRecordNotFound):
 		return http.StatusNotFound, "resource not found"
 	case errors.Is(err, ErrArticleNotFound):
+		return http.StatusNotFound, "resource not found"
+	case errors.Is(err, ErrTaskNotFound):
 		return http.StatusNotFound, "resource not found"
 	case errors.Is(err, ErrInvalidCategoryInput):
 		return http.StatusBadRequest, "invalid category input"

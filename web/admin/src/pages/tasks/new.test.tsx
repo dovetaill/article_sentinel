@@ -9,6 +9,35 @@ import { listOrgs } from '../../services/orgs';
 import NewTaskPage from './new';
 import { createTask } from '../../services/tasks';
 
+const mockedNavigate = vi.fn();
+const mockedMessageSuccess = vi.fn();
+const mockedMessageError = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate
+  };
+});
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return {
+    ...actual,
+    message: {
+      ...actual.message,
+      useMessage: () => [
+        {
+          success: mockedMessageSuccess,
+          error: mockedMessageError
+        },
+        null
+      ]
+    }
+  };
+});
+
 vi.mock('../../services/keywords', () => ({
   listKeywords: vi.fn()
 }));
@@ -102,5 +131,50 @@ describe('NewTaskPage', () => {
     const payload = mockedCreateTask.mock.calls[0]?.[0];
     expect(payload).not.toHaveProperty('article_id');
     expect(payload).not.toHaveProperty('title_like');
+  }, 10_000);
+
+  it('prevents duplicate submits and redirects about 1 second after showing success', async () => {
+    let resolveCreateTask: ((value: { id: number; task_no: string }) => void) | undefined;
+    mockedCreateTask.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveCreateTask = resolve;
+    }) as never);
+
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <NewTaskPage />
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    const ruleSelect = await screen.findByRole('combobox', { name: '规则选择' });
+    await user.click(ruleSelect);
+    await user.click(await screen.findByText('政策红线 / spam'));
+    await waitFor(() => {
+      expect(screen.getAllByText('政策红线 / spam').length).toBeGreaterThan(1);
+    });
+    await user.keyboard('{Escape}');
+
+    const submitButton = screen.getByRole('button', { name: '提交任务' });
+    await user.click(submitButton);
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockedCreateTask).toHaveBeenCalledTimes(1);
+    });
+    expect(submitButton).toBeDisabled();
+
+    resolveCreateTask?.({ id: 88, task_no: 'inspect-20260420-88' });
+
+    await waitFor(() => {
+      expect(mockedMessageSuccess).toHaveBeenCalledWith('检测任务已提交');
+    });
+    expect(mockedNavigate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith('/tasks');
+    }, { timeout: 1_500 });
   }, 10_000);
 });

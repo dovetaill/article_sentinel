@@ -9,6 +9,8 @@ export interface TaskRecord {
   hit_articles?: number;
   hit_count?: number;
   creator_name?: string;
+  create_at?: string;
+  update_at?: string;
   created_at?: string;
   rule_snapshot?: string;
   request_snapshot?: string;
@@ -54,17 +56,24 @@ export async function listTasks(params: TaskListParams): Promise<TaskListResult>
     page: data.page,
     pageSize: data.page_size ?? params.pageSize ?? 20,
     total: data.total,
-    items: data.items ?? []
+    items: (data.items ?? []).map(normalizeTaskRecord)
   };
 }
 
 export function getTaskDetail(id: number, orgid = 100): Promise<TaskRecord> {
-  return apiRequest<TaskRecord>(`/api/v1/article-inspect/tasks/${id}?orgid=${orgid}`);
+  return apiRequest<TaskRecord>(`/api/v1/article-inspect/tasks/${id}?orgid=${orgid}`).then(normalizeTaskRecord);
 }
 
 export function createTask(input: CreateTaskInput): Promise<TaskRecord> {
   return apiRequest<TaskRecord>('/api/v1/article-inspect/tasks', {
     method: 'POST',
     body: JSON.stringify(input)
-  });
+  }).then(normalizeTaskRecord);
+}
+
+function normalizeTaskRecord(record: TaskRecord): TaskRecord {
+  return {
+    ...record,
+    created_at: record.created_at ?? record.create_at
+  };
 }

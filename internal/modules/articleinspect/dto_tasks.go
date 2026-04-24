@@ -13,6 +13,21 @@ type CandidateArticleFilter struct {
 	Limit            int
 }
 
+type TaskListInput struct {
+	OrgID    uint64
+	Page     int
+	PageSize int
+	Status   string
+	TaskNo   string
+}
+
+type TaskListResult struct {
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
+	Total    int64            `json:"total"`
+	Items    []InspectionTask `json:"items"`
+}
+
 type CreateInspectionTaskInput struct {
 	OrgID            uint64     `json:"orgid"`
 	KeywordIDs       []uint64   `json:"keyword_ids"`

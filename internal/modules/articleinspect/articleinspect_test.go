@@ -1146,11 +1146,37 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	if createdTask.status != http.StatusCreated {
 		t.Fatalf("create task status = %d, want %d", createdTask.status, http.StatusCreated)
 	}
+	createdTaskData := articleInspectDataMap(t, createdTask.envelope.Data)
 	if len(dispatcher.payloads) != 1 {
 		t.Fatalf("dispatcher payloads len = %d, want %d", len(dispatcher.payloads), 1)
 	}
 	if dispatcher.payloads[0].OrgID != 100 || dispatcher.payloads[0].TaskID == 0 {
 		t.Fatalf("dispatcher payload = %+v, want orgid and task id", dispatcher.payloads[0])
+	}
+	listedTasks := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/tasks?orgid=100&page=1&page_size=20", nil)
+	if listedTasks.status != http.StatusOK {
+		t.Fatalf("list tasks status = %d, want %d", listedTasks.status, http.StatusOK)
+	}
+	taskListData := articleInspectDataMap(t, listedTasks.envelope.Data)
+	if total := articleInspectNumberField(t, taskListData, "total"); total != 1 {
+		t.Fatalf("list tasks total = %v, want %d", total, 1)
+	}
+	taskItems := articleInspectListField(t, taskListData, "items")
+	if len(taskItems) != 1 {
+		t.Fatalf("list tasks items len = %d, want %d", len(taskItems), 1)
+	}
+	listedTask := articleInspectDataMap(t, taskItems[0])
+	if articleInspectStringField(t, listedTask, "status") != TaskStatusPending {
+		t.Fatalf("listed task status = %q, want %q", articleInspectStringField(t, listedTask, "status"), TaskStatusPending)
+	}
+	taskID := articleInspectUint64Field(t, createdTaskData, "id")
+	detailTask := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/tasks/"+strconv.FormatUint(taskID, 10)+"?orgid=100", nil)
+	if detailTask.status != http.StatusOK {
+		t.Fatalf("get task status = %d, want %d", detailTask.status, http.StatusOK)
+	}
+	detailTaskData := articleInspectDataMap(t, detailTask.envelope.Data)
+	if articleInspectStringField(t, detailTaskData, "task_no") != articleInspectStringField(t, createdTaskData, "task_no") {
+		t.Fatalf("task detail task_no = %q, want %q", articleInspectStringField(t, detailTaskData, "task_no"), articleInspectStringField(t, createdTaskData, "task_no"))
 	}
 
 	listedResults := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/results?orgid=100&task_id=501&risk_level=high&page=1&page_size=20", nil)
@@ -1477,6 +1503,7 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 		"/api/v1/article-inspect/keywords",
 		"/api/v1/article-inspect/keywords/{id}",
 		"/api/v1/article-inspect/tasks",
+		"/api/v1/article-inspect/tasks/{id}",
 		"/api/v1/article-inspect/results",
 		"/api/v1/article-inspect/results/{id}",
 		"/api/v1/article-inspect/actions/batch-ignore",

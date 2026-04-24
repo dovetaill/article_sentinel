@@ -1,7 +1,8 @@
 import { ProForm } from '@ant-design/pro-components';
 import { Button, DatePicker, Form, Input, Select, Space, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
@@ -21,12 +22,15 @@ type TaskDraft = {
 export default function NewTaskPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [keywords, setKeywords] = useState<KeywordRecord[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState<TaskDraft>({
     keyword_ids: [],
     publish_time_start: null,
     publish_time_end: null
   });
   const { activeOrgId, activeOrgName } = useOrgContext();
+  const navigate = useNavigate();
+  const redirectTimerRef = useRef<number | null>(null);
 
   const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
@@ -41,26 +45,45 @@ export default function NewTaskPage() {
       });
   }, [currentOrgId]);
 
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+    }
+  }, []);
+
   const keywordOptions = keywords.map((item) => ({
     value: item.id,
     label: `${item.category_name || '未分类规则'} / ${item.name}`
   }));
 
   async function submitTask() {
+    if (submitting) {
+      return;
+    }
     if (draft.keyword_ids.length === 0) {
       messageApi.error('请先选择至少一条规则');
       return;
     }
 
-    await createTask({
-      orgid: currentOrgId,
-      keyword_ids: draft.keyword_ids,
-      publish_time_start: draft.publish_time_start?.format(timePayloadFormat),
-      publish_time_end: draft.publish_time_end?.format(timePayloadFormat),
-      include_body: true,
-      article_state: 9
-    });
-    messageApi.success('检测任务已提交');
+    setSubmitting(true);
+
+    try {
+      await createTask({
+        orgid: currentOrgId,
+        keyword_ids: draft.keyword_ids,
+        publish_time_start: draft.publish_time_start?.format(timePayloadFormat),
+        publish_time_end: draft.publish_time_end?.format(timePayloadFormat),
+        include_body: true,
+        article_state: 9
+      });
+      messageApi.success('检测任务已提交');
+      redirectTimerRef.current = window.setTimeout(() => {
+        navigate('/tasks');
+      }, 1000);
+    } catch (error) {
+      setSubmitting(false);
+      messageApi.error(error instanceof Error ? error.message : '检测任务提交失败');
+    }
   }
 
   return (
@@ -114,7 +137,7 @@ export default function NewTaskPage() {
             />
           </Form.Item>
           <Space>
-            <Button type="primary" onClick={() => void submitTask()}>
+            <Button type="primary" loading={submitting} disabled={submitting} onClick={() => void submitTask()}>
               提交任务
             </Button>
             <Button href="/rules/keywords">去规则管理</Button>

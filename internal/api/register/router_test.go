@@ -47,6 +47,7 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 		"/api/v1/article-inspect/results",
 		"/api/v1/article-inspect/results/{id}",
 		"/api/v1/article-inspect/tasks",
+		"/api/v1/article-inspect/tasks/{id}",
 		"/api/v1/posts",
 		"/api/v1/posts/{id}",
 		"/healthz",
@@ -74,7 +75,9 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}/status", http.MethodPatch)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks/{id}", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results/{id}", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-ignore", http.MethodPost)

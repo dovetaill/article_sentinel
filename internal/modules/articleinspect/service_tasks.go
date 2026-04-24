@@ -14,6 +14,7 @@ import (
 )
 
 var ErrInvalidTaskInput = errors.New("invalid task input")
+var ErrTaskNotFound = errors.New("task not found")
 
 type taskKeywordRepository interface {
 	ListByIDs(ctx context.Context, orgID uint64, ids []uint64) ([]KeywordRecord, map[uint64][]InspectionKeywordScope, error)
@@ -31,6 +32,58 @@ type TaskService struct {
 
 func NewTaskService(db *gorm.DB, keywords taskKeywordRepository, articles taskArticleRepository) *TaskService {
 	return &TaskService{db: db, keywords: keywords, articles: articles}
+}
+
+func (s *TaskService) List(ctx context.Context, input TaskListInput) (*TaskListResult, error) {
+	if s == nil || s.db == nil || input.OrgID == 0 {
+		return nil, ErrInvalidTaskInput
+	}
+
+	page, pageSize := normalizePage(input.Page, input.PageSize)
+	query := s.db.WithContext(ctx).Model(&InspectionTask{}).Where("orgid = ?", input.OrgID)
+
+	if status := strings.TrimSpace(input.Status); status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if taskNo := strings.TrimSpace(input.TaskNo); taskNo != "" {
+		query = query.Where("task_no LIKE ?", "%"+taskNo+"%")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]InspectionTask, 0, pageSize)
+	if err := query.
+		Order("create_at DESC, id DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	return &TaskListResult{
+		Page:     page,
+		PageSize: pageSize,
+		Total:    total,
+		Items:    items,
+	}, nil
+}
+
+func (s *TaskService) Get(ctx context.Context, orgID, taskID uint64) (*InspectionTask, error) {
+	if s == nil || s.db == nil || orgID == 0 || taskID == 0 {
+		return nil, ErrInvalidTaskInput
+	}
+
+	var task InspectionTask
+	if err := s.db.WithContext(ctx).Where("orgid = ? AND id = ?", orgID, taskID).First(&task).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTaskNotFound
+		}
+		return nil, err
+	}
+	return &task, nil
 }
 
 func (s *TaskService) Create(ctx context.Context, input CreateInspectionTaskInput) (*InspectionTask, error) {
