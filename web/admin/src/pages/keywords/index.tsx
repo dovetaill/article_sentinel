@@ -1,9 +1,11 @@
 import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
 import { Button, Space, message } from 'antd';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
+import { useOrgContext } from '../../context/org-context';
+import { listEnabledCategories } from '../../services/categories';
 import {
   createKeyword,
   type KeywordMutationInput,
@@ -14,6 +16,23 @@ import {
 
 type ActionRef = {
   reload?: () => void;
+};
+
+type KeywordFormValues = {
+  org_name: string;
+  name: string;
+  category_id: number;
+  match_type: string;
+  risk_level: string;
+  suggest_action: string;
+  enabled: boolean;
+  remark?: string;
+  scopes: string[];
+};
+
+type CategoryOption = {
+  label: string;
+  value: number;
 };
 
 const scopeOptions = [
@@ -28,31 +47,61 @@ export default function KeywordsPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingKeyword, setEditingKeyword] = useState<KeywordRecord | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const { activeOrgId, activeOrgName } = useOrgContext();
 
-  const initialValues = useMemo(() => {
+  useEffect(() => {
+    if (!activeOrgId) {
+      setCategoryOptions([]);
+      return;
+    }
+
+    void listEnabledCategories(activeOrgId)
+      .then((items) => {
+        setCategoryOptions(items.map((item) => ({
+          value: item.id,
+          label: item.name
+        })));
+      })
+      .catch(() => {
+        setCategoryOptions([]);
+      });
+  }, [activeOrgId]);
+
+  useEffect(() => {
+    if (activeOrgId) {
+      actionRef.current.reload?.();
+    }
+  }, [activeOrgId]);
+
+  const currentOrgId = activeOrgId ?? 29;
+  const currentOrgName = activeOrgName || '一县一端';
+
+  const initialValues = useMemo<Partial<KeywordFormValues>>(() => {
     if (!editingKeyword) {
       return {
-        orgid: 100,
+        org_name: currentOrgName,
+        category_id: categoryOptions[0]?.value,
         match_type: 'contains',
         risk_level: 'high',
         suggest_action: 'offline',
         enabled: true,
         scopes: ['title']
-      } satisfies Partial<KeywordMutationInput>;
+      };
     }
 
     return {
-      orgid: editingKeyword.orgid,
+      org_name: currentOrgName,
       name: editingKeyword.name,
-      category: editingKeyword.category,
+      category_id: editingKeyword.category_id,
       match_type: editingKeyword.match_type,
       risk_level: editingKeyword.risk_level,
       suggest_action: editingKeyword.suggest_action,
       enabled: editingKeyword.enabled,
       remark: editingKeyword.remark,
       scopes: editingKeyword.scopes
-    } satisfies Partial<KeywordMutationInput>;
-  }, [editingKeyword]);
+    };
+  }, [categoryOptions, currentOrgName, editingKeyword]);
 
   return (
     <>
@@ -82,11 +131,17 @@ export default function KeywordsPage() {
           headerTitle={false}
           toolBarRender={false}
           request={async (params) => {
+            const categoryId = typeof params.category_id === 'number'
+              ? params.category_id
+              : typeof params.category_id === 'string' && params.category_id
+                ? Number(params.category_id)
+                : undefined;
+
             const result = await listKeywords({
-              orgid: 100,
+              orgid: currentOrgId,
               page: params.current,
               pageSize: params.pageSize,
-              category: typeof params.category === 'string' ? params.category : undefined,
+              categoryId,
               keyword: typeof params.name === 'string' ? params.name : undefined
             });
 
@@ -98,7 +153,22 @@ export default function KeywordsPage() {
           }}
           columns={[
             { title: '关键词名称', dataIndex: 'name' },
-            { title: '规则分类', dataIndex: 'category' },
+            {
+              title: '规则分类',
+              dataIndex: 'category_name',
+              hideInSearch: true
+            },
+            {
+              title: '分类筛选',
+              dataIndex: 'category_id',
+              hideInTable: true,
+              valueType: 'select',
+              fieldProps: {
+                options: categoryOptions,
+                showSearch: true,
+                optionFilterProp: 'label'
+              }
+            },
             {
               title: '风险等级',
               dataIndex: 'risk_level',
@@ -138,7 +208,7 @@ export default function KeywordsPage() {
         />
       </SectionCard>
 
-      <ModalForm<KeywordMutationInput>
+      <ModalForm<KeywordFormValues>
         open={modalOpen}
         modalProps={{
           destroyOnHidden: true,
@@ -146,15 +216,18 @@ export default function KeywordsPage() {
           maskTransitionName: '',
           cancelText: '取消',
           okText: editingKeyword ? '保存修改' : '确认新增',
-          onCancel: () => setModalOpen(false)
+          onCancel: () => {
+            setModalOpen(false);
+            setEditingKeyword(null);
+          }
         }}
         title={editingKeyword ? '编辑规则' : '新增规则'}
         initialValues={initialValues}
         onFinish={async (values) => {
           const payload: KeywordMutationInput = {
-            orgid: Number(values.orgid),
+            orgid: currentOrgId,
             name: values.name,
-            category: values.category,
+            category_id: Number(values.category_id),
             match_type: values.match_type,
             risk_level: values.risk_level,
             suggest_action: values.suggest_action,
@@ -177,9 +250,19 @@ export default function KeywordsPage() {
           return true;
         }}
       >
-        <ProFormText name="orgid" label="所属机构" disabled />
-        <ProFormText name="name" label="关键词名称" rules={[{ required: true }]} />
-        <ProFormText name="category" label="规则分类" rules={[{ required: true }]} />
+        <ProFormText name="org_name" label="所属机构" disabled fieldProps={{ 'aria-label': '所属机构' }} />
+        <ProFormText name="name" label="关键词名称" fieldProps={{ 'aria-label': '关键词名称' }} rules={[{ required: true }]} />
+        <ProFormSelect
+          name="category_id"
+          label="规则分类"
+          fieldProps={{
+            options: categoryOptions,
+            showSearch: true,
+            optionFilterProp: 'label',
+            'aria-label': '规则分类'
+          }}
+          rules={[{ required: true }]}
+        />
         <ProFormSelect
           name="match_type"
           label="匹配方式"

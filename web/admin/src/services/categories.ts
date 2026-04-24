@@ -58,6 +58,17 @@ export async function listCategories(params: CategoryListParams): Promise<Catego
   };
 }
 
+export async function listEnabledCategories(orgid: number): Promise<CategoryRecord[]> {
+  const result = await listCategories({
+    orgid,
+    page: 1,
+    pageSize: 200,
+    enabled: true
+  });
+
+  return result.items.filter((item) => item.enabled);
+}
+
 export function createCategory(input: CategoryMutationInput): Promise<CategoryRecord> {
   return apiRequest<CategoryRecord>('/api/v1/article-inspect/categories', {
     method: 'POST',

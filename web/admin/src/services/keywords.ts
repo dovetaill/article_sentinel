@@ -4,7 +4,8 @@ export interface KeywordRecord {
   id: number;
   orgid: number;
   name: string;
-  category: string;
+  category_id: number;
+  category_name: string;
   match_type: string;
   risk_level: string;
   suggest_action: string;
@@ -24,7 +25,7 @@ export interface KeywordListParams {
   orgid: number;
   page?: number;
   pageSize?: number;
-  category?: string;
+  categoryId?: number;
   keyword?: string;
   enabled?: boolean;
 }
@@ -32,7 +33,7 @@ export interface KeywordListParams {
 export interface KeywordMutationInput {
   orgid: number;
   name: string;
-  category: string;
+  category_id: number;
   match_type: string;
   risk_level: string;
   suggest_action: string;
@@ -46,7 +47,7 @@ export async function listKeywords(params: KeywordListParams): Promise<KeywordLi
   query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
-  if (params.category) query.set('category', params.category);
+  if (params.categoryId) query.set('category_id', String(params.categoryId));
   if (params.keyword) query.set('keyword', params.keyword);
   if (typeof params.enabled === 'boolean') query.set('enabled', String(params.enabled));
 

@@ -3,6 +3,7 @@ import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import { matchPath, Navigate, Route, Routes } from 'react-router-dom';
 
+const CategoriesPage = lazy(() => import('./pages/categories'));
 const KeywordsPage = lazy(() => import('./pages/keywords'));
 const TasksPage = lazy(() => import('./pages/tasks'));
 const NewTaskPage = lazy(() => import('./pages/tasks/new'));
@@ -148,9 +149,9 @@ export function AppRouteOutlet() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<Navigate to="/rules" replace />} />
-        <Route path="/rules" element={<Navigate to="/rules/keywords" replace />} />
+        <Route path="/rules" element={<Navigate to="/rules/categories" replace />} />
         <Route path="/keywords" element={<Navigate to="/rules/keywords" replace />} />
-        <Route path="/rules/categories" element={<Navigate to="/rules/keywords" replace />} />
+        <Route path="/rules/categories" element={<CategoriesPage />} />
         <Route path="/rules/keywords" element={<KeywordsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/new" element={<NewTaskPage />} />
