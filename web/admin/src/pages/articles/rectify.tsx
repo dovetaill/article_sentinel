@@ -6,6 +6,7 @@ import { useParams } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { SummaryCard } from '../../components/ui/summary-card';
+import { useOrgContext } from '../../context/org-context';
 import { getArticleRectify, rectifyArticle, type RectifyArticleRecord } from '../../services/results';
 
 const { Paragraph, Text, Title } = Typography;
@@ -22,6 +23,9 @@ export default function RectifyPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<RectifyArticleRecord | null>(null);
+  const { activeOrgId } = useOrgContext();
+
+  const currentOrgId = activeOrgId ?? 29;
 
   useEffect(() => {
     if (!articleId) {
@@ -30,7 +34,7 @@ export default function RectifyPage() {
     }
 
     setLoading(true);
-    void getArticleRectify(Number(articleId), 100)
+    void getArticleRectify(Number(articleId), currentOrgId)
       .then((data) => {
         setRecord(data);
         form.setFieldsValue({
@@ -40,7 +44,7 @@ export default function RectifyPage() {
         });
       })
       .finally(() => setLoading(false));
-  }, [articleId, form]);
+  }, [articleId, currentOrgId, form]);
 
   const metrics = useMemo(() => {
     if (!record) {
@@ -78,7 +82,7 @@ export default function RectifyPage() {
 
     const values = await form.validateFields();
     await rectifyArticle(Number(articleId), {
-      orgid: 100,
+      orgid: currentOrgId,
       title: values.title,
       desc: values.desc,
       body: values.body,

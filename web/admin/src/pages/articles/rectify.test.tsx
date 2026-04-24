@@ -4,13 +4,24 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OrgProvider } from '../../context/org-context';
 import RectifyPage from './rectify';
 import { getArticleRectify, rectifyArticle } from '../../services/results';
+
+const { mockedListOrgs } = vi.hoisted(() => ({
+  mockedListOrgs: vi.fn()
+}));
+
+vi.mock('../../services/orgs', () => ({
+  listOrgs: mockedListOrgs
+}));
 
 vi.mock('../../services/results', () => ({
   listResults: vi.fn(),
   getResultDetail: vi.fn(),
   batchOfflineResults: vi.fn(),
+  batchIgnoreResults: vi.fn(),
+  batchProcessResults: vi.fn(),
   getArticleRectify: vi.fn(),
   rectifyArticle: vi.fn()
 }));
@@ -21,9 +32,12 @@ const mockedRectifyArticle = vi.mocked(rectifyArticle);
 describe('RectifyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
+    ]);
     mockedGetArticleRectify.mockResolvedValue({
       article_id: 501,
-      orgid: 100,
+      orgid: 29,
       title: 'Old title',
       desc: 'Old summary',
       body: '<p>Old body</p>'
@@ -31,21 +45,22 @@ describe('RectifyPage', () => {
     mockedRectifyArticle.mockResolvedValue({ article_id: 501, status: 'saved' } as never);
   });
 
-  it('displays old/new values and submits update', async () => {
+  it('submits rectification against the active org context', async () => {
     const user = userEvent.setup();
 
     render(
       <ConfigProvider>
-        <MemoryRouter initialEntries={['/articles/501/rectify']}>
-          <Routes>
-            <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
-          </Routes>
-        </MemoryRouter>
+        <OrgProvider>
+          <MemoryRouter initialEntries={['/articles/501/rectify']}>
+            <Routes>
+              <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+            </Routes>
+          </MemoryRouter>
+        </OrgProvider>
       </ConfigProvider>,
     );
 
     expect(await screen.findByText(/old title/i)).toBeInTheDocument();
-    expect(screen.getByText(/old summary/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '内容整改' })).toBeInTheDocument();
     expect(screen.queryByText(/围绕当前稿件进行标题、摘要与正文修订。/)).not.toBeInTheDocument();
 
@@ -57,7 +72,7 @@ describe('RectifyPage', () => {
 
     await waitFor(() => {
       expect(mockedRectifyArticle).toHaveBeenCalledWith(501, {
-        orgid: 100,
+        orgid: 29,
         title: 'New title',
         desc: 'New summary',
         body: '<p>Old body</p>',

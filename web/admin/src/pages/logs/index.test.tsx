@@ -3,8 +3,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OrgProvider } from '../../context/org-context';
 import LogsPage from './index';
 import { listOperationLogs } from '../../services/logs';
+
+const { mockedListOrgs } = vi.hoisted(() => ({
+  mockedListOrgs: vi.fn()
+}));
+
+vi.mock('../../services/orgs', () => ({
+  listOrgs: mockedListOrgs
+}));
 
 vi.mock('../../services/logs', () => ({
   listOperationLogs: vi.fn()
@@ -15,6 +24,9 @@ const mockedListOperationLogs = vi.mocked(listOperationLogs);
 describe('LogsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
+    ]);
     mockedListOperationLogs.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -22,7 +34,7 @@ describe('LogsPage', () => {
       items: [
         {
           id: 91,
-          orgid: 100,
+          orgid: 29,
           article_id: 501,
           task_id: 77,
           operation_type: 'offline',
@@ -37,19 +49,21 @@ describe('LogsPage', () => {
     } as never);
   });
 
-  it('filters by article, operator, and task', async () => {
+  it('filters logs and links task records into the task-results workspace', async () => {
     const user = userEvent.setup();
 
     render(
       <ConfigProvider>
-        <LogsPage />
+        <OrgProvider>
+          <LogsPage />
+        </OrgProvider>
       </ConfigProvider>,
     );
 
     expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
     expect(screen.queryByText('查询任务执行、结果处置与请求快照。')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '#501' })).toHaveAttribute('href', '/articles/501');
-    expect(screen.getByRole('link', { name: '#77' })).toHaveAttribute('href', '/tasks/77');
+    expect(screen.getByRole('link', { name: '#77' })).toHaveAttribute('href', '/tasks/77/results');
     expect(screen.getByRole('button', { name: '查询日志' })).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('文章编号'));

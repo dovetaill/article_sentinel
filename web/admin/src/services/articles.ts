@@ -1,13 +1,24 @@
-import { listResults, type ResultListParams, type ResultListResult, type ResultRecord } from './results';
+import { apiRequest } from '../lib/request';
+
+export interface ArticleListParams {
+  orgid: number;
+  page?: number;
+  pageSize?: number;
+  state?: number;
+  query?: string;
+}
 
 export interface ArticleListItem {
-  article_id: number;
-  article_title: string;
-  article_state?: number;
-  risk_level: string;
-  disposition_status: string;
-  hit_count: number;
-  latest_task_id: number;
+  id: number;
+  orgid: number;
+  title: string;
+  state: number;
+  publish_at_time?: string;
+  latest_risk_level?: string;
+  latest_task_id?: number;
+  latest_result_id?: number;
+  latest_suggest_action?: string;
+  latest_disposition_status?: string;
   latest_operator_name?: string;
   latest_action_at?: string;
 }
@@ -19,86 +30,62 @@ export interface ArticleListResult {
   items: ArticleListItem[];
 }
 
-const riskRank: Record<string, number> = {
-  low: 1,
-  medium: 2,
-  high: 3
-};
-
-function pickHigherRisk(current: string, next: string) {
-  return (riskRank[next] ?? 0) > (riskRank[current] ?? 0) ? next : current;
+export interface ArticleDetailRecord extends ArticleListItem {
+  short_title: string;
+  rich_title: string;
+  keyword: string;
+  desc: string;
+  body: string;
 }
 
-function pickLatestRecord(current: ArticleListItem, next: ResultRecord) {
-  const currentStamp = current.latest_action_at ?? '';
-  const nextStamp = next.latest_action_at ?? '';
-
-  if (nextStamp > currentStamp) {
-    return {
-      latest_task_id: next.task_id,
-      latest_operator_name: next.latest_operator_name,
-      latest_action_at: next.latest_action_at
-    };
-  }
-
-  if (!currentStamp && next.task_id > current.latest_task_id) {
-    return {
-      latest_task_id: next.task_id,
-      latest_operator_name: next.latest_operator_name,
-      latest_action_at: next.latest_action_at
-    };
-  }
-
-  return {
-    latest_task_id: current.latest_task_id,
-    latest_operator_name: current.latest_operator_name,
-    latest_action_at: current.latest_action_at
-  };
+export interface ArticleLifecycleInput {
+  orgid: number;
+  task_id?: number;
+  result_id?: number;
+  action_id?: string;
+  reason?: string;
 }
 
-export function summarizeArticles(items: ResultRecord[]): ArticleListItem[] {
-  const grouped = new Map<number, ArticleListItem>();
-
-  items.forEach((item) => {
-    const current = grouped.get(item.article_id);
-
-    if (!current) {
-      grouped.set(item.article_id, {
-        article_id: item.article_id,
-        article_title: item.article_title,
-        article_state: item.article_state,
-        risk_level: item.risk_level,
-        disposition_status: item.disposition_status,
-        hit_count: item.hit_count,
-        latest_task_id: item.task_id,
-        latest_operator_name: item.latest_operator_name,
-        latest_action_at: item.latest_action_at
-      });
-      return;
-    }
-
-    const latest = pickLatestRecord(current, item);
-
-    grouped.set(item.article_id, {
-      ...current,
-      article_state: item.article_state ?? current.article_state,
-      risk_level: pickHigherRisk(current.risk_level, item.risk_level),
-      disposition_status: current.disposition_status === 'pending' ? current.disposition_status : item.disposition_status,
-      hit_count: current.hit_count + item.hit_count,
-      ...latest
-    });
-  });
-
-  return Array.from(grouped.values());
+export interface ArticleLifecycleResult {
+  article_id: number;
+  status: string;
 }
 
-export async function listArticles(params: ResultListParams): Promise<ArticleListResult> {
-  const data: ResultListResult = await listResults(params);
+export async function listArticles(params: ArticleListParams): Promise<ArticleListResult> {
+  const query = new URLSearchParams();
+  query.set('orgid', String(params.orgid));
+  if (params.page) query.set('page', String(params.page));
+  if (params.pageSize) query.set('page_size', String(params.pageSize));
+  if (params.state !== undefined) query.set('state', String(params.state));
+  if (params.query) query.set('query', params.query);
+
+  const data = await apiRequest<{ page: number; page_size?: number; total: number; items: ArticleListItem[] }>(
+    `/api/v1/article-inspect/articles?${query.toString()}`,
+  );
 
   return {
     page: data.page,
-    pageSize: data.pageSize,
-    total: summarizeArticles(data.items).length,
-    items: summarizeArticles(data.items)
+    pageSize: data.page_size ?? params.pageSize ?? 20,
+    total: data.total,
+    items: data.items ?? []
   };
+}
+
+export function getArticleDetail(articleId: number, orgid: number): Promise<ArticleDetailRecord> {
+  return apiRequest<ArticleDetailRecord>(`/api/v1/article-inspect/articles/${articleId}?orgid=${orgid}`);
+}
+
+function postArticleAction(path: string, input: ArticleLifecycleInput): Promise<ArticleLifecycleResult> {
+  return apiRequest<ArticleLifecycleResult>(path, {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+}
+
+export function offlineArticle(articleId: number, input: ArticleLifecycleInput): Promise<ArticleLifecycleResult> {
+  return postArticleAction(`/api/v1/article-inspect/articles/${articleId}/offline`, input);
+}
+
+export function republishArticle(articleId: number, input: ArticleLifecycleInput): Promise<ArticleLifecycleResult> {
+  return postArticleAction(`/api/v1/article-inspect/articles/${articleId}/republish`, input);
 }

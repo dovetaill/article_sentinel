@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
+import { useOrgContext } from '../../context/org-context';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 
 type Filters = {
@@ -16,6 +17,9 @@ export default function LogsPage() {
   const [draftFilters, setDraftFilters] = useState({ articleId: '', taskId: '', operator: '' });
   const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
   const [activeSnapshot, setActiveSnapshot] = useState<OperationLogRecord | null>(null);
+  const { activeOrgId } = useOrgContext();
+
+  const currentOrgId = activeOrgId ?? 29;
 
   return (
     <>
@@ -77,13 +81,13 @@ export default function LogsPage() {
           cardBordered={false}
           size="small"
           search={false}
-          params={submittedFilters}
+          params={{ ...submittedFilters, orgid: currentOrgId }}
           headerTitle={false}
           options={false}
           toolBarRender={false}
           request={async (params) => {
             const result = await listOperationLogs({
-              orgid: 100,
+              orgid: currentOrgId,
               page: params.current,
               pageSize: params.pageSize,
               article_id: submittedFilters.article_id,
@@ -105,7 +109,7 @@ export default function LogsPage() {
             {
               title: '任务编号',
               dataIndex: 'task_id',
-              render: (_, record) => record.task_id ? <a href={`/tasks/${record.task_id}`}>#{record.task_id}</a> : '-'
+              render: (_, record) => record.task_id ? <a href={`/tasks/${record.task_id}/results`}>#{record.task_id}</a> : '-'
             },
             { title: '操作类型', dataIndex: 'operation_type' },
             {

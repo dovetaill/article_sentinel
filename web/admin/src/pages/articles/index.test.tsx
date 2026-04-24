@@ -3,50 +3,61 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OrgProvider } from '../../context/org-context';
 import ArticlesPage from './index';
-import { listArticles } from '../../services/articles';
 
-vi.mock('../../services/articles', () => ({
-  listArticles: vi.fn()
+const { mockedListArticles, mockedListOrgs } = vi.hoisted(() => ({
+  mockedListArticles: vi.fn(),
+  mockedListOrgs: vi.fn()
 }));
 
-const mockedListArticles = vi.mocked(listArticles);
+vi.mock('../../services/articles', () => ({
+  listArticles: mockedListArticles
+}));
+
+vi.mock('../../services/orgs', () => ({
+  listOrgs: mockedListOrgs
+}));
 
 describe('ArticlesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedListOrgs.mockResolvedValue([
+      { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
+    ]);
     mockedListArticles.mockResolvedValue({
       page: 1,
       pageSize: 20,
       total: 1,
       items: [
         {
-          article_id: 501,
-          article_title: 'Spam alert',
-          article_state: 9,
-          risk_level: 'high',
-          disposition_status: 'pending',
-          hit_count: 3,
+          id: 501,
+          orgid: 29,
+          title: '县域融媒今日要闻',
+          state: 9,
+          latest_risk_level: 'high',
           latest_task_id: 208,
-          latest_operator_name: '值班员乙',
-          latest_action_at: '2026-04-20 12:00:00'
+          latest_disposition_status: 'pending'
         }
       ]
-    } as never);
+    });
   });
 
-  it('renders article-centric inspection rows', async () => {
+  it('renders real article metadata plus latest inspect enrichment', async () => {
     render(
       <ConfigProvider>
-        <MemoryRouter>
-          <ArticlesPage />
-        </MemoryRouter>
+        <OrgProvider>
+          <MemoryRouter>
+            <ArticlesPage />
+          </MemoryRouter>
+        </OrgProvider>
       </ConfigProvider>,
     );
 
-    expect(screen.queryByText('按稿件维度查看巡检命中、处置状态与最近任务，便于持续跟进单篇稿件。')).not.toBeInTheDocument();
-    expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+    expect(screen.queryByText('基于现有巡检结果聚合出的稿件工作台视图。')).not.toBeInTheDocument();
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
     expect(screen.getByText('#501')).toBeInTheDocument();
+    expect(screen.getByText('#208')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/articles/501');
   });
 });
