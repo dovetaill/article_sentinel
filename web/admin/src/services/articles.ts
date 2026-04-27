@@ -5,7 +5,8 @@ export interface ArticleListParams {
   page?: number;
   pageSize?: number;
   state?: number;
-  query?: string;
+  article_id?: number;
+  title?: string;
 }
 
 export interface ArticleListItem {
@@ -69,7 +70,8 @@ export async function listArticles(params: ArticleListParams): Promise<ArticleLi
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.state !== undefined) query.set('state', String(params.state));
-  if (params.query) query.set('query', params.query);
+  if (params.article_id) query.set('article_id', String(params.article_id));
+  if (params.title) query.set('title', params.title);
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: ArticleListItem[] }>(
     `/api/v1/article-inspect/articles?${query.toString()}`,

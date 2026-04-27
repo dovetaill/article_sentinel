@@ -26,11 +26,12 @@ func (s *ArticleService) List(ctx context.Context, input ArticleListInput) (*Art
 	}
 	page, pageSize := normalizePage(input.Page, input.PageSize)
 	items, total, err := s.repo.ListArticles(ctx, ArticleListInput{
-		OrgID:    input.OrgID,
-		Page:     page,
-		PageSize: pageSize,
-		State:    input.State,
-		Query:    input.Query,
+		OrgID:     input.OrgID,
+		Page:      page,
+		PageSize:  pageSize,
+		State:     input.State,
+		ArticleID: input.ArticleID,
+		TitleLike: input.TitleLike,
 	})
 	if err != nil {
 		return nil, err

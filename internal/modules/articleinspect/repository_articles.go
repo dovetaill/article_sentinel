@@ -107,9 +107,11 @@ func (r *ArticleRepository) ListArticles(ctx context.Context, input ArticleListI
 	if input.State != nil {
 		query = query.Where("state = ?", *input.State)
 	}
-	if text := strings.TrimSpace(input.Query); text != "" {
-		like := "%" + text + "%"
-		query = query.Where("title LIKE ? OR keyword LIKE ?", like, like)
+	if input.ArticleID != 0 {
+		query = query.Where("id = ?", input.ArticleID)
+	}
+	if title := strings.TrimSpace(input.TitleLike); title != "" {
+		query = query.Where("title LIKE ?", "%"+title+"%")
 	}
 
 	var total int64

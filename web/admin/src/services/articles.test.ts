@@ -48,4 +48,18 @@ describe('listArticles', () => {
       latest_task_id: 208
     });
   });
+
+  it('sends explicit title and article_id filters', async () => {
+    await listArticles({
+      orgid: 29,
+      page: 1,
+      pageSize: 20,
+      title: '命中标题',
+      article_id: 9001
+    } as never);
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      '/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&article_id=9001&title=%E5%91%BD%E4%B8%AD%E6%A0%87%E9%A2%98'
+    );
+  });
 });

@@ -64,7 +64,23 @@ describe('ArticlesPage', () => {
         };
       }
 
-      if (params.query) {
+      if (params.article_id) {
+        return {
+          page: 1,
+          pageSize: 20,
+          total: 1,
+          items: [
+            {
+              id: 901,
+              orgid: 29,
+              title: 'ID 精确命中文稿',
+              state: 9
+            }
+          ]
+        };
+      }
+
+      if (params.title) {
         return {
           page: 1,
           pageSize: 20,
@@ -112,7 +128,8 @@ describe('ArticlesPage', () => {
     expect(screen.queryByText('查看真实稿件元数据，并结合最近巡检结果快速进入处置。')).not.toBeInTheDocument();
     expect(screen.queryByText('支持按标题关键词筛选已发布文稿。')).not.toBeInTheDocument();
     expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: '搜索文稿' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: '标题模糊查询' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: '按文稿ID查询' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '查询文稿' })).toBeInTheDocument();
     await waitFor(() => {
       expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
@@ -122,7 +139,8 @@ describe('ArticlesPage', () => {
         state: 9
       }));
     });
-    expect(screen.getByText('#501')).toBeInTheDocument();
+    expect(screen.getByText('501')).toBeInTheDocument();
+    expect(screen.queryByText('#501')).not.toBeInTheDocument();
     expect(screen.getByText('任务 #208')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute('href', '/articles/501');
 
@@ -138,7 +156,7 @@ describe('ArticlesPage', () => {
       }));
     });
 
-    await user.type(screen.getByRole('textbox', { name: '搜索文稿' }), '命中');
+    await user.type(screen.getByRole('textbox', { name: '标题模糊查询' }), '命中');
     await user.click(screen.getByRole('button', { name: '查询文稿' }));
 
     expect(await screen.findByText('搜索命中文稿')).toBeInTheDocument();
@@ -147,7 +165,22 @@ describe('ArticlesPage', () => {
         orgid: 29,
         page: 1,
         pageSize: 20,
-        query: '命中',
+        title: '命中',
+        state: 9
+      }));
+    });
+
+    await user.clear(screen.getByRole('textbox', { name: '标题模糊查询' }));
+    await user.type(screen.getByRole('textbox', { name: '按文稿ID查询' }), '901');
+    await user.click(screen.getByRole('button', { name: '查询文稿' }));
+
+    expect(await screen.findByText('ID 精确命中文稿')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        article_id: 901,
         state: 9
       }));
     });

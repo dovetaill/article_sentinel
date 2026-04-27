@@ -3,11 +3,12 @@ package articleinspect
 import "time"
 
 type ArticleListInput struct {
-	OrgID    uint64
-	Page     int
-	PageSize int
-	State    *int8
-	Query    string
+	OrgID     uint64
+	Page      int
+	PageSize  int
+	State     *int8
+	ArticleID uint64
+	TitleLike string
 }
 
 type ArticleListItem struct {

@@ -161,7 +161,10 @@ describe('TaskResultsPage', () => {
     expect(screen.queryByText('查看当前任务的执行概况与责任信息。')).not.toBeInTheDocument();
     expect(screen.queryByText('在当前任务上下文中完成单条或批量处置。')).not.toBeInTheDocument();
     expect(screen.queryByText('跟踪该任务下的处置动作和状态变化。')).not.toBeInTheDocument();
+    expect(screen.getByText('文稿ID')).toBeInTheDocument();
     expect(screen.getByText('Spam alert')).toBeInTheDocument();
+    expect(screen.getByText('501')).toBeInTheDocument();
+    expect(screen.queryByText('#501')).not.toBeInTheDocument();
     expect(screen.getByText('标题')).toBeInTheDocument();
     expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
     expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();

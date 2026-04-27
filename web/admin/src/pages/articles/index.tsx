@@ -25,8 +25,10 @@ function renderArticleState(value?: number) {
 export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArticleListItem[]>([]);
-  const [draftQuery, setDraftQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftArticleID, setDraftArticleID] = useState('');
+  const [submittedTitle, setSubmittedTitle] = useState('');
+  const [submittedArticleID, setSubmittedArticleID] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -41,7 +43,8 @@ export default function ArticlesPage() {
       page,
       pageSize,
       state: 9,
-      query: submittedQuery || undefined
+      article_id: submittedArticleID,
+      title: submittedTitle || undefined
     })
       .then((result) => {
         setItems(result.items);
@@ -52,7 +55,7 @@ export default function ArticlesPage() {
         setTotal(0);
       })
       .finally(() => setLoading(false));
-  }, [currentOrgId, page, pageSize, submittedQuery]);
+  }, [currentOrgId, page, pageSize, submittedArticleID, submittedTitle]);
 
   return (
     <>
@@ -61,11 +64,19 @@ export default function ArticlesPage() {
           <div className="toolbar-strip__group">
             <div className="toolbar-strip__controls">
               <Input
-                aria-label="搜索文稿"
+                aria-label="标题模糊查询"
                 className="toolbar-strip__control"
-                placeholder="按标题关键词搜索"
-                value={draftQuery}
-                onChange={(event) => setDraftQuery(event.target.value)}
+                placeholder="按标题模糊查找"
+                value={draftTitle}
+                onChange={(event) => setDraftTitle(event.target.value)}
+              />
+              <Input
+                aria-label="按文稿ID查询"
+                className="toolbar-strip__control"
+                inputMode="numeric"
+                placeholder="按文稿ID查询"
+                value={draftArticleID}
+                onChange={(event) => setDraftArticleID(event.target.value)}
               />
             </div>
           </div>
@@ -73,8 +84,10 @@ export default function ArticlesPage() {
           <div className="toolbar-strip__actions">
             <Button
               onClick={() => {
-                setDraftQuery('');
-                setSubmittedQuery('');
+                setDraftTitle('');
+                setDraftArticleID('');
+                setSubmittedTitle('');
+                setSubmittedArticleID(undefined);
                 setPage(1);
               }}
             >
@@ -83,7 +96,9 @@ export default function ArticlesPage() {
             <Button
               type="primary"
               onClick={() => {
-                setSubmittedQuery(draftQuery.trim());
+                const articleID = Number(draftArticleID.trim());
+                setSubmittedTitle(draftTitle.trim());
+                setSubmittedArticleID(Number.isInteger(articleID) && articleID > 0 ? articleID : undefined);
                 setPage(1);
               }}
             >
@@ -124,7 +139,7 @@ export default function ArticlesPage() {
               {
                 title: '文章编号',
                 dataIndex: 'id',
-                render: (value: number) => <Text>#{value}</Text>
+                render: (value: number) => <Text>{value}</Text>
               },
               {
                 title: '当前状态',

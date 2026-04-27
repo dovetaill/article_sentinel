@@ -175,11 +175,12 @@ type articleIDRequest struct {
 }
 
 type articleListRequest struct {
-	OrgID    uint64 `query:"orgid"`
-	Page     int    `query:"page"`
-	PageSize int    `query:"page_size"`
-	State    string `query:"state"`
-	Query    string `query:"keyword"`
+	OrgID     uint64 `query:"orgid"`
+	Page      int    `query:"page"`
+	PageSize  int    `query:"page_size"`
+	State     string `query:"state"`
+	ArticleID uint64 `query:"article_id"`
+	Title     string `query:"title"`
 }
 
 type articleDetailRequest struct {
@@ -927,11 +928,12 @@ func registerArticleRoutes(api huma.API, service *ArticleService) {
 			return failureEnvelope(http.StatusBadRequest, "invalid state"), nil
 		}
 		result, err := service.List(ctx, ArticleListInput{
-			OrgID:    input.OrgID,
-			Page:     input.Page,
-			PageSize: input.PageSize,
-			State:    state,
-			Query:    input.Query,
+			OrgID:     input.OrgID,
+			Page:      input.Page,
+			PageSize:  input.PageSize,
+			State:     state,
+			ArticleID: input.ArticleID,
+			TitleLike: input.Title,
 		})
 		if err != nil {
 			return failureFromError(err)

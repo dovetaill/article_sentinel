@@ -197,6 +197,11 @@ export default function TaskResultsPage() {
                   dataIndex: 'article_title'
                 },
                 {
+                  title: '文稿ID',
+                  dataIndex: 'article_id',
+                  render: (value: number) => <Text>{value}</Text>
+                },
+                {
                   title: '风险等级',
                   dataIndex: 'risk_level',
                   render: (_, record) => <StatusBadge kind="risk" value={record.risk_level} />

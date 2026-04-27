@@ -1636,6 +1636,42 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 		}
 	})
 
+	t.Run("article list endpoint filters by title like", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&title=%E8%A6%81%E9%97%BB%E4%B8%80", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list articles by title status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		items := articleInspectListField(t, data, "items")
+		if len(items) != 1 {
+			t.Fatalf("title filtered items len = %d, want %d", len(items), 1)
+		}
+
+		item := articleInspectDataMap(t, items[0])
+		if articleInspectUint64Field(t, item, "id") != 9001 {
+			t.Fatalf("title filtered id = %d, want %d", articleInspectUint64Field(t, item, "id"), 9001)
+		}
+	})
+
+	t.Run("article list endpoint filters by article id", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&article_id=9002", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list articles by article id status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		items := articleInspectListField(t, data, "items")
+		if len(items) != 1 {
+			t.Fatalf("article id filtered items len = %d, want %d", len(items), 1)
+		}
+
+		item := articleInspectDataMap(t, items[0])
+		if articleInspectUint64Field(t, item, "id") != 9002 {
+			t.Fatalf("article id filtered id = %d, want %d", articleInspectUint64Field(t, item, "id"), 9002)
+		}
+	})
+
 	t.Run("article detail endpoint includes article data and latest inspect summary", func(t *testing.T) {
 		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles/9001?orgid=29", nil)
 		if result.status != http.StatusOK {
