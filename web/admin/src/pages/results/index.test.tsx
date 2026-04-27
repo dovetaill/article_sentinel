@@ -32,7 +32,7 @@ describe('ResultsPage', () => {
       {
         id: 29,
         name: '一县一端',
-        cateid: 0,
+        cate_id: 0,
         enabled: true,
         sort: 1
       }
@@ -60,7 +60,15 @@ describe('ResultsPage', () => {
         }
       ]
     } as never);
-    mockedBatchOfflineResults.mockResolvedValue({ action_no: 'offline-11' } as never);
+    mockedBatchOfflineResults.mockResolvedValue({
+      action_id: 11,
+      target_count: 1,
+      success_count: 1,
+      fail_count: 0,
+      skip_count: 0,
+      status: 'success',
+      action_type: 'offline'
+    } as never);
   });
 
   it('supports row selection and batch action confirmation', async () => {

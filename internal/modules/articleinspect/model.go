@@ -6,18 +6,18 @@ import (
 )
 
 type InspectionTimestamps struct {
-	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
-	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
+	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"created_at"`
+	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"updated_at"`
 }
 
 type ChuangqiOrg struct {
 	ID       uint64    `gorm:"column:id;primaryKey" json:"id"`
 	Name     string    `gorm:"column:name;size:128;not null" json:"name"`
-	CateID   uint64    `gorm:"column:cateid;not null;default:0" json:"cateid"`
+	CateID   uint64    `gorm:"column:cateid;not null;default:0" json:"cate_id"`
 	Enabled  bool      `gorm:"column:enabled;not null;default:true" json:"enabled"`
 	Sort     int64     `gorm:"column:sort;not null;default:0" json:"sort"`
-	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"create_at"`
-	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"update_at"`
+	CreateAt time.Time `gorm:"column:create_at;not null;autoCreateTime" json:"created_at"`
+	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"updated_at"`
 }
 
 func (ChuangqiOrg) TableName() string {

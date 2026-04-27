@@ -83,6 +83,16 @@ export interface BatchOfflineInput {
   reason?: string;
 }
 
+export interface BatchActionResult {
+  action_id: number;
+  target_count: number;
+  success_count: number;
+  fail_count: number;
+  skip_count: number;
+  status: string;
+  action_type: string;
+}
+
 export interface RectifyArticleRecord {
   article_id: number;
   orgid: number;
@@ -159,22 +169,22 @@ export function getResultDetail(id: number, orgid = 100): Promise<ResultDetailRe
   });
 }
 
-function postBatchAction(path: string, input: BatchOfflineInput): Promise<{ action_no: string }> {
-  return apiRequest<{ action_no: string }>(path, {
+function postBatchAction(path: string, input: BatchOfflineInput): Promise<BatchActionResult> {
+  return apiRequest<BatchActionResult>(path, {
     method: 'POST',
     body: JSON.stringify(input)
   });
 }
 
-export function batchOfflineResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+export function batchOfflineResults(input: BatchOfflineInput): Promise<BatchActionResult> {
   return postBatchAction('/api/v1/article-inspect/actions/batch-offline', input);
 }
 
-export function batchIgnoreResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+export function batchIgnoreResults(input: BatchOfflineInput): Promise<BatchActionResult> {
   return postBatchAction('/api/v1/article-inspect/actions/batch-ignore', input);
 }
 
-export function batchProcessResults(input: BatchOfflineInput): Promise<{ action_no: string }> {
+export function batchProcessResults(input: BatchOfflineInput): Promise<BatchActionResult> {
   return postBatchAction('/api/v1/article-inspect/actions/batch-process', input);
 }
 

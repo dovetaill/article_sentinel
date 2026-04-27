@@ -3,7 +3,7 @@ import { apiRequest } from '../lib/request';
 export interface OrgRecord {
   id: number;
   name: string;
-  cateid: number;
+  cate_id: number;
   enabled: boolean;
   sort: number;
 }

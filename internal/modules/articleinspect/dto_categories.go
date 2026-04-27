@@ -5,7 +5,7 @@ import "time"
 type OrgDTO struct {
 	ID      uint64 `json:"id"`
 	Name    string `json:"name"`
-	CateID  uint64 `json:"cateid"`
+	CateID  uint64 `json:"cate_id"`
 	Enabled bool   `json:"enabled"`
 	Sort    int64  `json:"sort"`
 }
@@ -52,8 +52,8 @@ type CategoryDTO struct {
 	CreatorName string    `json:"creator_name"`
 	UpdaterID   uint64    `json:"updater_id"`
 	UpdaterName string    `json:"updater_name"`
-	CreateAt    time.Time `json:"create_at"`
-	UpdateAt    time.Time `json:"update_at"`
+	CreateAt    time.Time `json:"created_at"`
+	UpdateAt    time.Time `json:"updated_at"`
 }
 
 type CategoryListResult struct {

@@ -56,7 +56,7 @@ describe('ArticleDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cateid: 0, enabled: true, sort: 1 }
+      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
     ]);
     mockedGetArticleDetail.mockResolvedValue({
       id: 501,

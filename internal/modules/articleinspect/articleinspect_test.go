@@ -1263,6 +1263,12 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	if articleInspectStringField(t, listedTask, "status") != TaskStatusPending {
 		t.Fatalf("listed task status = %q, want %q", articleInspectStringField(t, listedTask, "status"), TaskStatusPending)
 	}
+	if _, ok := listedTask["created_at"]; !ok {
+		t.Fatalf("listed task keys = %#v, want created_at", listedTask)
+	}
+	if _, ok := listedTask["create_at"]; ok {
+		t.Fatalf("listed task keys = %#v, do not want create_at", listedTask)
+	}
 	taskID := articleInspectUint64Field(t, createdTaskData, "id")
 	detailTask := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/tasks/"+strconv.FormatUint(taskID, 10)+"?orgid=100", nil)
 	if detailTask.status != http.StatusOK {
@@ -1373,6 +1379,72 @@ func TestHandlerRectifyAndRepublishRequireOrgID(t *testing.T) {
 	}
 }
 
+func TestHandlerActionAndLifecycleResponsesUseSnakeCase(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedLifecycleArticles(t, db)
+	seedBatchOfflineFixtures(t, db)
+	handler := newArticleInspectHandler(t, db, &articleInspectTaskDispatcherStub{})
+
+	batchOffline := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/actions/batch-offline", map[string]any{
+		"orgid":      100,
+		"task_id":    501,
+		"result_ids": []uint64{2001},
+		"reason":     "manual batch offline",
+	})
+	if batchOffline.status != http.StatusOK {
+		t.Fatalf("batch offline status = %d, want %d", batchOffline.status, http.StatusOK)
+	}
+
+	batchData := articleInspectDataMap(t, batchOffline.envelope.Data)
+	if articleInspectUint64Field(t, batchData, "action_id") == 0 {
+		t.Fatalf("batch action_id = 0, want non-zero")
+	}
+	if articleInspectUint64Field(t, batchData, "target_count") != 1 {
+		t.Fatalf("batch target_count = %d, want %d", articleInspectUint64Field(t, batchData, "target_count"), 1)
+	}
+	if _, ok := batchData["ActionID"]; ok {
+		t.Fatalf("batch action keys = %#v, do not want ActionID", batchData)
+	}
+
+	rectify := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/articles/12/rectify", map[string]any{
+		"orgid": 100,
+		"title": "Updated title",
+		"desc":  "Updated desc",
+		"body":  "Updated body content",
+	})
+	if rectify.status != http.StatusOK {
+		t.Fatalf("rectify status = %d, want %d", rectify.status, http.StatusOK)
+	}
+
+	rectifyChanges, ok := rectify.envelope.Data.([]any)
+	if !ok || len(rectifyChanges) == 0 {
+		t.Fatalf("rectify data = %#v, want non-empty []any", rectify.envelope.Data)
+	}
+	firstChange := articleInspectDataMap(t, rectifyChanges[0])
+	if articleInspectStringField(t, firstChange, "field_name") == "" {
+		t.Fatalf("rectify field_name = empty, want non-empty")
+	}
+	if _, ok := firstChange["FieldName"]; ok {
+		t.Fatalf("rectify change keys = %#v, do not want FieldName", firstChange)
+	}
+
+	republish := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/articles/11/republish", map[string]any{
+		"orgid":  100,
+		"reason": "send back to audit",
+	})
+	if republish.status != http.StatusOK {
+		t.Fatalf("republish status = %d, want %d", republish.status, http.StatusOK)
+	}
+
+	republishData := articleInspectDataMap(t, republish.envelope.Data)
+	if articleInspectUint64Field(t, republishData, "article_id") != 11 {
+		t.Fatalf("republish article_id = %d, want %d", articleInspectUint64Field(t, republishData, "article_id"), 11)
+	}
+	if _, ok := republishData["ArticleID"]; ok {
+		t.Fatalf("republish keys = %#v, do not want ArticleID", republishData)
+	}
+}
+
 func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	seedOrgCategoryFixtures(t, db)
@@ -1398,6 +1470,12 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 		if articleInspectStringField(t, first, "name") != "一县一端" {
 			t.Fatalf("first org name = %q, want %q", articleInspectStringField(t, first, "name"), "一县一端")
 		}
+		if articleInspectUint64Field(t, first, "cate_id") != 0 {
+			t.Fatalf("first org cate_id = %d, want %d", articleInspectUint64Field(t, first, "cate_id"), 0)
+		}
+		if _, ok := first["cateid"]; ok {
+			t.Fatalf("first org keys = %#v, do not want cateid", first)
+		}
 	})
 
 	t.Run("categories are scoped by orgid", func(t *testing.T) {
@@ -1417,6 +1495,12 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 			item := articleInspectDataMap(t, raw)
 			if articleInspectUint64Field(t, item, "orgid") != 29 {
 				t.Fatalf("category orgid = %d, want %d", articleInspectUint64Field(t, item, "orgid"), 29)
+			}
+			if _, ok := item["created_at"]; !ok {
+				t.Fatalf("category keys = %#v, want created_at", item)
+			}
+			if _, ok := item["create_at"]; ok {
+				t.Fatalf("category keys = %#v, do not want create_at", item)
 			}
 			gotIDs = append(gotIDs, articleInspectUint64Field(t, item, "id"))
 		}

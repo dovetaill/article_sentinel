@@ -59,6 +59,8 @@ export interface ArticleRectifyInput extends ArticleLifecycleInput {
 export interface ArticleLifecycleResult {
   article_id: number;
   status: string;
+  before_state?: number;
+  after_state?: number;
 }
 
 export async function listArticles(params: ArticleListParams): Promise<ArticleListResult> {

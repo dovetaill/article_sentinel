@@ -50,10 +50,10 @@ type RepublishArticleInput struct {
 }
 
 type LifecycleActionResult struct {
-	Status      string
-	ArticleID   uint64
-	BeforeState int8
-	AfterState  int8
+	Status      string `json:"status"`
+	ArticleID   uint64 `json:"article_id"`
+	BeforeState int8   `json:"before_state"`
+	AfterState  int8   `json:"after_state"`
 }
 
 func NewLifecycleService(db *gorm.DB) *LifecycleService {

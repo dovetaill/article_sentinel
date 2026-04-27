@@ -11,8 +11,8 @@ export interface CategoryRecord {
   creator_name?: string;
   updater_id?: number;
   updater_name?: string;
-  create_at?: string;
-  update_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CategoryListResult {

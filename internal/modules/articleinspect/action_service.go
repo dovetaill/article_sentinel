@@ -21,13 +21,13 @@ type BatchActionInput struct {
 }
 
 type BatchActionSummary struct {
-	ActionID     uint64
-	TargetCount  int64
-	SuccessCount int64
-	FailCount    int64
-	SkipCount    int64
-	Status       string
-	ActionType   string
+	ActionID     uint64 `json:"action_id"`
+	TargetCount  int64  `json:"target_count"`
+	SuccessCount int64  `json:"success_count"`
+	FailCount    int64  `json:"fail_count"`
+	SkipCount    int64  `json:"skip_count"`
+	Status       string `json:"status"`
+	ActionType   string `json:"action_type"`
 }
 
 type ActionService struct {

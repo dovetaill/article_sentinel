@@ -67,7 +67,7 @@ Expected: FAIL because the current handler payload still exposes PascalCase and 
 
 Use a frontend-visible endpoint such as org/category/task/log payloads and assert:
 
-- `org_id` instead of `orgid`
+- `orgid` remains unchanged
 - `cate_id` instead of `cateid`
 - `created_at` instead of `create_at`
 
@@ -121,7 +121,7 @@ Implement snake_case fields for:
 Update JSON tags to canonical snake_case for frontend-facing DTOs, including representative changes:
 
 - `OrgDTO.CateID` -> `json:"cate_id"`
-- `CategoryDTO.OrgID` -> `json:"org_id"`
+- `CategoryDTO.OrgID` -> `json:"orgid"`
 - `CategoryDTO.CreateAt` -> `json:"created_at"`
 - `CategoryDTO.UpdateAt` -> `json:"updated_at"`
 - same pattern for keyword/task/result/article/log DTOs where needed
@@ -156,7 +156,7 @@ Expected: PASS.
 
 Update mocks to return only snake_case fields such as:
 
-- `org_id`
+- `orgid`
 - `cate_id`
 - `created_at`
 - `updated_at`
@@ -173,7 +173,7 @@ Expected: FAIL where the frontend still expects legacy response keys.
 Examples:
 
 - `OrgRecord.cateid` -> `cate_id`
-- `CategoryRecord.orgid` -> `org_id`
+- `CategoryRecord.orgid` stays `orgid`
 - remove `create_at ?? created_at` compatibility logic
 - align batch action/lifecycle return types with the real backend DTOs
 

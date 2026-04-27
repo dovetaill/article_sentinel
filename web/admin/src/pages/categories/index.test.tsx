@@ -51,7 +51,7 @@ describe('CategoriesPage', () => {
       {
         id: 29,
         name: '一县一端',
-        cateid: 0,
+        cate_id: 0,
         enabled: true,
         sort: 1
       }

@@ -50,7 +50,7 @@ This normalization applies to response bodies only.
 Examples:
 
 - keep request/query `orgid` as-is for now
-- normalize response fields from `orgid` to `org_id`
+- keep response `orgid` as an explicit exception to the snake_case cleanup
 - keep route and request shapes stable to reduce breakage during rollout
 
 This avoids turning one cleanup into a broader request-contract migration.
@@ -78,7 +78,8 @@ The normalized naming rules are:
 - `camelCase` and `PascalCase` response fields become `snake_case`
 - abbreviated concatenations become expanded snake_case where the field represents multiple words
 - timestamp fields use `created_at` / `updated_at`
-- organization/category identifiers use `org_id` / `cate_id`
+- `orgid` stays `orgid` because it is a project-specific fixed identifier token
+- category identifiers still normalize to `cate_id`
 
 Representative examples:
 
@@ -86,7 +87,7 @@ Representative examples:
 - `SuccessCount` -> `success_count`
 - `ArticleID` -> `article_id`
 - `BeforeState` -> `before_state`
-- `orgid` -> `org_id`
+- `orgid` -> unchanged
 - `cateid` -> `cate_id`
 - `create_at` -> `created_at`
 - `update_at` -> `updated_at`
@@ -184,7 +185,7 @@ These need DTO cleanup so every frontend-visible field becomes canonical snake_c
 
 Specific historical names to normalize:
 
-- `orgid` -> `org_id`
+- keep `orgid` unchanged
 - `cateid` -> `cate_id`
 - `create_at` -> `created_at`
 - `update_at` -> `updated_at`
@@ -235,7 +236,7 @@ Update `web/admin/src/services/*` to consume only normalized snake_case response
 Examples:
 
 - `OrgRecord.cateid` -> `OrgRecord.cate_id`
-- `CategoryRecord.orgid` -> `CategoryRecord.org_id`
+- `CategoryRecord.orgid` stays `CategoryRecord.orgid`
 - `CategoryRecord.create_at` -> `CategoryRecord.created_at`
 - `TaskRecord.created_at` becomes the only supported create timestamp field
 

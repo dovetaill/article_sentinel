@@ -12,10 +12,10 @@ type EditableArticleFields struct {
 }
 
 type FieldChange struct {
-	FieldName   string
-	BeforeValue string
-	AfterValue  string
-	DiffSummary string
+	FieldName   string `json:"field_name"`
+	BeforeValue string `json:"before_value"`
+	AfterValue  string `json:"after_value"`
+	DiffSummary string `json:"diff_summary"`
 }
 
 func DiffEditableFields(before, after EditableArticleFields) []FieldChange {
