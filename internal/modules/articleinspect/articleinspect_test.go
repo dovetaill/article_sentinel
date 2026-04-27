@@ -1672,6 +1672,24 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 		}
 	})
 
+	t.Run("article list endpoint still supports exact state filtering", func(t *testing.T) {
+		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&state=9", nil)
+		if result.status != http.StatusOK {
+			t.Fatalf("list articles by state status = %d, want %d", result.status, http.StatusOK)
+		}
+
+		data := articleInspectDataMap(t, result.envelope.Data)
+		items := articleInspectListField(t, data, "items")
+		if len(items) != 1 {
+			t.Fatalf("state filtered items len = %d, want %d", len(items), 1)
+		}
+
+		item := articleInspectDataMap(t, items[0])
+		if articleInspectUint64Field(t, item, "id") != 9001 {
+			t.Fatalf("state filtered id = %d, want %d", articleInspectUint64Field(t, item, "id"), 9001)
+		}
+	})
+
 	t.Run("article detail endpoint includes article data and latest inspect summary", func(t *testing.T) {
 		result := sendArticleInspectRequest(t, handler, http.MethodGet, "/api/v1/article-inspect/articles/9001?orgid=29", nil)
 		if result.status != http.StatusOK {
@@ -2153,6 +2171,7 @@ func seedArticleCenterFixtures(t *testing.T, db *gorm.DB) {
 	articles := []Article{
 		{ID: 9001, OrgID: 29, Title: "县域要闻一", Thumbnail: "https://example.com/article-9001.png", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: latestActionAt.Unix()},
 		{ID: 9002, OrgID: 29, Title: "县域要闻二", State: ArticleStateOffline, PublishAtUnix: laterPublishAt.Unix(), UpdateAtUnix: laterPublishAt.Unix()},
+		{ID: 9003, OrgID: 29, Title: "待审稿件", State: ArticleStateAuditPending, PublishAtUnix: laterPublishAt.Unix(), UpdateAtUnix: laterPublishAt.Unix()},
 		{ID: 9901, OrgID: 30, Title: "外部组织稿件", State: ArticleStateOnline, PublishAtUnix: publishAt.Unix(), UpdateAtUnix: publishAt.Unix()},
 	}
 	if err := db.Create(&articles).Error; err != nil {
@@ -2162,6 +2181,7 @@ func seedArticleCenterFixtures(t *testing.T, db *gorm.DB) {
 	infos := []ArticleInfo{
 		{ID: 9001, OrgID: 29, Body: "<p>real body one</p>"},
 		{ID: 9002, OrgID: 29, Body: "<p>real body two</p>"},
+		{ID: 9003, OrgID: 29, Body: "<p>pending body</p>"},
 		{ID: 9901, OrgID: 30, Body: "<p>other org body</p>"},
 	}
 	if err := db.Create(&infos).Error; err != nil {

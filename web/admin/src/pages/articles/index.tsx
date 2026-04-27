@@ -1,5 +1,5 @@
 import { Button, Empty, Input, Space, Spin, Table, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
@@ -22,6 +22,11 @@ function renderArticleState(value?: number) {
   }
 }
 
+function normalizeArticleID(value: string) {
+  const articleID = Number(value.trim());
+  return Number.isInteger(articleID) && articleID > 0 ? articleID : undefined;
+}
+
 export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArticleListItem[]>([]);
@@ -29,33 +34,59 @@ export default function ArticlesPage() {
   const [draftArticleID, setDraftArticleID] = useState('');
   const [submittedTitle, setSubmittedTitle] = useState('');
   const [submittedArticleID, setSubmittedArticleID] = useState<number | undefined>(undefined);
+  const [reloadKey, setReloadKey] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const loadingRef = useRef(true);
+  const requestIDRef = useRef(0);
   const { activeOrgId } = useOrgContext();
 
   const currentOrgId = activeOrgId ?? 29;
 
+  function beginReload() {
+    if (loadingRef.current) {
+      return false;
+    }
+    loadingRef.current = true;
+    setLoading(true);
+    return true;
+  }
+
   useEffect(() => {
+    const requestID = requestIDRef.current + 1;
+    requestIDRef.current = requestID;
+    loadingRef.current = true;
     setLoading(true);
     void listArticles({
       orgid: currentOrgId,
       page,
       pageSize,
-      state: 9,
       article_id: submittedArticleID,
       title: submittedTitle || undefined
     })
       .then((result) => {
+        if (requestID !== requestIDRef.current) {
+          return;
+        }
         setItems(result.items);
         setTotal(result.total);
       })
       .catch(() => {
+        if (requestID !== requestIDRef.current) {
+          return;
+        }
         setItems([]);
         setTotal(0);
       })
-      .finally(() => setLoading(false));
-  }, [currentOrgId, page, pageSize, submittedArticleID, submittedTitle]);
+      .finally(() => {
+        if (requestID !== requestIDRef.current) {
+          return;
+        }
+        loadingRef.current = false;
+        setLoading(false);
+      });
+  }, [currentOrgId, page, pageSize, submittedArticleID, submittedTitle, reloadKey]);
 
   return (
     <>
@@ -83,23 +114,33 @@ export default function ArticlesPage() {
 
           <div className="toolbar-strip__actions">
             <Button
+              disabled={loading}
               onClick={() => {
+                if (!beginReload()) {
+                  return;
+                }
                 setDraftTitle('');
                 setDraftArticleID('');
                 setSubmittedTitle('');
                 setSubmittedArticleID(undefined);
                 setPage(1);
+                setReloadKey((value) => value + 1);
               }}
             >
               重置
             </Button>
             <Button
               type="primary"
+              disabled={loading}
+              loading={loading}
               onClick={() => {
-                const articleID = Number(draftArticleID.trim());
+                if (!beginReload()) {
+                  return;
+                }
                 setSubmittedTitle(draftTitle.trim());
-                setSubmittedArticleID(Number.isInteger(articleID) && articleID > 0 ? articleID : undefined);
+                setSubmittedArticleID(normalizeArticleID(draftArticleID));
                 setPage(1);
+                setReloadKey((value) => value + 1);
               }}
             >
               查询文稿
@@ -122,8 +163,12 @@ export default function ArticlesPage() {
               current: page,
               pageSize,
               total,
+              disabled: loading,
               showSizeChanger: false,
               onChange: (nextPage, nextPageSize) => {
+                if (!beginReload()) {
+                  return;
+                }
                 setPage(nextPage);
                 setPageSize(nextPageSize);
               }

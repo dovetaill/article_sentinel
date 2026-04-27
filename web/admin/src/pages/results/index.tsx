@@ -115,7 +115,7 @@ export default function ResultsPage() {
             {
               title: '文稿ID',
               dataIndex: 'article_id',
-              render: (value: number) => <Text>{value}</Text>
+              render: (_, record) => <Text>{record.article_id}</Text>
             },
             {
               title: '风险等级',

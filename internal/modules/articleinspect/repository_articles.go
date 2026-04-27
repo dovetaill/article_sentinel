@@ -106,6 +106,8 @@ func (r *ArticleRepository) ListArticles(ctx context.Context, input ArticleListI
 	query := r.db.WithContext(ctx).Model(&Article{}).Where("orgid = ?", input.OrgID)
 	if input.State != nil {
 		query = query.Where("state = ?", *input.State)
+	} else {
+		query = query.Where("state IN ?", []int8{ArticleStateOffline, ArticleStateOnline})
 	}
 	if input.ArticleID != 0 {
 		query = query.Where("id = ?", input.ArticleID)
