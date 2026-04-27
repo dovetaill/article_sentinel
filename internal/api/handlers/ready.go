@@ -26,6 +26,7 @@ func RegisterReady(api huma.API, rt *bootstrap.Runtime) {
 		Path:        "/readyz",
 		Summary:     "readiness check",
 	}, func(ctx context.Context, input *struct{}) (*readyOutput, error) {
+		// 当前 readyz 只检查运行时依赖是否已装配，不做数据库/Redis 深度探活。
 		databaseConfigured := rt != nil && rt.Resources != nil && rt.Resources.DB != nil
 		redisConfigured := rt != nil && rt.Resources != nil && rt.Resources.Redis != nil
 

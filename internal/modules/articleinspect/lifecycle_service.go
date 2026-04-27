@@ -58,8 +58,9 @@ type LifecycleActionResult struct {
 
 func NewLifecycleService(db *gorm.DB) *LifecycleService {
 	return &LifecycleService{
-		db:                   db,
-		actionRepo:           NewActionRepository(db),
+		db:         db,
+		actionRepo: NewActionRepository(db),
+		// 一期整改后的默认目标状态不是直接回 online，而是回待审。
 		republishTargetState: ArticleStateAuditPending,
 	}
 }
@@ -95,6 +96,7 @@ func (s *LifecycleService) OfflineArticle(ctx context.Context, input OfflineArti
 	return result, nil
 }
 
+// UpdateArticleFields 只更新允许整改的文稿字段，并同步留下字段变更日志。
 func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input UpdateArticleFieldsInput) ([]FieldChange, error) {
 	if s == nil || s.db == nil || input.OrgID == 0 || input.ArticleID == 0 {
 		return nil, ErrInvalidActionInput
@@ -152,6 +154,7 @@ func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input Update
 	return changes, nil
 }
 
+// RepublishArticle 一期默认回 audit pending，而不是直接重新上线。
 func (s *LifecycleService) RepublishArticle(ctx context.Context, input RepublishArticleInput) (*LifecycleActionResult, error) {
 	if s == nil || s.db == nil || input.OrgID == 0 || input.ArticleID == 0 {
 		return nil, ErrInvalidActionInput

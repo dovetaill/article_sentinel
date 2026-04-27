@@ -47,6 +47,7 @@ func (s *ActionService) BatchProcess(ctx context.Context, input BatchActionInput
 	return s.applyDisposition(ctx, input, ActionTypeBatchProcess, ResultDispositionProcessed)
 }
 
+// BatchOffline 会调用生命周期服务真正修改文稿状态，而不是只改结果表处置状态。
 func (s *ActionService) BatchOffline(ctx context.Context, input BatchActionInput) (*BatchActionSummary, error) {
 	if s == nil || s.db == nil || s.repo == nil || input.OrgID == 0 || len(input.ResultIDs) == 0 {
 		return nil, ErrInvalidActionInput
@@ -144,6 +145,7 @@ func (s *ActionService) BatchOffline(ctx context.Context, input BatchActionInput
 	return summary, nil
 }
 
+// applyDisposition 用于“忽略/已处理”这类只改结果处置状态、不改文稿生命周期的批量动作。
 func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionInput, actionType, targetDisposition string) (*BatchActionSummary, error) {
 	if s == nil || s.db == nil || s.repo == nil || input.OrgID == 0 || len(input.ResultIDs) == 0 {
 		return nil, ErrInvalidActionInput

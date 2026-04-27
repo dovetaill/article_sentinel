@@ -24,6 +24,7 @@ var newArticleInspectExecutorFn = func(rt *bootstrap.Runtime) articleInspectExec
 // RegisterHandlers 注册当前 worker 支持的任务处理函数。
 func RegisterHandlers(rt *bootstrap.Runtime) *libasynq.ServeMux {
 	mux := libasynq.NewServeMux()
+	// runtime:heartbeat 目前只是调度链路骨架任务，用来验证 cron 与 worker 是通的。
 	mux.HandleFunc(tasks.TypeRuntimeHeartbeat, func(ctx context.Context, task *libasynq.Task) error {
 		_ = ctx
 		payload, err := tasks.DecodePayload(task)
@@ -36,6 +37,7 @@ func RegisterHandlers(rt *bootstrap.Runtime) *libasynq.ServeMux {
 		return nil
 	})
 	if executor := newArticleInspectExecutorFn(rt); executor != nil {
+		// articleinspect:run-task 是一期真实业务任务，真正的巡检扫描在这里执行。
 		mux.HandleFunc(tasks.TypeArticleInspectRunTask, func(ctx context.Context, task *libasynq.Task) error {
 			payload, err := tasks.DecodeArticleInspectTaskPayload(task)
 			if err != nil {

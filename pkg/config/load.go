@@ -14,6 +14,7 @@ func Load(path string) (*Config, error) {
 		return nil, errors.New("config path is required")
 	}
 
+	// 这里集中放启动默认值，避免业务代码散落兜底逻辑。
 	cfg := &Config{
 		Database: DatabaseConfig{
 			MySQL: MySQLConfig{ParseTime: true},
@@ -36,6 +37,7 @@ func validatePrimaryDatabaseConfig(cfg *Config) error {
 		return errors.New("config is required")
 	}
 
+	// 当前主数据库只允许二选一，业务层不需要关心驱动分支。
 	switch strings.ToLower(strings.TrimSpace(cfg.Database.Driver)) {
 	case "", "mysql":
 		return validateRequiredFields("database.mysql", map[string]string{

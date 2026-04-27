@@ -49,6 +49,7 @@ func buildRuntime(configPath string) (*Runtime, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	// 启动顺序保持固定：先配置，再日志，再数据库/Redis 等共享资源。
 	log, logCloser, err := newLoggerFn(cfg.Log)
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap logger: %w", err)
@@ -68,6 +69,7 @@ func buildRuntime(configPath string) (*Runtime, error) {
 		Resources: resources,
 	}
 
+	// 统一在 Runtime 中登记关闭动作，server/worker/scheduler 退出时走同一套收口。
 	if logCloser != nil {
 		rt.RegisterCloser(logCloser)
 	}

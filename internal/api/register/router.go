@@ -44,6 +44,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	if postService := newPostService(rt); postService != nil {
 		postmodule.RegisterRoutes(publicRoutes, postService)
 	}
+	// router 只负责把依赖组装进模块，不直接承载业务实现。
 	articleinspectmodule.RegisterRoutes(publicRoutes, newArticleInspectRoutes(rt))
 
 	timeout := 15 * time.Second
@@ -97,6 +98,7 @@ func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes 
 		Lifecycle:  articleinspectmodule.NewLifecycleService(db),
 		Logs:       articleinspectmodule.NewLogService(db),
 		Articles:   articleinspectmodule.NewArticleService(articleRepo),
+		// 任务创建接口只负责落库和投递，真正扫描放到 worker 中异步执行。
 		Dispatcher: newArticleInspectDispatcher(rt),
 	}
 }
@@ -126,6 +128,7 @@ func (d *articleInspectDispatcher) DispatchArticleInspectTask(ctx context.Contex
 	if d == nil {
 		return nil
 	}
+	// 这里统一经过 enqueue helper，避免 handler 直接依赖 Asynq 细节。
 	_, err := queueasynq.EnqueueArticleInspectTask(d.client, d.queueName, payload)
 	return err
 }

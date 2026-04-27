@@ -15,6 +15,7 @@ func main() {
 	configPath := flag.String("config", envOrDefault("CONFIG_PATH", "configs/config.yaml"), "config file path")
 	flag.Parse()
 
+	// worker 与 server/scheduler 共用同一套 runtime 资源初始化逻辑。
 	rt, err := bootstrap.BuildWorkerRuntime(*configPath)
 	if err != nil {
 		log.Fatalf("build worker runtime: %v", err)
@@ -31,6 +32,7 @@ func main() {
 	}
 	mux := queueasynq.RegisterHandlers(rt)
 
+	// Start 会阻塞当前 goroutine，因此把进程关闭逻辑放在后面统一处理。
 	if err := srv.Start(mux); err != nil {
 		log.Fatalf("worker server: %v", err)
 	}

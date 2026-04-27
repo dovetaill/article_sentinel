@@ -1,5 +1,7 @@
 # 文稿智能巡检系统一期设计文档
 
+> 维护提示：本文件主要用于保留一期设计背景，不保证逐段与当前代码完全同步。判断“现在到底怎么运行”时，请优先查看 `README.md`、`docs/maintainer-development-flow.md`、`internal/api/register/router.go` 与对应测试。
+
 ## 1. 需求拆解
 
 ### 1.1 一期业务目标

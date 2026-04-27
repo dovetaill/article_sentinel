@@ -16,6 +16,7 @@ func main() {
 	configPath := flag.String("config", envOrDefault("CONFIG_PATH", "configs/config.yaml"), "config file path")
 	flag.Parse()
 
+	// scheduler 只负责按时间触发 enqueue，本身不直接执行巡检业务。
 	rt, err := bootstrap.BuildSchedulerRuntime(*configPath)
 	if err != nil {
 		log.Fatalf("build scheduler runtime: %v", err)
@@ -40,6 +41,7 @@ func main() {
 		log.Fatalf("register scheduler jobs: %v", err)
 	}
 
+	// 即使进程启动，是否真的注册 job 仍取决于 scheduler.enabled 配置。
 	cronScheduler.Start()
 
 	stop := make(chan os.Signal, 1)

@@ -8,6 +8,7 @@ import (
 	libasynq "github.com/hibiken/asynq"
 )
 
+// TypeArticleInspectRunTask 是一期真实巡检任务的队列类型。
 const TypeArticleInspectRunTask = "articleinspect:run-task"
 
 type ArticleInspectTaskPayload struct {
@@ -18,6 +19,7 @@ type ArticleInspectTaskPayload struct {
 	OperatorName  string `json:"operator_name"`
 }
 
+// NewArticleInspectTask 把巡检任务 payload 编码成 Asynq task。
 func NewArticleInspectTask(payload ArticleInspectTaskPayload) (*libasynq.Task, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -26,6 +28,7 @@ func NewArticleInspectTask(payload ArticleInspectTaskPayload) (*libasynq.Task, e
 	return libasynq.NewTask(TypeArticleInspectRunTask, body), nil
 }
 
+// DecodeArticleInspectTaskPayload 负责在 worker 侧还原巡检任务入参。
 func DecodeArticleInspectTaskPayload(task *libasynq.Task) (ArticleInspectTaskPayload, error) {
 	if task == nil {
 		return ArticleInspectTaskPayload{}, errors.New("task is required")

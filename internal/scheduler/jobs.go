@@ -37,6 +37,7 @@ func NewRuntimeHeartbeatJob(logger *slog.Logger, enqueuer Enqueuer) func() {
 			return
 		}
 
+		// scheduler 只负责定时触发 enqueue，不在 cron 回调里做重业务逻辑。
 		if err := enqueuer.EnqueueRuntimeHeartbeat(tasks.Payload{Source: "scheduler"}); err != nil && logger != nil {
 			logger.Error("enqueue scheduled task", "type", tasks.TypeRuntimeHeartbeat, "error", err)
 		}

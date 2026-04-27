@@ -10,6 +10,7 @@ type InspectionTimestamps struct {
 	UpdateAt time.Time `gorm:"column:update_at;not null;autoUpdateTime" json:"updated_at"`
 }
 
+// ChuangqiOrg 和 Article / ArticleInfo 一样，属于上游真实业务表，不是本项目自建巡检表。
 type ChuangqiOrg struct {
 	ID       uint64    `gorm:"column:id;primaryKey" json:"id"`
 	Name     string    `gorm:"column:name;size:128;not null" json:"name"`
@@ -245,6 +246,7 @@ func (InspectionFieldChangeLog) TableName() string {
 	return "xt_article_inspect_field_change_logs"
 }
 
+// Article / ArticleInfo 都是上游真实文稿表，巡检逻辑会直接读取它们，不由本项目迁移创建。
 type Article struct {
 	ID            uint64         `gorm:"column:id;primaryKey" json:"id"`
 	OrgID         uint64         `gorm:"column:orgid;not null;index" json:"orgid"`
@@ -263,6 +265,7 @@ func (Article) TableName() string {
 	return "xt_article"
 }
 
+// ArticleInfo 用主键直接对应文稿 ID，这也是 worker 读取正文时的关键约定。
 type ArticleInfo struct {
 	ID        uint64 `gorm:"column:id;primaryKey" json:"id"`
 	OrgID     uint64 `gorm:"column:orgid;not null;default:0" json:"orgid"`

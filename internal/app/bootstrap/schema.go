@@ -13,6 +13,7 @@ type schemaMigrator interface {
 }
 
 func init() {
+	// 新增业务表后，记得把 model 注册到这里，migrate 入口才能自动同步结构。
 	RegisterBusinessModels(
 		postmodule.Post{},
 		articleinspectmodule.InspectionKeyword{},

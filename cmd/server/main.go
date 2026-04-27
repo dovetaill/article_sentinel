@@ -19,6 +19,7 @@ func main() {
 	configPath := flag.String("config", envOrDefault("CONFIG_PATH", "configs/config.yaml"), "config file path")
 	flag.Parse()
 
+	// server 只负责 HTTP 入口与资源装配，异步重任务统一交给 worker。
 	rt, err := bootstrap.BuildServerRuntime(*configPath)
 	if err != nil {
 		log.Fatalf("build server runtime: %v", err)
@@ -29,6 +30,7 @@ func main() {
 		}
 	}()
 
+	// handler 内已经完成路由注册与中间件链装配。
 	handler := register.NewRouter(rt)
 	addr := rt.Config.App.Host + ":" + strconv.Itoa(rt.Config.App.Port)
 	readTimeout := durationFromSeconds(rt.Config.HTTP.ReadTimeoutSeconds, 15)

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_PATH="${CONFIG:-configs/config.local.yaml}"
 ADMIN_DIR="$ROOT_DIR/web/admin"
+# 用仓库路径做哈希，避免同一台机器上多个 worktree 互相抢占 dev 状态目录。
 DEV_STATE_DIR="${TMPDIR:-/tmp}/article-sentinel-dev-$(printf '%s' "$ROOT_DIR" | cksum | awk '{print $1}')"
 CURRENT_SESSION_FILE="$DEV_STATE_DIR/current-session"
 
@@ -185,6 +186,7 @@ stop_current_session() {
 }
 
 prepare_go_env() {
+  # 把 go build 缓存固定到稳定目录，便于 stop 逻辑识别临时编译产物。
   export GOCACHE="${GOCACHE:-/tmp/article-sentinel-go-cache}"
   mkdir -p "$GOCACHE"
 }

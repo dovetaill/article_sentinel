@@ -2,6 +2,8 @@
 
 本文档汇总 `article-sentinel` 一期文稿巡检 API 约定，便于联调前后端、补充 OpenAPI 注释、以及准备灰度验收脚本。
 
+> 维护提示：当前接口现状请优先以 `internal/api/register/router.go` 和 `internal/api/register/router_test.go` 为准。本文件保留了部分设计阶段说明，如与代码冲突，请先修正文档再继续联调。
+
 ## 1. Base URL 与认证
 
 - Base URL: `http://127.0.0.1:8080`
@@ -11,6 +13,7 @@
   - 一期按 **OIDC-ready** 设计保留标准身份扩展位
   - 本地与内网联调可使用 `trusted_header` / `dev_header` fallback 注入操作人信息
   - 审计日志需要落 `operator_id`、`operator_name`、`request_id`、`source_ip`
+  - 当前应用层鉴权中间件尚未真正挂到 `NewRouter`，如果线上依赖外层网关鉴权，请在交接时明确责任边界
 
 ## 2. 生命周期与通用常量
 

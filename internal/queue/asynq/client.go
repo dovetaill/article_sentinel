@@ -42,6 +42,7 @@ func EnqueueTask(client Enqueuer, queueName string, payload tasks.Payload) (*lib
 	return client.Enqueue(task, libasynq.Queue(queueName))
 }
 
+// EnqueueArticleInspectTask 封装巡检任务投递，统一 payload 编码和队列选择逻辑。
 func EnqueueArticleInspectTask(client Enqueuer, queueName string, payload tasks.ArticleInspectTaskPayload) (*libasynq.TaskInfo, error) {
 	if client == nil {
 		return nil, errors.New("enqueuer is required")

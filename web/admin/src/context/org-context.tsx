@@ -29,6 +29,7 @@ export function OrgProvider({ children }: PropsWithChildren) {
             return current;
           }
 
+          // 当前本地种子数据会优先使用 org 29；若不存在则回退到第一个组织。
           const defaultOrg = items.find((item) => item.id === 29) ?? items[0];
           return defaultOrg?.id ?? null;
         });

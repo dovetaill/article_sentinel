@@ -20,6 +20,7 @@ type Worker struct {
 	batchSize   int
 }
 
+// NewWorker 构建巡检异步执行器。
 func NewWorker(db *gorm.DB) *Worker {
 	return &Worker{
 		db:          db,
@@ -29,6 +30,7 @@ func NewWorker(db *gorm.DB) *Worker {
 	}
 }
 
+// ExecuteTask 是一期巡检主链路：拉起任务、分页扫描文稿、落结果、回写任务状态。
 func (w *Worker) ExecuteTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error {
 	if w == nil || w.db == nil || payload.TaskID == 0 || payload.OrgID == 0 {
 		return ErrInvalidTaskInput
@@ -59,6 +61,7 @@ func (w *Worker) ExecuteTask(ctx context.Context, payload queuetasks.ArticleInsp
 	var afterID uint64
 
 	for {
+		// 按主键游标分页读取候选文稿，避免一次性扫全表。
 		items, nextCursor, listErr := w.articleRepo.ListCandidateArticles(ctx, CandidateArticleFilter{
 			OrgID:            payload.OrgID,
 			ArticleState:     stateFilter,
@@ -79,6 +82,7 @@ func (w *Worker) ExecuteTask(ctx context.Context, payload queuetasks.ArticleInsp
 
 		for _, article := range items {
 			totalScanned++
+			// 单篇扫描失败只累计失败数，不中断整个批次。
 			hits, scanErr := w.scanner.ScanArticle(ctx, article, rules)
 			if scanErr != nil {
 				failCount++
@@ -104,6 +108,7 @@ func (w *Worker) ExecuteTask(ctx context.Context, payload queuetasks.ArticleInsp
 	return w.finishTask(ctx, task.ID, payload.OrgID, status, totalScanned, hitArticles, hitCount, failCount, "")
 }
 
+// startTask 只允许 pending -> running，避免重复消费同一任务。
 func (w *Worker) startTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) (*InspectionTask, error) {
 	result := w.db.WithContext(ctx).Model(&InspectionTask{}).
 		Where("id = ? AND orgid = ? AND status = ?", payload.TaskID, payload.OrgID, TaskStatusPending).
@@ -125,6 +130,7 @@ func (w *Worker) startTask(ctx context.Context, payload queuetasks.ArticleInspec
 	return &task, nil
 }
 
+// persistArticleResult 先清旧结果再写新结果，保证任务重跑时结果是幂等覆盖的。
 func (w *Worker) persistArticleResult(ctx context.Context, orgID, taskID uint64, article CandidateArticle, hits []Hit) error {
 	result := InspectionResult{
 		OrgID:             orgID,
@@ -175,6 +181,7 @@ func (w *Worker) persistArticleResult(ctx context.Context, orgID, taskID uint64,
 	})
 }
 
+// finishTask 负责统一收口任务统计与最终状态。
 func (w *Worker) finishTask(ctx context.Context, taskID, orgID uint64, status string, totalScanned, hitArticles, hitCount, failCount int64, errorMessage string) error {
 	updates := map[string]any{
 		"status":        status,
@@ -190,6 +197,7 @@ func (w *Worker) finishTask(ctx context.Context, taskID, orgID uint64, status st
 		Updates(updates).Error
 }
 
+// decodeTaskRules 同时兼容规则快照的新旧结构，避免历史任务因结构演进无法执行。
 func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
 	if strings.TrimSpace(snapshot) == "" {
 		return nil, errors.New("task rule snapshot is required")
@@ -219,6 +227,7 @@ func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
 	return rules, nil
 }
 
+// parseArticleStateFilter 为空或非法时默认只扫在线文稿，符合一期约束。
 func parseArticleStateFilter(value string) int8 {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -231,6 +240,7 @@ func parseArticleStateFilter(value string) int8 {
 	return int8(parsed)
 }
 
+// resolveTaskStatus 按整批扫描结果归并状态，便于前端快速判断任务是否可复核。
 func resolveTaskStatus(totalScanned, failCount int64) string {
 	switch {
 	case totalScanned == 0:

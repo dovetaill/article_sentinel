@@ -42,6 +42,12 @@
 - 本地/内网联调支持 `trusted_header` / `dev_header` fallback
 - 关键操作会落 `operator_id`、`operator_name`、`request_id`、`source_ip`
 
+补充说明：
+
+- 当前仓库里已经有鉴权相关中间件与 identity 基础设施代码
+- 但当前 `internal/api/register/router.go` 还没有把应用层鉴权中间件真正挂到 HTTP 链路上
+- 因此如果线上访问控制依赖网关、Nginx、内网隔离或其他上层系统，需要在交接时明确责任边界
+
 ## 系统怎么工作
 
 ### 后端主链路
@@ -70,7 +76,8 @@ HTTP 路由统一在 `internal/api/register/router.go` 装配：
 
 任务异步化通过 Asynq 完成，当前队列任务类型为：
 
-- `articleinspect:run-task`
+- `articleinspect:run-task`：一期真实业务任务，由巡检任务创建接口投递，worker 实际消费执行
+- `runtime:heartbeat`：scheduler 骨架任务，仅用于验证 `cron -> queue -> worker` 链路
 
 典型流程：
 
@@ -185,7 +192,7 @@ make up
 - MySQL `root` 会允许远程登录
 - Compose 还会自动创建一个业务账号，并授予 `MYSQL_DATABASE` 的全部权限
 - MySQL 官方镜像只会在数据目录首次初始化时应用这些账号/密码；如果你改了 `.env` 里的 MySQL 初始化参数，需要重新建卷，例如执行 `docker compose down -v`
-- `make up` 只负责启动 MySQL / Redis 容器；它不会顺带启动后端 API、worker 或前端开发服务器
+- `make up` 只负责启动 MySQL / Redis 容器；它不会顺带启动后端 API、worker、scheduler 或前端开发服务器
 
 ### 3. 同步数据库结构
 
@@ -196,18 +203,29 @@ make migrate
 说明：
 
 - 会通过当前注册的 GORM model 做 schema 同步
+- 当前 `cmd/migrate` 的实际语义是：**先执行 `migrations/*.sql`，再执行已注册业务模型的 `AutoMigrate`**
 - 一期巡检的显式 MySQL DDL 在 `migrations/20260420_01_article_inspection.sql`
 - 参考快照也放在 `ddl/xt_article_inspection.sql`
 - `make migrate` 只负责巡检业务表，不会把 `xt_article` / `xt_article_info` 重建成线上真实结构
 - 如果你要导入线上拉下来的真实文稿，必须额外执行 `ddl/xt_article.sql` 和 `ddl/xt_article_info.sql`
 
-### 4. 启动后端 API
+### 4. 启动开发联调栈（推荐）
 
 ```bash
 make dev
 ```
 
-默认监听：`http://127.0.0.1:8080`
+当前 `make dev` 会同时启动：
+
+- 后端 API
+- 异步 worker
+- scheduler 进程
+- 前端 admin dev server
+
+默认访问：
+
+- 后端 API：`http://127.0.0.1:8080`
+- 前端后台：`http://127.0.0.1:5173`
 
 常用入口：
 
@@ -216,17 +234,30 @@ make dev
 - `GET /openapi.json`
 - `GET /docs`
 
-### 5. 启动 Worker
+补充说明：
 
-如果你要实际消费异步巡检任务，还需要单独启动 worker：
+- `scheduler` 进程是否真的注册定时任务，仍取决于 `scheduler.enabled`
+- 一期默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`，所以即使进程启动，也不会跑真实定时 job
+- 如果你只想单独启动某个进程，请使用：
+
+```bash
+make dev-api
+make dev-worker
+make dev-scheduler
+make dev-admin
+```
+
+### 5. 单独启动 Worker
+
+如果你没有使用 `make dev`，而是只想手动启动后端进程，那么实际消费异步巡检任务时还需要单独启动 worker：
 
 ```bash
 go run ./cmd/worker -config configs/config.local.yaml
 ```
 
-### 6. 启动 Scheduler
+### 6. 单独启动 Scheduler
 
-如果你需要验证调度入口：
+如果你没有使用 `make dev`，且需要单独验证调度入口：
 
 ```bash
 go run ./cmd/scheduler -config configs/config.local.yaml
@@ -236,7 +267,7 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 
 - `scheduler.enabled: false`
 
-### 7. 启动前端后台
+### 7. 单独启动前端后台
 
 ```bash
 cd web/admin
@@ -416,7 +447,7 @@ docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATAB
 mysql -h127.0.0.1 -P3307 -uroot -p<your-root-password> article_sentinel < scripts/article_inspection_seed.sql
 ```
 
-### 6. 启动后端 API
+### 6. 启动开发联调栈（推荐）
 
 在终端 A 执行：
 
@@ -428,9 +459,18 @@ make dev
 
 - 这是前台常驻进程，不会自动返回 shell
 - 正常现象不是“卡住”，而是服务在持续运行
-- 默认监听 `http://127.0.0.1:8080`
+- 会同时拉起 `server + worker + scheduler + admin`
+- 默认访问：
+  - 后端 API：`http://127.0.0.1:8080`
+  - 前端后台：`http://127.0.0.1:5173`
+- 一期默认 `scheduler.enabled: false`，所以 scheduler 进程启动后通常仍是空闲的
+- 如果只想单独调试某个进程，请使用：
+  - `make dev-api`
+  - `make dev-worker`
+  - `make dev-scheduler`
+  - `make dev-admin`
 
-### 7. 启动异步 worker
+### 7. 如果不使用 `make dev`，可单独启动异步 worker
 
 在终端 B 执行：
 
@@ -443,7 +483,7 @@ go run ./cmd/worker -config configs/config.local.yaml
 - 不启动 worker 也能访问后端接口
 - 但真正的异步巡检任务不会被消费
 
-### 8. 启动前端管理台
+### 8. 如果不使用 `make dev`，可单独启动前端管理台
 
 在终端 C 执行：
 
@@ -458,7 +498,7 @@ npm run dev
 - 本机：`http://127.0.0.1:5173`
 - 远程联调：`http://<server-ip>:5173`
 
-### 9. 可选：启动 scheduler
+### 9. 如果不使用 `make dev`，可单独启动 scheduler
 
 如果你要验证调度入口，再开一个终端：
 
@@ -486,14 +526,17 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 4. `make migrate`
 5. 导入 `/home/wwwroot/article_sentinel/scripts/xt_article.sql` 和 `/home/wwwroot/article_sentinel/scripts/xt_article_info.sql`
 6. 启动 `make dev`
-7. 启动 `go run ./cmd/worker -config configs/config.local.yaml`
-8. 启动 `cd web/admin && npm run dev`
-9. 访问前端页面：
+7. 访问前端页面：
    - `/rules/categories`
    - `/rules/keywords`
    - `/tasks`
    - `/articles`
    - `/logs`
+
+说明：
+
+- 当前 `make dev` 已经会同时启动 `server + worker + scheduler + admin`
+- 如果你不想一键启动，再改用 `make dev-api` / `make dev-worker` / `make dev-admin`
 
 ### 推荐验收路径
 
@@ -521,7 +564,7 @@ make smoke
 
 - `make test`: 运行 `go test ./...`
 - `make verify`: 执行 `scripts/verify.sh`，当前等价于后端测试集
-- `make smoke`: 启动依赖、执行 migrate、拉起 server，并验证核心 HTTP 端点
+- `make smoke`: 启动依赖、执行 migrate、拉起 server，并验证基础 HTTP 端点；它当前还不覆盖文稿巡检主链路
 
 ### 前端目录 `web/admin`
 
@@ -618,9 +661,11 @@ cd web/admin && npm test -- --runInBand
 
 ## API 与页面文档
 
+- `docs/README.md`: 文档索引，说明哪些文档是当前现状、哪些是历史计划
 - `docs/article-inspection-api.md`: API 路由、请求/响应示例、生命周期说明
 - `docs/article-inspection-pages.md`: 页面职责、联调路径、验收建议
 - `docs/article-inspection-design.md`: 业务设计文档
+- `docs/maintainer-development-flow.md`: 交接维护开发手册，涵盖配置、路由、业务、worker、scheduler 扩展方式
 - `docs/plans/2026-04-20-article-sentinel-implementation.md`: 实施计划
 
 ## DDL 与数据库资料
@@ -630,10 +675,12 @@ cd web/admin && npm test -- --runInBand
 - `ddl/xt_article.sql`: 上游原始文稿主表
 - `ddl/xt_article_info.sql`: 上游原始文稿详情表
 - `ddl/xt_article_inspection.sql`: 一期巡检 MySQL DDL 快照
+- `ddl/README.md`: DDL 快照与真实数据导入说明
 
 执行用 migration：
 
 - `migrations/20260420_01_article_inspection.sql`
+- `migrations/README.md`: 迁移执行语义、命名约定与维护注意点
 
 说明：
 

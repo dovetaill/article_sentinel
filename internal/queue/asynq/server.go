@@ -27,6 +27,7 @@ func NewServer(rt *bootstrap.Runtime) (*libasynq.Server, error) {
 		concurrency = 1
 	}
 
+	// 当前 worker 只监听一条业务队列，后续若引入多优先级队列，再从这里扩展。
 	return libasynq.NewServerFromRedisClient(redisClient, libasynq.Config{
 		Concurrency: concurrency,
 		Queues: map[string]int{

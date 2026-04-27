@@ -23,6 +23,7 @@ func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer) error 
 		return errors.New("scheduler runtime config is required")
 	}
 	if !rt.Config.Scheduler.Enabled {
+		// 默认关闭，避免本地或生产在未明确配置时误跑定时任务。
 		return nil
 	}
 	if enqueuer == nil {
@@ -34,6 +35,7 @@ func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer) error 
 		return errors.New("scheduler spec is required")
 	}
 
+	// 当前只保留一个 heartbeat 骨架 job，真实业务 cron 后续按同样模式扩展。
 	if _, err := c.AddFunc(spec, NewRuntimeHeartbeatJob(rt.Logger, enqueuer)); err != nil {
 		return fmt.Errorf("register runtime heartbeat job: %w", err)
 	}

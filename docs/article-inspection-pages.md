@@ -2,6 +2,8 @@
 
 本文档面向运营、测试、前端联调，描述一期控制台页面职责、入口路由与推荐验收路径。
 
+> 维护提示：当前页面路由请优先以 `web/admin/src/routes.tsx` 为准。本文件保留了部分早期 IA 描述，如与代码冲突，请以代码现状和 `README.md`、`docs/maintainer-development-flow.md` 为准。
+
 ## 1. 页面与路由
 
 | 路由 | 页面 | 目标 |

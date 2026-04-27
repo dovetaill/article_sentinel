@@ -87,6 +87,7 @@ func (s *TaskService) Get(ctx context.Context, orgID, taskID uint64) (*Inspectio
 	return &task, nil
 }
 
+// Create 只负责保存任务快照与置为 pending，真正扫描由 worker 异步接手。
 func (s *TaskService) Create(ctx context.Context, input CreateInspectionTaskInput) (*InspectionTask, error) {
 	if s == nil || s.db == nil || s.keywords == nil {
 		return nil, ErrInvalidTaskInput
@@ -159,6 +160,7 @@ func (s *TaskService) Create(ctx context.Context, input CreateInspectionTaskInpu
 	return task, nil
 }
 
+// Delete 当前只允许删除 pending / failed 任务，并会级联清理该任务写出的所有巡检数据。
 func (s *TaskService) Delete(ctx context.Context, orgID, taskID uint64) error {
 	if s == nil || s.db == nil || orgID == 0 || taskID == 0 {
 		return ErrInvalidTaskInput
@@ -206,6 +208,7 @@ func (s *TaskService) Delete(ctx context.Context, orgID, taskID uint64) error {
 	})
 }
 
+// taskCanBeDeleted 明确限制可删状态，避免运行中或已成功任务被直接硬删。
 func taskCanBeDeleted(status string) bool {
 	switch strings.TrimSpace(status) {
 	case TaskStatusPending, TaskStatusFailed:
@@ -227,6 +230,7 @@ func buildTaskNumber(now time.Time) string {
 	return fmt.Sprintf("inspect-%s", now.Format("20060102150405.000000000"))
 }
 
+// uniqueUint64s 在任务创建和批量动作中复用，保证去重后顺序稳定，便于测试断言。
 func uniqueUint64s(values []uint64) []uint64 {
 	if len(values) == 0 {
 		return nil
