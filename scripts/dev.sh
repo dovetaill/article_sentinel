@@ -114,7 +114,9 @@ stale_process_matches() {
 
   if [[ "$process_cwd" == "$ROOT_DIR" ]]; then
     case "$process_args" in
-      *"go run ./cmd/server"*|*"go run ./cmd/worker"*|*"go run ./cmd/scheduler"*)
+      *"go run ./cmd/server"*|*"go run ./cmd/worker"*|*"go run ./cmd/scheduler"*|\
+      */go-build*/exe/server*|*/go-build*/exe/worker*|*/go-build*/exe/scheduler*|\
+      */article-sentinel-go-cache/*/server*|*/article-sentinel-go-cache/*/worker*|*/article-sentinel-go-cache/*/scheduler*)
         return 0
         ;;
     esac
@@ -136,8 +138,7 @@ stop_stale_dev_processes() {
   while IFS= read -r line; do
     [[ -n "$line" ]] || continue
 
-    process_pid="${line%% *}"
-    process_args="${line#* }"
+    read -r process_pid process_args <<<"$line"
 
     [[ "$process_pid" =~ ^[0-9]+$ ]] || continue
     [[ "$process_pid" != "$$" ]] || continue

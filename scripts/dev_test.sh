@@ -71,8 +71,58 @@ test_stop_kills_stale_server_process_without_session_file() {
   trap - EXIT
 }
 
+test_stop_kills_stale_go_run_temp_server_without_session_file() {
+  "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+
+  (
+    cd "$ROOT_DIR"
+    exec bash -c 'exec -a /tmp/go-build123/b001/exe/server sleep 30'
+  ) &
+  local stale_pid=$!
+
+  cleanup() {
+    kill "$stale_pid" >/dev/null 2>&1 || true
+    wait "$stale_pid" >/dev/null 2>&1 || true
+  }
+  trap cleanup EXIT
+
+  "$DEV_SCRIPT" stop
+
+  if kill -0 "$stale_pid" >/dev/null 2>&1; then
+    fail "expected stop to terminate stale temp go-run server pid $stale_pid"
+  fi
+
+  trap - EXIT
+}
+
+test_stop_kills_stale_go_run_cache_server_without_session_file() {
+  "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+
+  (
+    cd "$ROOT_DIR"
+    exec bash -c 'exec -a /tmp/article-sentinel-go-cache/fakehash/server sleep 30'
+  ) &
+  local stale_pid=$!
+
+  cleanup() {
+    kill "$stale_pid" >/dev/null 2>&1 || true
+    wait "$stale_pid" >/dev/null 2>&1 || true
+  }
+  trap cleanup EXIT
+
+  "$DEV_SCRIPT" stop
+
+  if kill -0 "$stale_pid" >/dev/null 2>&1; then
+    fail "expected stop to terminate stale go-run cache server pid $stale_pid"
+  fi
+
+  trap - EXIT
+}
+
 test_make_dev_stops_previous_stack_first
 test_stop_kills_registered_processes
 test_stop_kills_stale_server_process_without_session_file
+test_stop_kills_stale_go_run_temp_server_without_session_file
+test_stop_kills_stale_go_run_cache_server_without_session_file
 
 echo "dev script tests passed"
