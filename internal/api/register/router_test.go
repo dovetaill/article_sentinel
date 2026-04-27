@@ -27,6 +27,7 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 
 	wantPaths := []string{
 		"/api/v1/article-inspect/actions/batch-ignore",
+		"/api/v1/article-inspect/actions/batch-offline",
 		"/api/v1/article-inspect/actions/batch-process",
 		"/api/v1/article-inspect/articles",
 		"/api/v1/article-inspect/articles/{article_id}",
@@ -81,6 +82,7 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks/{id}", http.MethodDelete)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results/{id}", http.MethodGet)
+	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-offline", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-ignore", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-process", http.MethodPost)
 	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/offline", http.MethodPost)

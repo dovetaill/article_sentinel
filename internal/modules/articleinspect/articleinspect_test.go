@@ -952,6 +952,46 @@ func TestBatchAction(t *testing.T) {
 	if processed.SuccessCount != 1 || processed.SkipCount != 1 {
 		t.Fatalf("BatchProcess() summary = %+v, want success 1 skip 1", processed)
 	}
+
+	t.Run("offline updates article and result state", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedLifecycleArticles(t, db)
+		seedBatchOfflineFixtures(t, db)
+		service := NewActionService(db, NewActionRepository(db))
+
+		offline, err := service.BatchOffline(context.Background(), BatchActionInput{
+			OrgID:      100,
+			TaskID:     501,
+			ResultIDs:  []uint64{2001, 2002},
+			OperatorID: 7,
+			Reason:     "manual batch offline",
+		})
+		if err != nil {
+			t.Fatalf("BatchOffline() error = %v", err)
+		}
+		if offline.SuccessCount != 1 || offline.SkipCount != 1 {
+			t.Fatalf("BatchOffline() summary = %+v, want success 1 skip 1", offline)
+		}
+
+		var article Article
+		if err := db.First(&article, 10).Error; err != nil {
+			t.Fatalf("load article error = %v", err)
+		}
+		if article.State != ArticleStateOffline {
+			t.Fatalf("article.State = %d, want %d", article.State, ArticleStateOffline)
+		}
+
+		var result InspectionResult
+		if err := db.First(&result, 2001).Error; err != nil {
+			t.Fatalf("load result error = %v", err)
+		}
+		if result.DispositionStatus != ResultDispositionOfflined {
+			t.Fatalf("result.DispositionStatus = %q, want %q", result.DispositionStatus, ResultDispositionOfflined)
+		}
+		if result.ArticleState != ArticleStateOffline {
+			t.Fatalf("result.ArticleState = %d, want %d", result.ArticleState, ArticleStateOffline)
+		}
+	})
 }
 
 func TestResultQuery(t *testing.T) {
@@ -1290,6 +1330,7 @@ func TestHandlerBatchActionsValidateTargets(t *testing.T) {
 		name string
 		path string
 	}{
+		{name: "batch offline", path: "/api/v1/article-inspect/actions/batch-offline"},
 		{name: "batch ignore", path: "/api/v1/article-inspect/actions/batch-ignore"},
 		{name: "batch process", path: "/api/v1/article-inspect/actions/batch-process"},
 	}
@@ -1584,6 +1625,7 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 		"/api/v1/article-inspect/tasks/{id}",
 		"/api/v1/article-inspect/results",
 		"/api/v1/article-inspect/results/{id}",
+		"/api/v1/article-inspect/actions/batch-offline",
 		"/api/v1/article-inspect/actions/batch-ignore",
 		"/api/v1/article-inspect/actions/batch-process",
 		"/api/v1/article-inspect/articles/{article_id}/rectify",
@@ -2056,6 +2098,18 @@ func seedActionFixtures(t *testing.T, db *gorm.DB) {
 	}
 	if err := db.Create(&results).Error; err != nil {
 		t.Fatalf("seed action results error = %v", err)
+	}
+}
+
+func seedBatchOfflineFixtures(t *testing.T, db *gorm.DB) {
+	t.Helper()
+
+	results := []InspectionResult{
+		{ID: 2001, OrgID: 100, TaskID: 501, ArticleID: 10, ArticleState: ArticleStateOnline, DispositionStatus: ResultDispositionPending},
+		{ID: 2002, OrgID: 100, TaskID: 501, ArticleID: 11, ArticleState: ArticleStateOffline, DispositionStatus: ResultDispositionOfflined},
+	}
+	if err := db.Create(&results).Error; err != nil {
+		t.Fatalf("seed batch offline results error = %v", err)
 	}
 }
 

@@ -679,6 +679,7 @@ func registerResultRoutes(api huma.API, service *ResultService) {
 }
 
 func registerActionRoutes(api huma.API, service *ActionService) {
+	registerBatchActionRoute(api, service, "/api/v1/article-inspect/actions/batch-offline", "article-inspect-batch-offline", "batch offline results", service.BatchOffline)
 	registerBatchActionRoute(api, service, "/api/v1/article-inspect/actions/batch-ignore", "article-inspect-batch-ignore", "batch ignore results", service.BatchIgnore)
 	registerBatchActionRoute(api, service, "/api/v1/article-inspect/actions/batch-process", "article-inspect-batch-process", "batch process results", service.BatchProcess)
 }
