@@ -1,11 +1,13 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import LogsPage from './index';
 import { listOperationLogs } from '../../services/logs';
+import { WorkbenchProvider } from '../../workbench/provider';
 
 const { mockedListOrgs } = vi.hoisted(() => ({
   mockedListOrgs: vi.fn()
@@ -20,6 +22,27 @@ vi.mock('../../services/logs', () => ({
 }));
 
 const mockedListOperationLogs = vi.mocked(listOperationLogs);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/logs']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <LogsPage />
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('LogsPage', () => {
   beforeEach(() => {
@@ -52,21 +75,23 @@ describe('LogsPage', () => {
   it('filters logs and links task records into the task-results workspace', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <LogsPage />
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
     expect(screen.queryByText('查询任务执行、结果处置与请求快照。')).not.toBeInTheDocument();
     expect(screen.queryByText('按稿件、任务和操作人回看关键记录。')).not.toBeInTheDocument();
     expect(screen.queryByText('快速串联任务、文章与操作人三个维度的记录。')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '#501' })).toHaveAttribute('href', '/articles/501');
-    expect(screen.getByRole('link', { name: '#77' })).toHaveAttribute('href', '/tasks/77/results');
     expect(screen.getByRole('button', { name: '查询日志' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '#501' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Flogs');
+    });
+
+    await user.click(screen.getByRole('link', { name: '#77' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/tasks/77/results');
+    });
 
     await user.clear(screen.getByLabelText('文章编号'));
     await user.type(screen.getByLabelText('文章编号'), '501');

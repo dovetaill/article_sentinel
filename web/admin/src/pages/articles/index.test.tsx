@@ -1,10 +1,11 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
+import { WorkbenchProvider } from '../../workbench/provider';
 import ArticlesPage from './index';
 
 const { mockedListArticles, mockedListOrgs } = vi.hoisted(() => ({
@@ -19,6 +20,27 @@ vi.mock('../../services/articles', () => ({
 vi.mock('../../services/orgs', () => ({
   listOrgs: mockedListOrgs
 }));
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/articles']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <ArticlesPage />
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('ArticlesPage', () => {
   beforeEach(() => {
@@ -126,15 +148,7 @@ describe('ArticlesPage', () => {
       };
     });
 
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <MemoryRouter>
-            <ArticlesPage />
-          </MemoryRouter>
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect(screen.queryByText('基于现有巡检结果聚合出的稿件工作台视图。')).not.toBeInTheDocument();
     expect(screen.queryByText('查看真实稿件元数据，并结合最近巡检结果快速进入处置。')).not.toBeInTheDocument();
@@ -154,7 +168,10 @@ describe('ArticlesPage', () => {
     expect(screen.getByText('501')).toBeInTheDocument();
     expect(screen.queryByText('#501')).not.toBeInTheDocument();
     expect(screen.getByText('任务 #208')).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: '查看详情' })[0]).toHaveAttribute('href', '/articles/501');
+    await user.click(screen.getAllByRole('link', { name: '查看详情' })[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Farticles');
+    });
 
     await user.click(screen.getByTitle('2'));
 
@@ -226,15 +243,7 @@ describe('ArticlesPage', () => {
       });
     });
 
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <MemoryRouter>
-            <ArticlesPage />
-          </MemoryRouter>
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
 

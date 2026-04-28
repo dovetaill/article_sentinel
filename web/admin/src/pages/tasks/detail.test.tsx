@@ -1,10 +1,11 @@
 import { ConfigProvider } from 'antd';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
+import { WorkbenchProvider } from '../../workbench/provider';
 import TaskDetailPage from './detail';
 import { listOperationLogs } from '../../services/logs';
 import { listOrgs } from '../../services/orgs';
@@ -39,6 +40,30 @@ const mockedListOrgs = vi.mocked(listOrgs);
 const mockedGetTaskDetail = vi.mocked(getTaskDetail);
 const mockedListResults = vi.mocked(listResults);
 const mockedListOperationLogs = vi.mocked(listOperationLogs);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/tasks/77']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <Routes>
+              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+              <Route path="/articles/:articleId" element={<div>文稿详情探针</div>} />
+            </Routes>
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('TaskDetailPage', () => {
   beforeEach(() => {
@@ -108,17 +133,7 @@ describe('TaskDetailPage', () => {
   it('renders the full task detail workspace with tabs and linked hit results', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <MemoryRouter initialEntries={['/tasks/77']}>
-            <Routes>
-              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
-            </Routes>
-          </MemoryRouter>
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect((await screen.findAllByText('inspect-20260420-01')).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: '返回任务列表' })).toHaveAttribute('href', '/tasks');
@@ -131,10 +146,6 @@ describe('TaskDetailPage', () => {
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '请求快照' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '关联日志' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute(
-      'href',
-      '/articles/501?return_to=%2Ftasks%2F77',
-    );
     expect(screen.getByText('标题')).toBeInTheDocument();
     expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
     expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
@@ -147,5 +158,10 @@ describe('TaskDetailPage', () => {
 
     await user.click(screen.getByRole('tab', { name: '关联日志' }));
     expect(screen.getAllByText(/task reviewed by auditor/i).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('link', { name: 'Spam alert' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Ftasks%2F77');
+    });
   });
 });

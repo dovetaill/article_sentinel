@@ -177,4 +177,30 @@ describe('NewTaskPage', () => {
       expect(mockedNavigate).toHaveBeenCalledWith('/tasks');
     }, { timeout: 1_500 });
   }, 10_000);
+
+  it('routes internal return actions through the in-app navigation flow', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <OrgProvider>
+          <NewTaskPage />
+        </OrgProvider>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: '新建检测任务' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '返回任务列表' }));
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith('/tasks');
+    });
+
+    mockedNavigate.mockClear();
+
+    await user.click(screen.getByRole('link', { name: '去规则管理' }));
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith('/rules/keywords');
+    });
+  });
 });

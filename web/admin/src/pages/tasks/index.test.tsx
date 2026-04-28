@@ -1,11 +1,12 @@
 import { ConfigProvider } from 'antd';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listOrgs } from '../../services/orgs';
+import { WorkbenchProvider } from '../../workbench/provider';
 import TasksPage from './index';
 import { deleteTask, listTasks } from '../../services/tasks';
 
@@ -23,6 +24,27 @@ vi.mock('../../services/orgs', () => ({
 const mockedListTasks = vi.mocked(listTasks);
 const mockedListOrgs = vi.mocked(listOrgs);
 const mockedDeleteTask = vi.mocked(deleteTask);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/tasks']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <TasksPage />
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('TasksPage', () => {
   beforeEach(() => {
@@ -71,23 +93,23 @@ describe('TasksPage', () => {
   it('shows task result navigation and only allows deleting pending tasks', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <MemoryRouter>
-            <TasksPage />
-          </MemoryRouter>
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
     expect(screen.getByText('inspect-20260420-02')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '任务列表' })).toBeInTheDocument();
     expect(screen.queryByText('按任务编号与执行状态浏览当前批次。')).not.toBeInTheDocument();
     expect(screen.queryByText('更快筛出进行中的批次或定位单个任务编号。')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '新建任务' })).toHaveAttribute('href', '/tasks/new');
-    expect(screen.getAllByRole('link', { name: '运行结果' })[0]).toHaveAttribute('href', '/tasks/501/results');
+    await user.click(screen.getByRole('link', { name: '新建任务' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/tasks/new');
+    });
+
+    await user.click(screen.getAllByRole('link', { name: '运行结果' })[0]);
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/tasks/501/results');
+    });
+
     expect(screen.getByText('已执行不可删')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '删除任务' }));
     await user.click(await screen.findByRole('button', { name: '确认删除' }));

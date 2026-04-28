@@ -1,10 +1,13 @@
 import { ConfigProvider } from 'antd';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
+import { WorkbenchProvider } from '../../workbench/provider';
+import { useWorkbench } from '../../workbench/use-workbench';
 import RectifyPage from './rectify';
 import { getArticleDetail, rectifyArticle, republishArticle } from '../../services/articles';
 
@@ -35,6 +38,22 @@ vi.mock('../../services/articles', () => ({
 const mockedGetArticleDetail = vi.mocked(getArticleDetail);
 const mockedRectifyArticle = vi.mocked(rectifyArticle);
 const mockedRepublishArticle = vi.mocked(republishArticle);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function SeedWorkbenchTabs({ hrefs }: { hrefs: string[] }) {
+  const { openTab } = useWorkbench();
+
+  useEffect(() => {
+    hrefs.forEach((href) => openTab(href));
+  }, [hrefs, openTab]);
+
+  return null;
+}
 
 describe('RectifyPage', () => {
   beforeEach(() => {
@@ -189,6 +208,35 @@ describe('RectifyPage', () => {
       expect(mockedRectifyArticle).toHaveBeenLastCalledWith(501, expect.objectContaining({
         body: '<p>Visual body</p><p>Second paragraph</p>'
       }));
+    });
+  });
+
+  it('returns to the existing source tab before falling back to the return_to query target', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/articles/501/rectify?return_to=%2Farticles%3Fview%3Dsummary']}>
+          <OrgProvider>
+            <WorkbenchProvider>
+              <SeedWorkbenchTabs hrefs={['/articles?page=2']} />
+              <Routes>
+                <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+                <Route path="/articles" element={<div>文稿列表探针</div>} />
+              </Routes>
+              <LocationProbe />
+            </WorkbenchProvider>
+          </OrgProvider>
+        </MemoryRouter>
+      </ConfigProvider>,
+    );
+
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '返回上一页' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles?page=2');
     });
   });
 });

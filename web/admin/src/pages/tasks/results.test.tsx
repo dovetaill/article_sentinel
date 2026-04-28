@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
@@ -13,6 +14,7 @@ import {
   listResults
 } from '../../services/results';
 import { getTaskDetail } from '../../services/tasks';
+import { WorkbenchProvider } from '../../workbench/provider';
 import TaskResultsPage from './results';
 
 vi.mock('../../services/orgs', () => ({
@@ -48,6 +50,31 @@ const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
 const mockedBatchIgnoreResults = vi.mocked(batchIgnoreResults);
 const mockedBatchProcessResults = vi.mocked(batchProcessResults);
 const mockedListOperationLogs = vi.mocked(listOperationLogs);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/tasks/77/results']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <Routes>
+              <Route path="/tasks/:taskId/results" element={<TaskResultsPage />} />
+              <Route path="/articles/:articleId" element={<div>文稿详情探针</div>} />
+              <Route path="/articles/:articleId/rectify" element={<div>整改页探针</div>} />
+            </Routes>
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('TaskResultsPage', () => {
   beforeEach(() => {
@@ -144,17 +171,9 @@ describe('TaskResultsPage', () => {
   });
 
   it('renders the dedicated task-results workspace with result actions, batch actions, and log section', async () => {
-    render(
-      <ConfigProvider>
-        <OrgProvider>
-          <MemoryRouter initialEntries={['/tasks/77/results']}>
-            <Routes>
-              <Route path="/tasks/:taskId/results" element={<TaskResultsPage />} />
-            </Routes>
-          </MemoryRouter>
-        </OrgProvider>
-      </ConfigProvider>,
-    );
+    const user = userEvent.setup();
+
+    renderPage();
 
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
     expect(screen.queryByText('围绕单个任务查看命中结果、执行摘要和处置日志。')).not.toBeInTheDocument();
@@ -169,19 +188,31 @@ describe('TaskResultsPage', () => {
     expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
     expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
     expect(screen.getByText('另有 2 条命中')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '查看详情' })).toHaveAttribute(
-      'href',
-      '/articles/501?return_to=%2Ftasks%2F77%2Fresults',
-    );
-    expect(screen.getByRole('link', { name: '进入整改' })).toHaveAttribute(
-      'href',
-      '/articles/501/rectify?return_to=%2Ftasks%2F77%2Fresults&task_id=77&result_id=11',
-    );
     expect(screen.getByRole('button', { name: '下线处置' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量忽略' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量标记已处理' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '关联日志' })).toBeInTheDocument();
     expect(screen.getByText('Task reviewed by auditor')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '进入整改' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501/rectify?return_to=%2Ftasks%2F77%2Fresults&task_id=77&result_id=11');
+    });
+  });
+
+  it('opens article detail from the task-results workspace through the workbench route', async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '查看详情' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Ftasks%2F77%2Fresults');
+    });
   });
 });

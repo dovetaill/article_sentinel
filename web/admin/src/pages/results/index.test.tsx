@@ -1,11 +1,12 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listOrgs } from '../../services/orgs';
+import { WorkbenchProvider } from '../../workbench/provider';
 import ResultsPage from './index';
 import { batchOfflineResults, listResults } from '../../services/results';
 
@@ -24,6 +25,27 @@ vi.mock('../../services/results', () => ({
 const mockedListOrgs = vi.mocked(listOrgs);
 const mockedListResults = vi.mocked(listResults);
 const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/results']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <ResultsPage />
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
 describe('ResultsPage', () => {
   beforeEach(() => {
@@ -74,15 +96,7 @@ describe('ResultsPage', () => {
   it('supports row selection and batch action confirmation', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <MemoryRouter initialEntries={['/results']}>
-          <OrgProvider>
-            <ResultsPage />
-          </OrgProvider>
-        </MemoryRouter>
-      </ConfigProvider>,
-    );
+    renderPage();
 
     expect(await screen.findByText('Spam alert')).toBeInTheDocument();
     expect(screen.queryByText('集中查看命中文稿、风险等级与处置状态，按批次完成研判、下线与整改。')).not.toBeInTheDocument();
@@ -90,15 +104,21 @@ describe('ResultsPage', () => {
     expect(screen.getByText('文稿ID')).toBeInTheDocument();
     expect(screen.getByText('501')).toBeInTheDocument();
     expect(screen.queryByText('#501')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Spam alert' })).toHaveAttribute(
-      'href',
-      '/articles/501?return_to=%2Fresults',
-    );
     expect(screen.getByText('标题')).toBeInTheDocument();
     expect(screen.getAllByText('spam').length).toBeGreaterThan(0);
     expect(screen.getByText((_, element) => element?.textContent === 'This spam alert keeps repeating')).toBeInTheDocument();
     expect(screen.getByText('另有 2 条命中')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Spam alert' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Fresults');
+    });
+
+    await user.click(screen.getByRole('link', { name: '进入整改' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501/rectify?return_to=%2Fresults&task_id=77&result_id=11');
+    });
 
     await user.click(screen.getByRole('button', { name: '本页全选' }));
     expect(screen.getByText('已选 1 项')).toBeInTheDocument();

@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
@@ -13,6 +14,7 @@ import {
   updateCategory
 } from '../../services/categories';
 import { listOrgs } from '../../services/orgs';
+import { WorkbenchProvider } from '../../workbench/provider';
 
 vi.mock('../../services/categories', () => ({
   listCategories: vi.fn(),
@@ -33,12 +35,23 @@ const mockedPatchCategoryStatus = vi.mocked(patchCategoryStatus);
 const mockedDeleteCategory = vi.mocked(deleteCategory);
 const mockedListOrgs = vi.mocked(listOrgs);
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/rules/categories']) {
   return render(
     <ConfigProvider>
-      <OrgProvider>
-        <CategoriesPage />
-      </OrgProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <CategoriesPage />
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
     </ConfigProvider>,
   );
 }
@@ -116,6 +129,11 @@ describe('CategoriesPage', () => {
     expect(screen.queryByText('当前机构：一县一端')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: '查看规则' })).toHaveLength(1);
     expect(screen.queryByText('按机构维护关键词规则分类，统一控制启停和排序。')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '查看规则' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/rules/keywords?category_id=501');
+    });
 
     await waitFor(() => {
       expect(mockedListCategories).toHaveBeenCalledWith(expect.objectContaining({ orgid: 29 }));
