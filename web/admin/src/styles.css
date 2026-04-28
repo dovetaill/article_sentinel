@@ -19,6 +19,13 @@ body {
   color: var(--admin-ink-strong);
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 a {
   color: inherit;
 }

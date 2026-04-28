@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { appRouteGroups, findRouteMeta } from '../../routes';
+import { WorkbenchTabs } from '../../workbench/tabs';
 import { HeaderBar } from './header-bar';
 import { SidebarNav } from './sidebar-nav';
 
@@ -22,6 +23,7 @@ export function AdminShell({ children }: PropsWithChildren) {
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((current) => !current)}
         />
+        <WorkbenchTabs />
         <main className="admin-shell__content">
           <div className="admin-shell__content-frame">{children}</div>
         </main>

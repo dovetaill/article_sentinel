@@ -12,6 +12,8 @@ export interface HeaderBarProps {
 }
 
 export function HeaderBar({ pageTitle, sectionLabel, sidebarCollapsed, onToggleSidebar }: HeaderBarProps) {
+  const showSectionLabel = sectionLabel.trim().length > 0 && sectionLabel !== pageTitle;
+
   return (
     <header className="admin-header">
       <div className="admin-header__leading">
@@ -23,6 +25,7 @@ export function HeaderBar({ pageTitle, sectionLabel, sidebarCollapsed, onToggleS
           onClick={onToggleSidebar}
         />
         <div className="admin-header__title-block">
+          {showSectionLabel ? <span className="admin-header__eyebrow">{sectionLabel}</span> : null}
           <h1 className="admin-header__title">{pageTitle}</h1>
         </div>
       </div>

@@ -154,7 +154,7 @@ export function AppRouteOutlet() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/" element={<Navigate to="/rules/keywords" replace />} />
+        <Route path="/" element={<Navigate to="/tasks" replace />} />
         <Route path="/rules" element={<Navigate to="/rules/keywords" replace />} />
         <Route path="/keywords" element={<Navigate to="/rules/keywords" replace />} />
         <Route path="/rules/categories" element={<CategoriesPage />} />

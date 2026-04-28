@@ -45,7 +45,9 @@ export function SidebarNav({ collapsed, groups }: SidebarNavProps) {
                   end={route.path !== '/tasks' && route.path !== '/articles'}
                   aria-label={collapsed ? route.label : undefined}
                 >
-                  <span className="admin-sidebar__icon">{routeIconMap[route.key]}</span>
+                  <span className="admin-sidebar__icon" aria-hidden="true">
+                    {routeIconMap[route.key]}
+                  </span>
                   <span className="admin-sidebar__label">{route.label}</span>
                 </NavLink>
               ))}
