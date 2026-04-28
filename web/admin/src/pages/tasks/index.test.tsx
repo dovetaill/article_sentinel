@@ -46,6 +46,16 @@ function renderPage(initialEntries: string[] = ['/tasks']) {
   );
 }
 
+function readLocationState() {
+  const text = screen.getByTestId('location-probe').textContent ?? '';
+  const [pathname, search = ''] = text.split('?');
+
+  return {
+    pathname,
+    searchParams: new URLSearchParams(search)
+  };
+}
+
 describe('TasksPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,5 +125,48 @@ describe('TasksPage', () => {
     await user.click(await screen.findByRole('button', { name: '确认删除' }));
     expect(mockedDeleteTask).toHaveBeenCalledWith(501, 29);
     expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();
+  });
+
+  it('hydrates task filters from the URL and restores the same state after remount', async () => {
+    const user = userEvent.setup();
+    const firstRender = renderPage(['/tasks?task_no=inspect-20260420-01&status=running&page=2']);
+
+    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.getByLabelText('任务编号')).toHaveValue('inspect-20260420-01');
+    await waitFor(() => {
+      expect(mockedListTasks).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 2,
+        pageSize: 20,
+        task_no: 'inspect-20260420-01',
+        status: 'running'
+      }));
+    });
+
+    await user.clear(screen.getByLabelText('任务编号'));
+    await user.type(screen.getByLabelText('任务编号'), 'inspect-20260420-02');
+    await user.click(screen.getByRole('button', { name: /查询任务/ }));
+
+    await waitFor(() => {
+      const locationState = readLocationState();
+      expect(locationState.pathname).toBe('/tasks');
+      expect(locationState.searchParams.get('task_no')).toBe('inspect-20260420-02');
+      expect(locationState.searchParams.get('status')).toBe('running');
+    });
+
+    firstRender.unmount();
+    renderPage(['/tasks?task_no=inspect-20260420-02&status=running']);
+
+    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.getByLabelText('任务编号')).toHaveValue('inspect-20260420-02');
+    await waitFor(() => {
+      expect(mockedListTasks).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        task_no: 'inspect-20260420-02',
+        status: 'running'
+      }));
+    });
   });
 });

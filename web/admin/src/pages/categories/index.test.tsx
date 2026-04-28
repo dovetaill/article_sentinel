@@ -56,6 +56,16 @@ function renderPage(initialEntries: string[] = ['/rules/categories']) {
   );
 }
 
+function readLocationState() {
+  const text = screen.getByTestId('location-probe').textContent ?? '';
+  const [pathname, search = ''] = text.split('?');
+
+  return {
+    pathname,
+    searchParams: new URLSearchParams(search)
+  };
+}
+
 describe('CategoriesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -188,6 +198,49 @@ describe('CategoriesPage', () => {
 
     await waitFor(() => {
       expect(mockedDeleteCategory).toHaveBeenCalledWith(501, 29);
+    });
+  }, 10_000);
+
+  it('hydrates category filters from the URL and restores the same state after remount', async () => {
+    const user = userEvent.setup();
+    const firstRender = renderPage(['/rules/categories?name=政策&enabled=true&page=2']);
+
+    expect(await screen.findByText('政策红线')).toBeInTheDocument();
+    expect(screen.getByLabelText('分类名称')).toHaveValue('政策');
+    await waitFor(() => {
+      expect(mockedListCategories).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 2,
+        pageSize: 20,
+        name: '政策',
+        enabled: true
+      }));
+    });
+
+    await user.clear(screen.getByLabelText('分类名称'));
+    await user.type(screen.getByLabelText('分类名称'), '高频');
+    await user.click(screen.getByRole('button', { name: /查\s*询/ }));
+
+    await waitFor(() => {
+      const locationState = readLocationState();
+      expect(locationState.pathname).toBe('/rules/categories');
+      expect(locationState.searchParams.get('name')).toBe('高频');
+      expect(locationState.searchParams.get('enabled')).toBe('true');
+    });
+
+    firstRender.unmount();
+    renderPage(['/rules/categories?name=高频&enabled=true']);
+
+    expect(await screen.findByText('政策红线')).toBeInTheDocument();
+    expect(screen.getByLabelText('分类名称')).toHaveValue('高频');
+    await waitFor(() => {
+      expect(mockedListCategories).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        name: '高频',
+        enabled: true
+      }));
     });
   }, 10_000);
 });

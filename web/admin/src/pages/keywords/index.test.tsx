@@ -1,7 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
@@ -32,6 +32,35 @@ const mockedUpdateKeyword = vi.mocked(updateKeyword);
 const mockedDeleteKeyword = vi.mocked(deleteKeyword);
 const mockedListEnabledCategories = vi.mocked(listEnabledCategories);
 const mockedListOrgs = vi.mocked(listOrgs);
+
+function LocationProbe() {
+  const location = useLocation();
+
+  return <pre data-testid="location-probe">{`${location.pathname}${location.search}`}</pre>;
+}
+
+function renderPage(initialEntries: string[] = ['/rules/keywords']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <KeywordsPage />
+          <LocationProbe />
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
+
+function readLocationState() {
+  const text = screen.getByTestId('location-probe').textContent ?? '';
+  const [pathname, search = ''] = text.split('?');
+
+  return {
+    pathname,
+    searchParams: new URLSearchParams(search)
+  };
+}
 
 describe('KeywordsPage', () => {
   beforeEach(() => {
@@ -95,15 +124,7 @@ describe('KeywordsPage', () => {
   it('renders category selection as a searchable select and submits category_id instead of raw text', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <MemoryRouter initialEntries={['/rules/keywords']}>
-          <OrgProvider>
-            <KeywordsPage />
-          </OrgProvider>
-        </MemoryRouter>
-      </ConfigProvider>,
-    );
+    renderPage(['/rules/keywords']);
 
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByText('政策红线')).toBeInTheDocument();
@@ -138,15 +159,7 @@ describe('KeywordsPage', () => {
   it('deletes a keyword from the list after confirmation', async () => {
     const user = userEvent.setup();
 
-    render(
-      <ConfigProvider>
-        <MemoryRouter initialEntries={['/rules/keywords']}>
-          <OrgProvider>
-            <KeywordsPage />
-          </OrgProvider>
-        </MemoryRouter>
-      </ConfigProvider>,
-    );
+    renderPage(['/rules/keywords']);
 
     expect(await screen.findByText('spam')).toBeInTheDocument();
 
@@ -155,6 +168,49 @@ describe('KeywordsPage', () => {
 
     await waitFor(() => {
       expect(mockedDeleteKeyword).toHaveBeenCalledWith(7, 29);
+    });
+  });
+
+  it('hydrates keyword filters from the URL and restores the same state after remount', async () => {
+    const user = userEvent.setup();
+    const firstRender = renderPage(['/rules/keywords?name=spam&category_id=501&page=2']);
+
+    expect(await screen.findByText('spam')).toBeInTheDocument();
+    expect(screen.getByLabelText('关键词名称')).toHaveValue('spam');
+    await waitFor(() => {
+      expect(mockedListKeywords).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 2,
+        pageSize: 20,
+        keyword: 'spam',
+        categoryId: 501
+      }));
+    });
+
+    await user.clear(screen.getByLabelText('关键词名称'));
+    await user.type(screen.getByLabelText('关键词名称'), 'risk');
+    await user.click(screen.getByRole('button', { name: /查\s*询/ }));
+
+    await waitFor(() => {
+      const locationState = readLocationState();
+      expect(locationState.pathname).toBe('/rules/keywords');
+      expect(locationState.searchParams.get('name')).toBe('risk');
+      expect(locationState.searchParams.get('category_id')).toBe('501');
+    });
+
+    firstRender.unmount();
+    renderPage(['/rules/keywords?name=risk&category_id=501']);
+
+    expect(await screen.findByText('spam')).toBeInTheDocument();
+    expect(screen.getByLabelText('关键词名称')).toHaveValue('risk');
+    await waitFor(() => {
+      expect(mockedListKeywords).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        keyword: 'risk',
+        categoryId: 501
+      }));
     });
   });
 });

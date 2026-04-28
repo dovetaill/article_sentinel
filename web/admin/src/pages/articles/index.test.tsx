@@ -42,6 +42,16 @@ function renderPage(initialEntries: string[] = ['/articles']) {
   );
 }
 
+function readLocationState() {
+  const text = screen.getByTestId('location-probe').textContent ?? '';
+  const [pathname, search = ''] = text.split('?');
+
+  return {
+    pathname,
+    searchParams: new URLSearchParams(search)
+  };
+}
+
 describe('ArticlesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -288,6 +298,53 @@ describe('ArticlesPage', () => {
         page: 1,
         pageSize: 20,
         title: '重复查询'
+      }));
+    });
+  });
+
+  it('hydrates article filters from the URL and restores the same state after remount', async () => {
+    const user = userEvent.setup();
+    const firstRender = renderPage(['/articles?title=命中&page=2&article_id=901']);
+
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+    expect(screen.getByLabelText('标题模糊查询')).toHaveValue('命中');
+    expect(screen.getByLabelText('按文稿ID查询')).toHaveValue('901');
+    await waitFor(() => {
+      expect(mockedListArticles).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 2,
+        pageSize: 20,
+        title: '命中',
+        article_id: 901
+      }));
+    });
+
+    await user.clear(screen.getByLabelText('标题模糊查询'));
+    await user.type(screen.getByLabelText('标题模糊查询'), '复盘');
+    await user.clear(screen.getByLabelText('按文稿ID查询'));
+    await user.type(screen.getByLabelText('按文稿ID查询'), '902');
+    await user.click(screen.getByRole('button', { name: /查询文稿/ }));
+
+    await waitFor(() => {
+      const locationState = readLocationState();
+      expect(locationState.pathname).toBe('/articles');
+      expect(locationState.searchParams.get('title')).toBe('复盘');
+      expect(locationState.searchParams.get('article_id')).toBe('902');
+    });
+
+    firstRender.unmount();
+    renderPage(['/articles?title=复盘&article_id=902']);
+
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+    expect(screen.getByLabelText('标题模糊查询')).toHaveValue('复盘');
+    expect(screen.getByLabelText('按文稿ID查询')).toHaveValue('902');
+    await waitFor(() => {
+      expect(mockedListArticles).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        title: '复盘',
+        article_id: 902
       }));
     });
   });

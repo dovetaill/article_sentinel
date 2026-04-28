@@ -44,6 +44,16 @@ function renderPage(initialEntries: string[] = ['/logs']) {
   );
 }
 
+function readLocationState() {
+  const text = screen.getByTestId('location-probe').textContent ?? '';
+  const [pathname, search = ''] = text.split('?');
+
+  return {
+    pathname,
+    searchParams: new URLSearchParams(search)
+  };
+}
+
 describe('LogsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -116,5 +126,59 @@ describe('LogsPage', () => {
     expect(screen.getByText(/reason/i)).toBeInTheDocument();
     expect(screen.getByText(/spam/i)).toBeInTheDocument();
     expect(screen.queryByText(/include_body/i)).not.toBeInTheDocument();
+  });
+
+  it('hydrates log filters from the URL and restores the same state after remount', async () => {
+    const user = userEvent.setup();
+    const firstRender = renderPage(['/logs?article_id=501&task_id=77&operator_name=alice&page=2']);
+
+    expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('文章编号')).toHaveValue('501');
+    expect(screen.getByLabelText('任务编号')).toHaveValue('77');
+    expect(screen.getByLabelText('操作人')).toHaveValue('alice');
+    await waitFor(() => {
+      expect(mockedListOperationLogs).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 2,
+        pageSize: 20,
+        article_id: 501,
+        task_id: 77,
+        operator_name: 'alice'
+      }));
+    });
+
+    await user.clear(screen.getByLabelText('文章编号'));
+    await user.type(screen.getByLabelText('文章编号'), '808');
+    await user.clear(screen.getByLabelText('任务编号'));
+    await user.type(screen.getByLabelText('任务编号'), '99');
+    await user.clear(screen.getByLabelText('操作人'));
+    await user.type(screen.getByLabelText('操作人'), 'bob');
+    await user.click(screen.getByRole('button', { name: '查询日志' }));
+
+    await waitFor(() => {
+      const locationState = readLocationState();
+      expect(locationState.pathname).toBe('/logs');
+      expect(locationState.searchParams.get('article_id')).toBe('808');
+      expect(locationState.searchParams.get('task_id')).toBe('99');
+      expect(locationState.searchParams.get('operator_name')).toBe('bob');
+    });
+
+    firstRender.unmount();
+    renderPage(['/logs?article_id=808&task_id=99&operator_name=bob']);
+
+    expect(await screen.findByText(/offline by operator/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('文章编号')).toHaveValue('808');
+    expect(screen.getByLabelText('任务编号')).toHaveValue('99');
+    expect(screen.getByLabelText('操作人')).toHaveValue('bob');
+    await waitFor(() => {
+      expect(mockedListOperationLogs).toHaveBeenLastCalledWith(expect.objectContaining({
+        orgid: 29,
+        page: 1,
+        pageSize: 20,
+        article_id: 808,
+        task_id: 99,
+        operator_name: 'bob'
+      }));
+    });
   });
 });
