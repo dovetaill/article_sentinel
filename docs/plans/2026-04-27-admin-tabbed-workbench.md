@@ -4,7 +4,7 @@
 
 **Goal:** Add an org-scoped tabbed workbench to the admin frontend so sidebar and in-page navigation open pages without full-page reloads while preserving key page state.
 
-**Architecture:** Add a React workbench layer above the route outlet that owns tab descriptors, activation, closing, session persistence, and org isolation. Keep React Router as the URL source of truth, define a route-to-tab registry for single-instance list pages and multi-instance detail pages, then migrate page navigation to a shared workbench navigation API and move critical list state into query strings.
+**Architecture:** Add a React workbench layer above the route outlet that owns tab descriptors, activation, closing, session persistence, and org isolation. Keep React Router as the URL source of truth, normalize alias routes before they enter the workbench, define a route-to-tab registry for single-instance work pages and multi-instance detail pages, then migrate page navigation to a shared workbench navigation API. Preserve key state with `URL + tab page-session + sessionStorage` snapshots, but do not implement full component keep-alive in this iteration.
 
 **Tech Stack:** React 18, React Router DOM 7, TypeScript, Ant Design, Vitest, Testing Library
 
@@ -20,6 +20,9 @@
 **Step 1:** Write failing registry tests for these cases:
 
 ```ts
+expect(normalizeWorkbenchPath('/')).toBe('/tasks');
+expect(normalizeWorkbenchPath('/keywords')).toBe('/rules/keywords');
+
 expect(resolveWorkbenchRoute('/articles')).toMatchObject({
   kind: 'list',
   key: '/articles',
@@ -39,6 +42,26 @@ expect(resolveWorkbenchRoute('/tasks/88/results')).toMatchObject({
   key: 'task:88:results',
   title: '任务结果#88'
 });
+
+expect(resolveWorkbenchRoute('/tasks/new')).toMatchObject({
+  kind: 'page',
+  key: '/tasks/new',
+  reusable: true,
+  title: '新建任务'
+});
+
+expect(resolveWorkbenchRoute('/results')).toMatchObject({
+  kind: 'list',
+  key: '/results',
+  reusable: true,
+  title: '风险结果'
+});
+
+expect(resolveWorkbenchRoute('/articles/123/rectify?task_id=77&result_id=11')).toMatchObject({
+  kind: 'detail',
+  key: 'article:123:rectify:task:77:result:11',
+  title: '整改#123'
+});
 ```
 
 **Step 2:** Write failing reducer/store tests for these behaviors:
@@ -47,6 +70,13 @@ expect(resolveWorkbenchRoute('/tasks/88/results')).toMatchObject({
 openTab('/articles');
 openTab('/articles');
 expect(state.tabs).toHaveLength(1);
+
+openTab('/articles?title=旧条件');
+openTab('/articles?title=新条件');
+expect(state.tabs.find((tab) => tab.key === '/articles')).toMatchObject({
+  key: '/articles',
+  search: '?title=新条件'
+});
 
 openTab('/articles/123');
 openTab('/articles/456');
@@ -94,6 +124,8 @@ export type WorkbenchTab = {
 - fallback route
 - cache eligibility
 - async title update support
+- canonical path normalization for `/`, `/rules`, and `/keywords`
+- explicit handling for `/tasks/new`, `/results`, and `rectify` routes carrying `task_id` / `result_id`
 
 **Step 3:** Implement a reducer-driven store that supports:
 - `openTab`
@@ -105,6 +137,10 @@ export type WorkbenchTab = {
 - `closeAllTabs`
 - `replaceTabTitle`
 - `restoreSession`
+
+Make `openTab` honor the list-page reuse rule:
+- open existing list tab without explicit query override -> keep its current `search`
+- open existing list tab with explicit query override -> replace `search` with the new value
 
 **Step 4:** Persist one session snapshot per org in `sessionStorage`, keyed like `admin-workbench:<orgId>`.
 
@@ -127,17 +163,21 @@ git commit -m "feat: add admin workbench store"
 **Step 1:** Extend `web/admin/src/App.test.tsx` with failing expectations for:
 - a visible tab strip under the header
 - a default `检测任务` base tab
-- no top-level full-page reload behavior for sidebar page switches
+- root entry canonicalized to the `检测任务` base tab
+- sidebar page switches reusing an existing list tab instead of duplicating it
 
 **Step 2:** Add `tabs.test.tsx` coverage for:
 - rendering a tab per open descriptor
 - activating an existing tab without duplication
+- a non-closable `检测任务` base tab
 - right-side action menu items: `关闭当前` / `关闭其他` / `关闭左侧` / `关闭右侧` / `关闭全部`
 
 **Step 3:** Add `provider.test.tsx` coverage for:
 - restoring tabs from `sessionStorage`
 - isolating session snapshots by org
 - falling back to the base tab when an org has no snapshot
+- waiting for org initialization before restoring a snapshot
+- using the current URL as the active tab source while merging the matching org snapshot
 
 **Step 4:** Run `npm --prefix web/admin test -- src/App.test.tsx src/workbench/tabs.test.tsx src/workbench/provider.test.tsx` and confirm failure.
 
@@ -164,9 +204,9 @@ git commit -m "test: cover admin workbench shell"
 
 **Step 2:** Render a tab strip between `HeaderBar` and the content frame, using Ant Design tabs or a custom horizontal tab row with a right-side dropdown menu.
 
-**Step 3:** Ensure the base `检测任务` tab is always present and non-closable.
+**Step 3:** Ensure the base `检测任务` tab is always present and non-closable, and canonicalize `/` to `/tasks` before route registration.
 
-**Step 4:** On org switch, load the matching org snapshot and replace the current tab set without tearing down the global shell.
+**Step 4:** On initial boot, wait for org context readiness before restoring tabs. On org switch, load the matching org snapshot and replace the current tab set without tearing down the global shell.
 
 **Step 5:** Style the tab strip so it fits the current neutral admin shell, supports horizontal overflow, and keeps the action menu pinned on the right.
 
@@ -188,7 +228,9 @@ git commit -m "feat: add admin workbench shell tabs"
 - Modify: `web/admin/src/pages/tasks/index.test.tsx`
 - Modify: `web/admin/src/pages/tasks/detail.test.tsx`
 - Modify: `web/admin/src/pages/tasks/results.test.tsx`
+- Modify: `web/admin/src/pages/tasks/new.test.tsx`
 - Modify: `web/admin/src/pages/logs/index.test.tsx`
+- Modify: `web/admin/src/pages/results/index.test.tsx`
 - Modify: `web/admin/src/pages/categories/index.test.tsx`
 
 **Step 1:** Replace expectations that currently assert raw `href` navigation with workbench-aware expectations, for example:
@@ -204,14 +246,16 @@ expect(mockedOpenWorkbenchTab).toHaveBeenCalledWith('/articles/501', {
 - sidebar navigation reusing list tabs
 - detail pages opening in new tabs
 - result/rectify actions opening the correct resource routes
+- `/tasks/new` and `/results` internal actions also routing through the workbench API
 - history-safe return targets preserved in query strings where required
+- “返回上一页” preferring the source tab when it is still open
 
-**Step 3:** Run `npm --prefix web/admin test -- src/pages/articles/index.test.tsx src/pages/articles/detail.test.tsx src/pages/articles/rectify.test.tsx src/pages/tasks/index.test.tsx src/pages/tasks/detail.test.tsx src/pages/tasks/results.test.tsx src/pages/logs/index.test.tsx src/pages/categories/index.test.tsx` and confirm failure.
+**Step 3:** Run `npm --prefix web/admin test -- src/pages/articles/index.test.tsx src/pages/articles/detail.test.tsx src/pages/articles/rectify.test.tsx src/pages/tasks/index.test.tsx src/pages/tasks/detail.test.tsx src/pages/tasks/results.test.tsx src/pages/tasks/new.test.tsx src/pages/logs/index.test.tsx src/pages/results/index.test.tsx src/pages/categories/index.test.tsx` and confirm failure.
 
 **Step 4:** Commit the navigation-focused test updates.
 
 ```bash
-git add web/admin/src/pages/articles/index.test.tsx web/admin/src/pages/articles/detail.test.tsx web/admin/src/pages/articles/rectify.test.tsx web/admin/src/pages/tasks/index.test.tsx web/admin/src/pages/tasks/detail.test.tsx web/admin/src/pages/tasks/results.test.tsx web/admin/src/pages/logs/index.test.tsx web/admin/src/pages/categories/index.test.tsx
+git add web/admin/src/pages/articles/index.test.tsx web/admin/src/pages/articles/detail.test.tsx web/admin/src/pages/articles/rectify.test.tsx web/admin/src/pages/tasks/index.test.tsx web/admin/src/pages/tasks/detail.test.tsx web/admin/src/pages/tasks/results.test.tsx web/admin/src/pages/tasks/new.test.tsx web/admin/src/pages/logs/index.test.tsx web/admin/src/pages/results/index.test.tsx web/admin/src/pages/categories/index.test.tsx
 git commit -m "test: lock admin workbench navigation"
 ```
 
@@ -226,6 +270,7 @@ git commit -m "test: lock admin workbench navigation"
 - Modify: `web/admin/src/pages/articles/rectify.tsx`
 - Modify: `web/admin/src/pages/tasks/index.tsx`
 - Modify: `web/admin/src/pages/tasks/detail.tsx`
+- Modify: `web/admin/src/pages/tasks/new.tsx`
 - Modify: `web/admin/src/pages/tasks/results.tsx`
 - Modify: `web/admin/src/pages/logs/index.tsx`
 - Modify: `web/admin/src/pages/results/index.tsx`
@@ -235,16 +280,16 @@ git commit -m "test: lock admin workbench navigation"
 
 **Step 2:** Update `SidebarNav` so clicking a top-level item activates or opens a tab instead of relying on plain `NavLink` behavior.
 
-**Step 3:** Replace in-page `href` and raw `<a>` usage with workbench navigation in the article, task, log, category, and result pages.
+**Step 3:** Replace in-page `href` and raw `<a>` usage with workbench navigation in the article, task, new-task, log, category, and result pages.
 
-**Step 4:** Preserve deep-link access: if a page is loaded directly by URL, the provider should still create or activate the matching tab during mount.
+**Step 4:** Preserve deep-link access: if a page is loaded directly by URL, the provider should still create or activate the matching tab during mount, and “返回上一页” actions should prefer an open source tab before falling back to `return_to`.
 
-**Step 5:** Re-run the focused navigation suite from Task 5 and confirm green.
+**Step 5:** Re-run the focused navigation suite from Task 5 plus `npm --prefix web/admin test -- src/App.test.tsx src/workbench/tabs.test.tsx src/workbench/provider.test.tsx` and confirm green.
 
 **Step 6:** Commit the migrated navigation.
 
 ```bash
-git add web/admin/src/workbench/navigation.ts web/admin/src/workbench/link.tsx web/admin/src/components/layout/sidebar-nav.tsx web/admin/src/pages/articles/index.tsx web/admin/src/pages/articles/detail.tsx web/admin/src/pages/articles/rectify.tsx web/admin/src/pages/tasks/index.tsx web/admin/src/pages/tasks/detail.tsx web/admin/src/pages/tasks/results.tsx web/admin/src/pages/logs/index.tsx web/admin/src/pages/results/index.tsx web/admin/src/pages/categories/index.tsx
+git add web/admin/src/workbench/navigation.ts web/admin/src/workbench/link.tsx web/admin/src/components/layout/sidebar-nav.tsx web/admin/src/pages/articles/index.tsx web/admin/src/pages/articles/detail.tsx web/admin/src/pages/articles/rectify.tsx web/admin/src/pages/tasks/index.tsx web/admin/src/pages/tasks/detail.tsx web/admin/src/pages/tasks/new.tsx web/admin/src/pages/tasks/results.tsx web/admin/src/pages/logs/index.tsx web/admin/src/pages/results/index.tsx web/admin/src/pages/categories/index.tsx
 git commit -m "feat: route admin navigation through workbench tabs"
 ```
 
@@ -269,7 +314,7 @@ expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
 }));
 ```
 
-**Step 2:** Add expectations that submitting filters updates the URL and that reopening the existing list tab restores the same filters.
+**Step 2:** Add expectations that submitting filters updates the URL and that remounting the page from the same URL restores the same filters.
 
 **Step 3:** Run `npm --prefix web/admin test -- src/pages/articles/index.test.tsx src/pages/tasks/index.test.tsx src/pages/logs/index.test.tsx src/pages/categories/index.test.tsx src/pages/keywords/index.test.tsx` and confirm failure.
 
@@ -280,7 +325,35 @@ git add web/admin/src/pages/articles/index.test.tsx web/admin/src/pages/tasks/in
 git commit -m "test: lock admin list query restoration"
 ```
 
-### Task 8: Implement URL-backed list state and tab-session page state
+### Task 8: Lock tab-session state preservation with tests
+
+**Files:**
+- Create: `web/admin/src/workbench/page-session.test.ts`
+- Modify: `web/admin/src/pages/articles/detail.test.tsx`
+- Modify: `web/admin/src/pages/articles/rectify.test.tsx`
+- Modify: `web/admin/src/pages/tasks/detail.test.tsx`
+- Modify: `web/admin/src/pages/tasks/results.test.tsx`
+
+**Step 1:** Add failing `page-session.test.ts` coverage for:
+- storing and reading payload by tab key
+- replacing payload for an existing tab key
+- clearing payload when a tab closes
+
+**Step 2:** Extend detail/result/rectify page tests with failing expectations for:
+- detail page nested tabs restoring the last active local tab after a workbench deactivate/reactivate cycle
+- rectify drafts surviving a workbench deactivate/reactivate cycle
+- result/detail scroll or local tab state reading from the page-session helper
+
+**Step 3:** Run `npm --prefix web/admin test -- src/workbench/page-session.test.ts src/pages/articles/detail.test.tsx src/pages/articles/rectify.test.tsx src/pages/tasks/detail.test.tsx src/pages/tasks/results.test.tsx` and confirm failure.
+
+**Step 4:** Commit the failing page-session tests.
+
+```bash
+git add web/admin/src/workbench/page-session.test.ts web/admin/src/pages/articles/detail.test.tsx web/admin/src/pages/articles/rectify.test.tsx web/admin/src/pages/tasks/detail.test.tsx web/admin/src/pages/tasks/results.test.tsx
+git commit -m "test: lock admin tab session state"
+```
+
+### Task 9: Implement URL-backed list state and tab-session page state
 
 **Files:**
 - Create: `web/admin/src/workbench/page-session.ts`
@@ -293,6 +366,8 @@ git commit -m "test: lock admin list query restoration"
 - Modify: `web/admin/src/pages/articles/rectify.tsx`
 - Modify: `web/admin/src/pages/tasks/detail.tsx`
 - Modify: `web/admin/src/pages/tasks/results.tsx`
+- Modify: `web/admin/src/workbench/provider.tsx`
+- Modify: `web/admin/src/workbench/store.tsx`
 
 **Step 1:** Add a small page-session helper keyed by tab key for non-URL state such as scroll position, nested tabs, and unsaved form drafts.
 
@@ -300,18 +375,18 @@ git commit -m "test: lock admin list query restoration"
 
 **Step 3:** Refactor detail, result, and rectify pages to store their local active-tab / draft / scroll state through the page-session helper rather than losing it when the active tab changes.
 
-**Step 4:** Ensure closing a tab clears its in-memory page session payload.
+**Step 4:** Ensure closing a tab clears its in-memory page session payload, and only persist lightweight page-session data into `sessionStorage`.
 
-**Step 5:** Re-run the focused list-page suite from Task 7 plus detail-page tests from Task 5 and confirm green.
+**Step 5:** Re-run the focused suites from Task 7 and Task 8, then re-run `npm --prefix web/admin test -- src/App.test.tsx src/workbench/tabs.test.tsx src/workbench/provider.test.tsx` and confirm green.
 
 **Step 6:** Commit the state restoration work.
 
 ```bash
-git add web/admin/src/workbench/page-session.ts web/admin/src/pages/articles/index.tsx web/admin/src/pages/tasks/index.tsx web/admin/src/pages/logs/index.tsx web/admin/src/pages/categories/index.tsx web/admin/src/pages/keywords/index.tsx web/admin/src/pages/articles/detail.tsx web/admin/src/pages/articles/rectify.tsx web/admin/src/pages/tasks/detail.tsx web/admin/src/pages/tasks/results.tsx
+git add web/admin/src/workbench/page-session.ts web/admin/src/workbench/provider.tsx web/admin/src/workbench/store.tsx web/admin/src/pages/articles/index.tsx web/admin/src/pages/tasks/index.tsx web/admin/src/pages/logs/index.tsx web/admin/src/pages/categories/index.tsx web/admin/src/pages/keywords/index.tsx web/admin/src/pages/articles/detail.tsx web/admin/src/pages/articles/rectify.tsx web/admin/src/pages/tasks/detail.tsx web/admin/src/pages/tasks/results.tsx
 git commit -m "feat: preserve admin workbench page state"
 ```
 
-### Task 9: Verify direct-route recovery, build stability, and full frontend coverage
+### Task 10: Verify direct-route recovery, build stability, and full frontend coverage
 
 **Files:**
 - Verify only: `web/admin/src/App.tsx`
@@ -329,18 +404,17 @@ Run: `npm --prefix web/admin build`
 Expected: PASS with no TypeScript errors and a successful Vite build.
 
 **Step 3:** Smoke-check these direct-entry URLs in tests or a manual local run:
+- `/rules/categories`
+- `/rules/keywords`
 - `/tasks`
+- `/tasks/new`
+- `/results`
 - `/articles`
 - `/articles/501`
 - `/articles/501/rectify?task_id=77&result_id=11`
 - `/tasks/77`
 - `/tasks/77/results`
 
-**Step 4:** Summarize any remaining gaps, especially around session size limits or future keep-alive eviction, before merging.
+**Step 4:** Summarize any remaining gaps, especially around session size limits, `rectify` context-key trade-offs, or future keep-alive eviction, before merging.
 
-**Step 5:** Commit the final verified state.
-
-```bash
-git add web/admin
-git commit -m "feat: add admin tabbed workbench"
-```
+**Step 5:** Do not create an empty “verification-only” commit. If this task uncovers no additional code changes, stop after reporting verification results and hand off to `superpowers:finishing-a-development-branch`.
