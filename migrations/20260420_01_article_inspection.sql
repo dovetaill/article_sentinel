@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS `xt_article_inspect_categories` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `orgid` BIGINT UNSIGNED NOT NULL,
   `name` VARCHAR(128) NOT NULL,
-  `code` VARCHAR(64) NOT NULL,
   `enabled` TINYINT(1) NOT NULL DEFAULT 1,
   `sort` BIGINT NOT NULL DEFAULT 0,
   `creator_id` BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -24,7 +23,6 @@ CREATE TABLE IF NOT EXISTS `xt_article_inspect_categories` (
   `create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_org_code` (`orgid`, `code`),
   KEY `idx_org_enabled_sort` (`orgid`, `enabled`, `sort`, `id`),
   KEY `idx_org_name` (`orgid`, `name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -247,7 +245,7 @@ CREATE TABLE IF NOT EXISTS `xt_article_inspect_field_change_logs` (
 INSERT IGNORE INTO `xt_chuangqi_org` (`id`, `name`, `cateid`, `enabled`, `sort`)
 VALUES (29, '一县一端', 0, 1, 10);
 
-INSERT IGNORE INTO `xt_article_inspect_categories` (`id`, `orgid`, `name`, `code`, `enabled`, `sort`, `creator_id`, `creator_name`, `updater_id`, `updater_name`)
+INSERT IGNORE INTO `xt_article_inspect_categories` (`id`, `orgid`, `name`, `enabled`, `sort`, `creator_id`, `creator_name`, `updater_id`, `updater_name`)
 VALUES
-  (501, 29, '政策红线', 'policy', 1, 10, 0, 'system', 0, 'system'),
-  (502, 29, '高频违规', 'risk', 1, 20, 0, 'system', 0, 'system');
+  (501, 29, '政策红线', 1, 10, 0, 'system', 0, 'system'),
+  (502, 29, '高频违规', 1, 20, 0, 'system', 0, 'system');

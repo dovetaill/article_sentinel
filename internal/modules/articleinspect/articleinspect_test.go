@@ -118,13 +118,19 @@ func assertExactStringSet(t *testing.T, got []string, want []string) {
 
 func TestMigrationFileContainsInspectionTables(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "migrations", "20260420_01_article_inspection.sql")
+	dropPath := filepath.Join("..", "..", "..", "migrations", "20260428_01_drop_category_code.sql")
 
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", path, err)
 	}
+	dropContent, err := os.ReadFile(dropPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", dropPath, err)
+	}
 
 	text := string(content)
+	dropText := string(dropContent)
 	requiredTables := []string{
 		"xt_chuangqi_org",
 		"xt_article_inspect_categories",
@@ -142,6 +148,25 @@ func TestMigrationFileContainsInspectionTables(t *testing.T) {
 	for _, table := range requiredTables {
 		if !strings.Contains(text, table) {
 			t.Fatalf("migration missing table %q", table)
+		}
+	}
+	if strings.Contains(text, "`code` VARCHAR(64) NOT NULL") {
+		t.Fatalf("base migration still contains category code column")
+	}
+	if strings.Contains(text, "uk_org_code") {
+		t.Fatalf("base migration still contains uk_org_code")
+	}
+	requiredDropSnippets := []string{
+		"information_schema.statistics",
+		"index_name = 'uk_org_code'",
+		"DROP INDEX `uk_org_code`",
+		"information_schema.columns",
+		"column_name = 'code'",
+		"DROP COLUMN `code`",
+	}
+	for _, snippet := range requiredDropSnippets {
+		if !strings.Contains(dropText, snippet) {
+			t.Fatalf("drop migration missing snippet %q", snippet)
 		}
 	}
 }
