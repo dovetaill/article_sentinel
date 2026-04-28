@@ -61,13 +61,15 @@ function closeTabsByAction(tabs: WorkbenchTab[], key: string, action: Exclude<Wo
   }
 
   const filteredTabs = tabs.filter((tab, index) => {
+    if (action === 'others') {
+      return tab.key === key;
+    }
+
     if (!tab.closable) {
       return true;
     }
 
     switch (action) {
-      case 'others':
-        return tab.key === key;
       case 'left':
         return index >= currentIndex;
       case 'right':
@@ -76,6 +78,10 @@ function closeTabsByAction(tabs: WorkbenchTab[], key: string, action: Exclude<Wo
         return true;
     }
   });
+
+  if (action === 'others') {
+    return filteredTabs.length > 0 ? filteredTabs : [createBaseTab(orgId)];
+  }
 
   return ensureBaseTab(filteredTabs, orgId);
 }

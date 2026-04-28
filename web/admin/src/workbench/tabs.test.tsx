@@ -55,7 +55,7 @@ describe('WorkbenchTabs', () => {
     expect(screen.getByRole('tab', { name: '新建任务' })).toBeInTheDocument();
   });
 
-  it('activates an existing tab and exposes bulk close actions from the right-side menu', async () => {
+  it('activates an existing tab and only exposes close-other and close-all from the right-side menu', async () => {
     const user = userEvent.setup();
 
     render(
@@ -78,10 +78,42 @@ describe('WorkbenchTabs', () => {
 
     await user.click(screen.getByRole('button', { name: '标签操作' }));
 
-    expect(await screen.findByRole('menuitem', { name: '关闭当前' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: '关闭其他' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: '关闭左侧' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: '关闭右侧' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: '关闭其他' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: '关闭全部' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: '关闭当前' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: '关闭左侧' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: '关闭右侧' })).not.toBeInTheDocument();
+  });
+
+  it('keeps only the active tab after choosing close-other', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/tasks']}>
+          <OrgProvider>
+            <WorkbenchProvider>
+              <SeedWorkbenchTabs />
+            </WorkbenchProvider>
+          </OrgProvider>
+        </MemoryRouter>
+      </ConfigProvider>,
+    );
+
+    await user.click(await screen.findByRole('tab', { name: '新建任务' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: '新建任务' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    await user.click(screen.getByRole('button', { name: '标签操作' }));
+    await user.click(await screen.findByRole('menuitem', { name: '关闭其他' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: '新建任务' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('tab', { name: '检测任务' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '文稿中心' })).not.toBeInTheDocument();
   });
 });

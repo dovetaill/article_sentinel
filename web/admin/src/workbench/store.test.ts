@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { closeAllTabs, createInitialWorkbenchState, openTab, workbenchReducer } from './store';
+import {
+  closeAllTabs,
+  closeOtherTabs,
+  createInitialWorkbenchState,
+  openTab,
+  workbenchReducer
+} from './store';
 
 describe('workbench store', () => {
   it('deduplicates single-instance list tabs', () => {
@@ -40,5 +46,16 @@ describe('workbench store', () => {
     state = workbenchReducer(state, closeAllTabs());
 
     expect(state.activeKey).toBe('/tasks');
+  });
+
+  it('keeps only the active tab after close-other', () => {
+    let state = createInitialWorkbenchState({ orgId: 29 });
+
+    state = workbenchReducer(state, openTab({ href: '/articles', orgId: 29 }));
+    state = workbenchReducer(state, openTab({ href: '/tasks/new', orgId: 29 }));
+    state = workbenchReducer(state, closeOtherTabs('/tasks/new'));
+
+    expect(state.activeKey).toBe('/tasks/new');
+    expect(state.tabs.map((tab) => tab.key)).toEqual(['/tasks/new']);
   });
 });

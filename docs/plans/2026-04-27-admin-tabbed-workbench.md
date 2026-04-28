@@ -170,7 +170,7 @@ git commit -m "feat: add admin workbench store"
 - rendering a tab per open descriptor
 - activating an existing tab without duplication
 - a non-closable `检测任务` base tab
-- right-side action menu items: `关闭当前` / `关闭其他` / `关闭左侧` / `关闭右侧` / `关闭全部`
+- right-side action menu items: `关闭其他` / `关闭全部`
 
 **Step 3:** Add `provider.test.tsx` coverage for:
 - restoring tabs from `sessionStorage`

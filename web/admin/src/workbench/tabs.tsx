@@ -12,8 +12,6 @@ export function WorkbenchTabs() {
     activateTab,
     closeTab,
     closeOtherTabs,
-    closeTabsToLeft,
-    closeTabsToRight,
     closeAllTabs
   } = useWorkbench();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -28,10 +26,7 @@ export function WorkbenchTabs() {
   }, [tabs.length]);
 
   const menuItems: MenuProps['items'] = [
-    { key: 'current', label: '关闭当前' },
     { key: 'others', label: '关闭其他' },
-    { key: 'left', label: '关闭左侧' },
-    { key: 'right', label: '关闭右侧' },
     { key: 'all', label: '关闭全部' }
   ];
 
@@ -67,17 +62,8 @@ export function WorkbenchTabs() {
                 items: menuItems,
                 onClick: ({ key }) => {
                   switch (key) {
-                    case 'current':
-                      closeTab(activeKey);
-                      break;
                     case 'others':
                       closeOtherTabs(activeKey);
-                      break;
-                    case 'left':
-                      closeTabsToLeft(activeKey);
-                      break;
-                    case 'right':
-                      closeTabsToRight(activeKey);
                       break;
                     case 'all':
                       closeAllTabs();
