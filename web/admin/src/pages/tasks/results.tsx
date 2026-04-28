@@ -18,6 +18,7 @@ import {
   type ResultRecord
 } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const { Text } = Typography;
 
@@ -39,6 +40,7 @@ export default function TaskResultsPage() {
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [refreshSeed, setRefreshSeed] = useState(0);
   const { activeOrgId } = useOrgContext();
+  const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
   const numericTaskId = Number(taskId || 0);
@@ -115,8 +117,15 @@ export default function TaskResultsPage() {
         title="任务结果"
         extra={(
           <Space wrap>
-            <Button href="/tasks">返回任务列表</Button>
-            <Button href={`/tasks/${numericTaskId}`}>任务概览</Button>
+            <Button href="/tasks" onClick={(event) => onLinkClick(event, '/tasks')}>
+              返回任务列表
+            </Button>
+            <Button
+              href={buildHref(`/tasks/${numericTaskId}`)}
+              onClick={(event) => onLinkClick(event, buildHref(`/tasks/${numericTaskId}`))}
+            >
+              任务概览
+            </Button>
           </Space>
         )}
       />
@@ -231,35 +240,42 @@ export default function TaskResultsPage() {
                 {
                   title: '操作',
                   valueType: 'option',
-                  render: (_, record) => [
-                    <Button
-                      key="detail"
-                      type="link"
-                      href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
-                    >
-                      查看详情
-                    </Button>,
-                    <Button
-                      key="rectify"
-                      type="link"
-                      href={`/articles/${record.article_id}/rectify?${new URLSearchParams({
-                        return_to: returnTo,
-                        task_id: String(numericTaskId),
-                        result_id: String(record.id)
-                      }).toString()}`}
-                    >
-                      进入整改
-                    </Button>,
-                    <Button key="offline" type="link" danger onClick={() => void runBatchAction('offline', [record.id])}>
-                      下线处置
-                    </Button>,
-                    <Button key="ignore" type="link" onClick={() => void runBatchAction('ignore', [record.id])}>
-                      忽略
-                    </Button>,
-                    <Button key="process" type="link" onClick={() => void runBatchAction('process', [record.id])}>
-                      标记已处理
-                    </Button>
-                  ]
+                  render: (_, record) => {
+                    const detailHref = buildHref(`/articles/${record.article_id}`, { returnTo });
+                    const rectifyHref = buildHref(`/articles/${record.article_id}/rectify`, {
+                      returnTo,
+                      taskId: numericTaskId,
+                      resultId: record.id
+                    });
+
+                    return [
+                      <Button
+                        key="detail"
+                        type="link"
+                        href={detailHref}
+                        onClick={(event) => onLinkClick(event, detailHref)}
+                      >
+                        查看详情
+                      </Button>,
+                      <Button
+                        key="rectify"
+                        type="link"
+                        href={rectifyHref}
+                        onClick={(event) => onLinkClick(event, rectifyHref)}
+                      >
+                        进入整改
+                      </Button>,
+                      <Button key="offline" type="link" danger onClick={() => void runBatchAction('offline', [record.id])}>
+                        下线处置
+                      </Button>,
+                      <Button key="ignore" type="link" onClick={() => void runBatchAction('ignore', [record.id])}>
+                        忽略
+                      </Button>,
+                      <Button key="process" type="link" onClick={() => void runBatchAction('process', [record.id])}>
+                        标记已处理
+                      </Button>
+                    ];
+                  }
                 }
               ]}
             />

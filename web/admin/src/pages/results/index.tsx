@@ -10,6 +10,8 @@ import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { batchOfflineResults, listResults, type ResultRecord } from '../../services/results';
+import { WorkbenchLink } from '../../workbench/link';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 type ActionRef = {
   reload?: () => void;
@@ -25,9 +27,10 @@ export default function ResultsPage() {
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
   const { activeOrgId } = useOrgContext();
+  const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
-  const returnTo = `${location.pathname}${location.search}`;
+  const [returnTo] = useState(() => `${location.pathname}${location.search}`);
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
   const confirmTitle = useMemo(() => confirmIds.length > 1 ? '批量下线处置' : '下线处置', [confirmIds.length]);
@@ -107,9 +110,9 @@ export default function ResultsPage() {
               title: '文章标题',
               dataIndex: 'article_title',
               render: (_, record) => (
-                <a href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}>
+                <WorkbenchLink to={`/articles/${record.article_id}`} options={{ returnTo }}>
                   {record.article_title}
-                </a>
+                </WorkbenchLink>
               )
             },
             {
@@ -148,29 +151,36 @@ export default function ResultsPage() {
             {
               title: '操作',
               valueType: 'option',
-              render: (_, record) => [
-                <Button
-                  key="detail"
-                  type="link"
-                  href={`/articles/${record.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
-                >
-                  查看详情
-                </Button>,
-                <Button key="offline" type="link" danger onClick={() => setConfirmIds([record.id])}>
-                  下线处置
-                </Button>,
-                <Button
-                  key="rectify"
-                  type="link"
-                  href={`/articles/${record.article_id}/rectify?${new URLSearchParams({
-                    return_to: returnTo,
-                    task_id: String(record.task_id),
-                    result_id: String(record.id)
-                  }).toString()}`}
-                >
-                  进入整改
-                </Button>
-              ]
+              render: (_, record) => {
+                const detailHref = buildHref(`/articles/${record.article_id}`, { returnTo });
+                const rectifyHref = buildHref(`/articles/${record.article_id}/rectify`, {
+                  returnTo,
+                  taskId: record.task_id,
+                  resultId: record.id
+                });
+
+                return [
+                  <Button
+                    key="detail"
+                    type="link"
+                    href={detailHref}
+                    onClick={(event) => onLinkClick(event, detailHref)}
+                  >
+                    查看详情
+                  </Button>,
+                  <Button key="offline" type="link" danger onClick={() => setConfirmIds([record.id])}>
+                    下线处置
+                  </Button>,
+                  <Button
+                    key="rectify"
+                    type="link"
+                    href={rectifyHref}
+                    onClick={(event) => onLinkClick(event, rectifyHref)}
+                  >
+                    进入整改
+                  </Button>
+                ];
+              }
             }
           ]}
         />

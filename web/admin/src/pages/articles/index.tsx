@@ -6,6 +6,8 @@ import { StatusBadge } from '../../components/ui/status-badge';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { listArticles, type ArticleListItem } from '../../services/articles';
+import { WorkbenchLink } from '../../workbench/link';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const { Text } = Typography;
 
@@ -41,6 +43,7 @@ export default function ArticlesPage() {
   const loadingRef = useRef(true);
   const requestIDRef = useRef(0);
   const { activeOrgId } = useOrgContext();
+  const { currentHref, buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
 
@@ -178,7 +181,12 @@ export default function ArticlesPage() {
                 title: '文章标题',
                 dataIndex: 'title',
                 render: (_, record) => (
-                  <a href={`/articles/${record.id}`}>{record.title}</a>
+                  <WorkbenchLink
+                    to={`/articles/${record.id}`}
+                    options={{ returnTo: currentHref }}
+                  >
+                    {record.title}
+                  </WorkbenchLink>
                 )
               },
               {
@@ -211,11 +219,15 @@ export default function ArticlesPage() {
               {
                 title: '操作',
                 key: 'actions',
-                render: (_, record) => (
-                  <Button type="link" href={`/articles/${record.id}`}>
+                render: (_, record) => {
+                  const href = buildHref(`/articles/${record.id}`, { returnTo: currentHref });
+
+                  return (
+                    <Button type="link" href={href} onClick={(event) => onLinkClick(event, href)}>
                     查看详情
-                  </Button>
-                )
+                    </Button>
+                  );
+                }
               }
             ]}
             dataSource={items}

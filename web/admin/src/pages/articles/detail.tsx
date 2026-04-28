@@ -15,6 +15,7 @@ import {
   type OperationLogRecord
 } from '../../services/logs';
 import { getResultDetail, type ResultDetailRecord } from '../../services/results';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const { Paragraph, Text } = Typography;
 
@@ -70,10 +71,16 @@ export default function ArticleDetailPage() {
   const [operationLogs, setOperationLogs] = useState<OperationLogRecord[]>([]);
   const [fieldChanges, setFieldChanges] = useState<FieldChangeLogRecord[]>([]);
   const { activeOrgId } = useOrgContext();
+  const { buildHref, goBack, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
   const numericArticleId = Number(articleId || 0);
   const returnTarget = searchParams.get('return_to') || '/articles';
+  const rectifyHref = buildHref(`/articles/${articleId ?? ''}/rectify`, {
+    returnTo: returnTarget,
+    taskId: detail?.latest_task_id,
+    resultId: detail?.latest_result_id
+  });
 
   useEffect(() => {
     if (!numericArticleId) {
@@ -187,14 +194,17 @@ export default function ArticleDetailPage() {
         title="文稿详情"
         extra={(
           <Space wrap>
-            <Button href={returnTarget}>返回上一页</Button>
+            <Button href={returnTarget} onClick={(event) => {
+              event.preventDefault();
+              goBack({ returnTo: returnTarget, fallbackTo: '/articles' });
+            }}
+            >
+              返回上一页
+            </Button>
             <Button
               type="primary"
-              href={`/articles/${articleId ?? ''}/rectify?${new URLSearchParams({
-                return_to: returnTarget,
-                ...(detail?.latest_task_id ? { task_id: String(detail.latest_task_id) } : {}),
-                ...(detail?.latest_result_id ? { result_id: String(detail.latest_result_id) } : {})
-              }).toString()}`}
+              href={rectifyHref}
+              onClick={(event) => onLinkClick(event, rectifyHref)}
             >
               进入整改
             </Button>

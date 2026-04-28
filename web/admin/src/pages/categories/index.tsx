@@ -13,6 +13,7 @@ import {
   type CategoryRecord,
   updateCategory
 } from '../../services/categories';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 type ActionRef = {
   reload?: () => void;
@@ -32,6 +33,7 @@ export default function CategoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryRecord | null>(null);
   const { activeOrgId, activeOrgName } = useOrgContext();
+  const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   useEffect(() => {
     if (activeOrgId) {
@@ -154,7 +156,12 @@ export default function CategoriesPage() {
                 >
                   编辑分类
                 </Button>,
-                <Button key="keywords" type="link" href={`/rules/keywords?category_id=${record.id}`}>
+                <Button
+                  key="keywords"
+                  type="link"
+                  href={buildHref('/rules/keywords', { categoryId: record.id })}
+                  onClick={(event) => onLinkClick(event, buildHref('/rules/keywords', { categoryId: record.id }))}
+                >
                   查看规则
                 </Button>,
                 <Button

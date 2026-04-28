@@ -230,3 +230,7 @@ export function useWorkbenchContext() {
 
   return context;
 }
+
+export function useOptionalWorkbenchContext() {
+  return useContext(WorkbenchContext);
+}

@@ -8,6 +8,7 @@ import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { deleteTask, listTasks, type TaskRecord } from '../../services/tasks';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 type Filters = {
   task_no?: string;
@@ -25,6 +26,7 @@ export default function TasksPage() {
   const [draftFilters, setDraftFilters] = useState({ taskNo: '', status: undefined as string | undefined });
   const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
   const { activeOrgId } = useOrgContext();
+  const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
   const summary = useMemo(() => {
@@ -53,7 +55,12 @@ export default function TasksPage() {
       <SectionCard
         title="任务列表"
         extra={(
-          <Button key="new-task" type="primary" href="/tasks/new">
+          <Button
+            key="new-task"
+            type="primary"
+            href="/tasks/new"
+            onClick={(event) => onLinkClick(event, '/tasks/new')}
+          >
             新建任务
           </Button>
         )}
@@ -151,8 +158,14 @@ export default function TasksPage() {
               title: '操作',
               valueType: 'option',
               render: (_, record) => {
+                const resultsHref = buildHref(`/tasks/${record.id}/results`);
                 const actions = [
-                  <Button key="results" type="link" href={`/tasks/${record.id}/results`}>
+                  <Button
+                    key="results"
+                    type="link"
+                    href={resultsHref}
+                    onClick={(event) => onLinkClick(event, resultsHref)}
+                  >
                     运行结果
                   </Button>
                 ];

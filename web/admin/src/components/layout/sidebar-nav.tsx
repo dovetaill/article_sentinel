@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import type { AppRouteGroup } from '../../routes';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const routeIconMap: Record<string, ReactNode> = {
   categories: <SafetyCertificateOutlined />,
@@ -23,6 +24,8 @@ export interface SidebarNavProps {
 }
 
 export function SidebarNav({ collapsed, groups }: SidebarNavProps) {
+  const { onLinkClick } = useWorkbenchNavigation();
+
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">
@@ -44,6 +47,7 @@ export function SidebarNav({ collapsed, groups }: SidebarNavProps) {
                   className={({ isActive }) => `admin-sidebar__link${isActive ? ' is-active' : ''}`}
                   end={route.path !== '/tasks' && route.path !== '/articles'}
                   aria-label={collapsed ? route.label : undefined}
+                  onClick={(event) => onLinkClick(event, route.path)}
                 >
                   <span className="admin-sidebar__icon" aria-hidden="true">
                     {routeIconMap[route.key]}

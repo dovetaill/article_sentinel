@@ -2,13 +2,13 @@ import { ProForm } from '@ant-design/pro-components';
 import { Button, DatePicker, Form, Input, Select, Space, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { useOrgContext } from '../../context/org-context';
 import { listKeywords, type KeywordRecord } from '../../services/keywords';
 import { createTask } from '../../services/tasks';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const timeDisplayFormat = 'YYYY-MM-DD HH:mm:ss';
 const timePayloadFormat = 'YYYY-MM-DDTHH:mm:ssZ';
@@ -29,7 +29,7 @@ export default function NewTaskPage() {
     publish_time_end: null
   });
   const { activeOrgId, activeOrgName } = useOrgContext();
-  const navigate = useNavigate();
+  const { open, onLinkClick } = useWorkbenchNavigation();
   const redirectTimerRef = useRef<number | null>(null);
 
   const currentOrgId = activeOrgId ?? 29;
@@ -77,7 +77,7 @@ export default function NewTaskPage() {
       });
       messageApi.success('检测任务已提交');
       redirectTimerRef.current = window.setTimeout(() => {
-        navigate('/tasks');
+        open('/tasks');
       }, 1000);
     } catch (error) {
       setSubmitting(false);
@@ -90,7 +90,11 @@ export default function NewTaskPage() {
       {contextHolder}
       <PageHeader
         title="新建检测任务"
-        extra={<Button href="/tasks">返回任务列表</Button>}
+        extra={(
+          <Button href="/tasks" onClick={(event) => onLinkClick(event, '/tasks')}>
+            返回任务列表
+          </Button>
+        )}
       />
 
       <SectionCard title="任务配置">
@@ -139,7 +143,9 @@ export default function NewTaskPage() {
             <Button type="primary" loading={submitting} disabled={submitting} onClick={() => void submitTask()}>
               提交任务
             </Button>
-            <Button href="/rules/keywords">去规则管理</Button>
+            <Button href="/rules/keywords" onClick={(event) => onLinkClick(event, '/rules/keywords')}>
+              去规则管理
+            </Button>
           </Space>
         </ProForm>
       </SectionCard>

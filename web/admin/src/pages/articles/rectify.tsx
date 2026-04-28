@@ -14,6 +14,7 @@ import {
   republishArticle,
   type ArticleDetailRecord
 } from '../../services/articles';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ export default function RectifyPage() {
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<ArticleDetailRecord | null>(null);
   const { activeOrgId } = useOrgContext();
+  const { goBack } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
   const taskIdFromSearch = Number(searchParams.get('task_id') || 0) || undefined;
@@ -129,7 +131,15 @@ export default function RectifyPage() {
         title="内容整改"
         extra={(
           <Space wrap>
-            <Button href={returnTarget}>返回上一页</Button>
+            <Button
+              href={returnTarget}
+              onClick={(event) => {
+                event.preventDefault();
+                goBack({ returnTo: returnTarget, fallbackTo: `/articles/${articleId ?? ''}` });
+              }}
+            >
+              返回上一页
+            </Button>
             <Text type="secondary">整改稿件：{articleId ? `#${articleId}` : '未识别'}</Text>
           </Space>
         )}

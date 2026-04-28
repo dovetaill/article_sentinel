@@ -12,6 +12,8 @@ import { formatInspectionSnapshot } from '../../lib/inspection-snapshot';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 import { listResults, type ResultRecord } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
+import { WorkbenchLink } from '../../workbench/link';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 const { Text } = Typography;
 
@@ -36,6 +38,7 @@ export default function TaskDetailPage() {
   const [results, setResults] = useState<ResultRecord[]>([]);
   const [logs, setLogs] = useState<OperationLogRecord[]>([]);
   const { activeOrgId } = useOrgContext();
+  const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
   const returnTo = `${location.pathname}${location.search}`;
@@ -91,12 +94,13 @@ export default function TaskDetailPage() {
             renderItem={(item) => (
               <List.Item>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <a
+                  <WorkbenchLink
                     className="detail-list__title"
-                    href={`/articles/${item.article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                    to={`/articles/${item.article_id}`}
+                    options={{ returnTo }}
                   >
                     {item.article_title}
-                  </a>
+                  </WorkbenchLink>
                   <Space size={8} wrap>
                     <StatusBadge kind="risk" value={item.risk_level} />
                     <Text type="secondary">命中 {item.hit_count} 次</Text>
@@ -158,8 +162,14 @@ export default function TaskDetailPage() {
         title="任务详情"
         extra={(
           <Space wrap>
-            <Button href="/tasks">返回任务列表</Button>
-            <Button type="primary" href={`/tasks/${task?.id ?? taskId}/results`}>
+            <Button href="/tasks" onClick={(event) => onLinkClick(event, '/tasks')}>
+              返回任务列表
+            </Button>
+            <Button
+              type="primary"
+              href={buildHref(`/tasks/${task?.id ?? taskId}/results`)}
+              onClick={(event) => onLinkClick(event, buildHref(`/tasks/${task?.id ?? taskId}/results`))}
+            >
               查看任务结果
             </Button>
           </Space>
@@ -219,14 +229,22 @@ export default function TaskDetailPage() {
 
               <SectionCard title="快捷入口">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
-                  <Button href={`/tasks/${task.id}/results`}>前往任务结果</Button>
-                  <Button href="/articles">前往文稿列表</Button>
+                  <Button
+                    href={buildHref(`/tasks/${task.id}/results`)}
+                    onClick={(event) => onLinkClick(event, buildHref(`/tasks/${task.id}/results`))}
+                  >
+                    前往任务结果
+                  </Button>
+                  <Button href="/articles" onClick={(event) => onLinkClick(event, '/articles')}>
+                    前往文稿列表
+                  </Button>
                   {results[0] ? (
                     <Button
                       type="link"
-                      href={`/articles/${results[0].article_id}?${new URLSearchParams({ return_to: returnTo }).toString()}`}
+                      href={buildHref(`/articles/${results[0].article_id}`, { returnTo })}
+                      onClick={(event) => onLinkClick(event, buildHref(`/articles/${results[0].article_id}`, { returnTo }))}
                     >
-                      查看首条命中文稿
+                      {results[0].article_title}
                     </Button>
                   ) : (
                     <Text type="secondary">当前暂无可跳转的命中文稿。</Text>

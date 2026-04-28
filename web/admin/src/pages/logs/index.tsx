@@ -1,12 +1,15 @@
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Input, Modal } from 'antd';
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { formatInspectionSnapshot } from '../../lib/inspection-snapshot';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
+import { WorkbenchLink } from '../../workbench/link';
+import { useWorkbenchNavigation } from '../../workbench/navigation';
 
 type Filters = {
   article_id?: number;
@@ -18,9 +21,12 @@ export default function LogsPage() {
   const [draftFilters, setDraftFilters] = useState({ articleId: '', taskId: '', operator: '' });
   const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
   const [activeSnapshot, setActiveSnapshot] = useState<OperationLogRecord | null>(null);
+  const location = useLocation();
   const { activeOrgId } = useOrgContext();
+  const { buildHref } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
+  const currentHref = `${location.pathname}${location.search}`;
 
   return (
     <>
@@ -104,12 +110,20 @@ export default function LogsPage() {
             {
               title: '文章编号',
               dataIndex: 'article_id',
-              render: (_, record) => record.article_id ? <a href={`/articles/${record.article_id}`}>#{record.article_id}</a> : '-'
+              render: (_, record) => record.article_id ? (
+                <WorkbenchLink to={`/articles/${record.article_id}`} options={{ returnTo: currentHref }}>
+                  #{record.article_id}
+                </WorkbenchLink>
+              ) : '-'
             },
             {
               title: '任务编号',
               dataIndex: 'task_id',
-              render: (_, record) => record.task_id ? <a href={`/tasks/${record.task_id}/results`}>#{record.task_id}</a> : '-'
+              render: (_, record) => record.task_id ? (
+                <WorkbenchLink to={buildHref(`/tasks/${record.task_id}/results`)}>
+                  #{record.task_id}
+                </WorkbenchLink>
+              ) : '-'
             },
             { title: '操作类型', dataIndex: 'operation_type' },
             {
