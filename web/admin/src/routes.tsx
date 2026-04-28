@@ -27,7 +27,7 @@ export type AppRouteGroup = {
   routes: AppRoute[];
 };
 
-type RouteMeta = {
+export type RouteMeta = {
   pattern: string;
   sectionLabel: string;
   title: string;
@@ -74,7 +74,7 @@ export const appRouteGroups: AppRouteGroup[] = [
   }
 ];
 
-const routeMeta: RouteMeta[] = [
+export const routeMeta: RouteMeta[] = [
   {
     pattern: '/rules/categories',
     sectionLabel: '规则中心',
@@ -132,7 +132,7 @@ const routeMeta: RouteMeta[] = [
   }
 ];
 
-const fallbackRouteMeta: RouteMeta = {
+export const fallbackRouteMeta: RouteMeta = {
   pattern: '/tasks',
   sectionLabel: '检测任务',
   title: '检测任务'
