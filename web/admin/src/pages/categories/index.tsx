@@ -1,8 +1,10 @@
 import { ModalForm, ProFormDigit, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
-import { Button, Popconfirm, Space, message } from 'antd';
+import { Button, Input, Popconfirm, Select, Space, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
+import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import {
   createCategory,
@@ -27,11 +29,27 @@ type CategoryFormValues = {
   sort?: number;
 };
 
+type CategorySearchValues = {
+  name?: string;
+  enabled?: 'true' | 'false';
+};
+
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
 export default function CategoriesPage() {
   const actionRef = useRef<ActionRef>({});
   const [messageApi, contextHolder] = message.useMessage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryRecord | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftFilters, setDraftFilters] = useState(() => ({
+    name: searchParams.get('name') ?? '',
+    enabled: (searchParams.get('enabled') as CategorySearchValues['enabled'] | null) ?? undefined
+  }));
   const { activeOrgId, activeOrgName } = useOrgContext();
   const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
@@ -43,6 +61,9 @@ export default function CategoriesPage() {
 
   const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
+  const currentPage = normalizePage(searchParams.get('page'));
+  const submittedName = searchParams.get('name')?.trim() ?? '';
+  const submittedEnabled = searchParams.get('enabled') || undefined;
 
   const initialValues = useMemo<CategoryFormValues>(() => {
     if (!editingCategory) {
@@ -64,6 +85,13 @@ export default function CategoriesPage() {
     };
   }, [currentOrgName, editingCategory]);
 
+  useEffect(() => {
+    setDraftFilters({
+      name: searchParams.get('name') ?? '',
+      enabled: (searchParams.get('enabled') as CategorySearchValues['enabled'] | null) ?? undefined
+    });
+  }, [searchParams]);
+
   return (
     <>
       {contextHolder}
@@ -83,22 +111,107 @@ export default function CategoriesPage() {
           </Space>
         )}
       >
+        <ToolbarStrip>
+          <div className="toolbar-strip__group">
+            <div className="toolbar-strip__controls">
+              <Input
+                aria-label="分类名称"
+                className="toolbar-strip__control"
+                placeholder="分类名称"
+                value={draftFilters.name}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, name: event.target.value }))}
+              />
+              <Select
+                allowClear
+                aria-label="启用状态"
+                className="toolbar-strip__control toolbar-strip__control--select"
+                placeholder="启用状态"
+                value={draftFilters.enabled}
+                options={[
+                  { label: '启用', value: 'true' },
+                  { label: '停用', value: 'false' }
+                ]}
+                onChange={(value) => setDraftFilters((current) => ({ ...current, enabled: value }))}
+              />
+            </div>
+          </div>
+
+          <div className="toolbar-strip__actions">
+            <Button onClick={() => setSearchParams(new URLSearchParams())}>
+              重置
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                const nextSearchParams = new URLSearchParams();
+                const nextName = draftFilters.name.trim();
+                const filtersUnchanged =
+                  (nextName || '') === submittedName &&
+                  draftFilters.enabled === submittedEnabled;
+
+                if (nextName) {
+                  nextSearchParams.set('name', nextName);
+                }
+
+                if (draftFilters.enabled) {
+                  nextSearchParams.set('enabled', draftFilters.enabled);
+                }
+
+                if (filtersUnchanged && currentPage > 1) {
+                  nextSearchParams.set('page', String(currentPage));
+                }
+
+                setSearchParams(nextSearchParams);
+              }}
+            >
+              查询分类
+            </Button>
+          </div>
+        </ToolbarStrip>
+
         <ProTable<CategoryRecord>
           rowKey="id"
           actionRef={actionRef as never}
           size="small"
-          search={{ labelWidth: 88 }}
+          search={false}
           cardBordered={false}
           options={false}
           headerTitle={false}
           toolBarRender={false}
+          params={{
+            orgid: currentOrgId,
+            name: submittedName,
+            enabled: submittedEnabled,
+            page: currentPage
+          }}
+          pagination={{
+            current: currentPage,
+            pageSize: 20,
+            showSizeChanger: false,
+            onChange: (nextPage) => {
+              if (nextPage === currentPage) {
+                return;
+              }
+
+              const nextSearchParams = new URLSearchParams(searchParams);
+
+              if (nextPage > 1) {
+                nextSearchParams.set('page', String(nextPage));
+              } else {
+                nextSearchParams.delete('page');
+              }
+
+              setSearchParams(nextSearchParams);
+            }
+          }}
           request={async (params) => {
-            const enabled = params.enabled === 'true' ? true : params.enabled === 'false' ? false : undefined;
+            const enabled = submittedEnabled === 'true' ? true : submittedEnabled === 'false' ? false : undefined;
+            const requestPage = Number(params.page ?? params.current ?? currentPage) || currentPage;
             const result = await listCategories({
               orgid: currentOrgId,
-              page: params.current,
-              pageSize: params.pageSize,
-              name: typeof params.name === 'string' ? params.name : undefined,
+              page: requestPage,
+              pageSize: params.pageSize ?? 20,
+              name: submittedName || undefined,
               enabled
             });
 

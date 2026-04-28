@@ -14,6 +14,8 @@ import { listResults, type ResultRecord } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
 import { WorkbenchLink } from '../../workbench/link';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
+import { readPageSession, writePageSession } from '../../workbench/page-session';
+import { resolveWorkbenchRoute } from '../../workbench/registry';
 
 const { Text } = Typography;
 
@@ -42,6 +44,13 @@ export default function TaskDetailPage() {
 
   const currentOrgId = activeOrgId ?? 29;
   const returnTo = `${location.pathname}${location.search}`;
+  const tabKey = useMemo(
+    () => resolveWorkbenchRoute(`${location.pathname}${location.search}`).key,
+    [location.pathname, location.search],
+  );
+  const [activeTabKey, setActiveTabKey] = useState(() => (
+    readPageSession<{ activeTab?: string }>(currentOrgId, tabKey)?.activeTab ?? 'results'
+  ));
 
   useEffect(() => {
     if (!taskId) {
@@ -68,6 +77,14 @@ export default function TaskDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [currentOrgId, taskId]);
+
+  useEffect(() => {
+    setActiveTabKey(readPageSession<{ activeTab?: string }>(currentOrgId, tabKey)?.activeTab ?? 'results');
+  }, [currentOrgId, tabKey]);
+
+  useEffect(() => {
+    writePageSession(currentOrgId, tabKey, { activeTab: activeTabKey });
+  }, [activeTabKey, currentOrgId, tabKey]);
 
   const metrics = useMemo<SummaryMetric[]>(() => {
     if (!task) {
@@ -255,7 +272,7 @@ export default function TaskDetailPage() {
           </div>
 
           <SectionCard title="任务记录">
-            <Tabs defaultActiveKey="results" items={tabItems} />
+            <Tabs activeKey={activeTabKey} onChange={setActiveTabKey} items={tabItems} />
           </SectionCard>
         </>
       ) : null}

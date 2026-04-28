@@ -1,10 +1,11 @@
 import { ModalForm, ProFormSelect, ProFormSwitch, ProFormText, ProTable } from '@ant-design/pro-components';
-import { Button, Popconfirm, Space, message } from 'antd';
+import { Button, Input, Popconfirm, Select, Space, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
+import { ToolbarStrip } from '../../components/ui/toolbar-strip';
 import { useOrgContext } from '../../context/org-context';
 import { listEnabledCategories } from '../../services/categories';
 import {
@@ -37,6 +38,11 @@ type CategoryOption = {
   value: number;
 };
 
+type KeywordSearchValues = {
+  name?: string;
+  category_id?: number;
+};
+
 const scopeOptions = [
   { label: '标题', value: 'title' },
   { label: '正文', value: 'body' },
@@ -44,13 +50,23 @@ const scopeOptions = [
   { label: '富标题', value: 'rich_title' }
 ];
 
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
 export default function KeywordsPage() {
   const actionRef = useRef<ActionRef>({});
   const [messageApi, contextHolder] = message.useMessage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingKeyword, setEditingKeyword] = useState<KeywordRecord | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftFilters, setDraftFilters] = useState(() => ({
+    name: searchParams.get('name') ?? '',
+    categoryId: Number(searchParams.get('category_id') || 0) || undefined
+  }));
   const { activeOrgId, activeOrgName } = useOrgContext();
 
   useEffect(() => {
@@ -80,6 +96,8 @@ export default function KeywordsPage() {
   const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
   const categoryIdFromSearch = Number(searchParams.get('category_id') || 0) || undefined;
+  const currentPage = normalizePage(searchParams.get('page'));
+  const submittedKeyword = searchParams.get('name')?.trim() ?? '';
 
   const initialValues = useMemo<Partial<KeywordFormValues>>(() => {
     if (!editingKeyword) {
@@ -107,6 +125,13 @@ export default function KeywordsPage() {
     };
   }, [categoryIdFromSearch, categoryOptions, currentOrgName, editingKeyword]);
 
+  useEffect(() => {
+    setDraftFilters({
+      name: searchParams.get('name') ?? '',
+      categoryId: Number(searchParams.get('category_id') || 0) || undefined
+    });
+  }, [searchParams]);
+
   return (
     <>
       {contextHolder}
@@ -126,28 +151,106 @@ export default function KeywordsPage() {
           </Space>
         )}
       >
+        <ToolbarStrip>
+          <div className="toolbar-strip__group">
+            <div className="toolbar-strip__controls">
+              <Input
+                aria-label="关键词名称"
+                className="toolbar-strip__control"
+                placeholder="关键词名称"
+                value={draftFilters.name}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, name: event.target.value }))}
+              />
+              <Select
+                allowClear
+                aria-label="分类筛选"
+                className="toolbar-strip__control toolbar-strip__control--select"
+                placeholder="规则分类"
+                value={draftFilters.categoryId}
+                options={categoryOptions}
+                showSearch
+                optionFilterProp="label"
+                onChange={(value) => setDraftFilters((current) => ({ ...current, categoryId: value }))}
+              />
+            </div>
+          </div>
+
+          <div className="toolbar-strip__actions">
+            <Button onClick={() => setSearchParams(new URLSearchParams())}>
+              重置
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                const nextSearchParams = new URLSearchParams();
+                const nextKeyword = draftFilters.name.trim();
+                const filtersUnchanged =
+                  (nextKeyword || '') === submittedKeyword &&
+                  draftFilters.categoryId === categoryIdFromSearch;
+
+                if (nextKeyword) {
+                  nextSearchParams.set('name', nextKeyword);
+                }
+
+                if (draftFilters.categoryId) {
+                  nextSearchParams.set('category_id', String(draftFilters.categoryId));
+                }
+
+                if (filtersUnchanged && currentPage > 1) {
+                  nextSearchParams.set('page', String(currentPage));
+                }
+
+                setSearchParams(nextSearchParams);
+              }}
+            >
+              查询规则
+            </Button>
+          </div>
+        </ToolbarStrip>
+
         <ProTable<KeywordRecord>
           rowKey="id"
           actionRef={actionRef as never}
           size="small"
-          search={{ labelWidth: 88 }}
+          search={false}
           cardBordered={false}
           options={false}
           headerTitle={false}
           toolBarRender={false}
-          request={async (params) => {
-            const categoryId = typeof params.category_id === 'number'
-              ? params.category_id
-              : typeof params.category_id === 'string' && params.category_id
-                ? Number(params.category_id)
-                : categoryIdFromSearch;
+          params={{
+            orgid: currentOrgId,
+            name: submittedKeyword,
+            category_id: categoryIdFromSearch,
+            page: currentPage
+          }}
+          pagination={{
+            current: currentPage,
+            pageSize: 20,
+            showSizeChanger: false,
+            onChange: (nextPage) => {
+              if (nextPage === currentPage) {
+                return;
+              }
 
+              const nextSearchParams = new URLSearchParams(searchParams);
+
+              if (nextPage > 1) {
+                nextSearchParams.set('page', String(nextPage));
+              } else {
+                nextSearchParams.delete('page');
+              }
+
+              setSearchParams(nextSearchParams);
+            }
+          }}
+          request={async (params) => {
+            const requestPage = Number(params.page ?? params.current ?? currentPage) || currentPage;
             const result = await listKeywords({
               orgid: currentOrgId,
-              page: params.current,
-              pageSize: params.pageSize,
-              categoryId,
-              keyword: typeof params.name === 'string' ? params.name : undefined
+              page: requestPage,
+              pageSize: params.pageSize ?? 20,
+              categoryId: categoryIdFromSearch,
+              keyword: submittedKeyword || undefined
             });
 
             return {

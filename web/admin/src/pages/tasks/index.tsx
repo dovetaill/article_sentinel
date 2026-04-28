@@ -1,6 +1,7 @@
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Input, Popconfirm, Select, message } from 'antd';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
@@ -19,16 +20,30 @@ type ActionRef = {
   reload?: () => void;
 };
 
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
 export default function TasksPage() {
   const actionRef = useRef<ActionRef>({});
   const [messageApi, contextHolder] = message.useMessage();
   const [pageRows, setPageRows] = useState<TaskRecord[]>([]);
-  const [draftFilters, setDraftFilters] = useState({ taskNo: '', status: undefined as string | undefined });
-  const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftFilters, setDraftFilters] = useState(() => ({
+    taskNo: searchParams.get('task_no') ?? '',
+    status: searchParams.get('status') || undefined
+  }));
   const { activeOrgId } = useOrgContext();
   const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
+  const submittedFilters: Filters = {
+    task_no: searchParams.get('task_no')?.trim() || undefined,
+    status: searchParams.get('status') || undefined
+  };
+  const currentPage = normalizePage(searchParams.get('page'));
   const summary = useMemo(() => {
     const running = pageRows.filter((item) => item.status === 'running').length;
     const success = pageRows.filter((item) => item.status === 'success').length;
@@ -41,6 +56,13 @@ export default function TasksPage() {
       hits: hitCount
     };
   }, [pageRows]);
+
+  useEffect(() => {
+    setDraftFilters({
+      taskNo: searchParams.get('task_no') ?? '',
+      status: searchParams.get('status') || undefined
+    });
+  }, [searchParams]);
 
   return (
     <>
@@ -94,8 +116,7 @@ export default function TasksPage() {
           <div className="toolbar-strip__actions">
             <Button
               onClick={() => {
-                setDraftFilters({ taskNo: '', status: undefined });
-                setSubmittedFilters({});
+                setSearchParams(new URLSearchParams());
               }}
             >
               重置
@@ -103,10 +124,18 @@ export default function TasksPage() {
             <Button
               type="primary"
               onClick={() => {
-                setSubmittedFilters({
-                  task_no: draftFilters.taskNo || undefined,
-                  status: draftFilters.status
-                });
+                const nextSearchParams = new URLSearchParams();
+                const nextTaskNo = draftFilters.taskNo.trim();
+
+                if (nextTaskNo) {
+                  nextSearchParams.set('task_no', nextTaskNo);
+                }
+
+                if (draftFilters.status) {
+                  nextSearchParams.set('status', draftFilters.status);
+                }
+
+                setSearchParams(nextSearchParams);
               }}
             >
               查询任务
@@ -121,14 +150,34 @@ export default function TasksPage() {
           headerTitle={false}
           size="small"
           search={false}
-          params={{ ...submittedFilters, orgid: currentOrgId }}
+          params={{ ...submittedFilters, orgid: currentOrgId, page: currentPage }}
           options={false}
           toolBarRender={false}
+          pagination={{
+            current: currentPage,
+            pageSize: 20,
+            showSizeChanger: false,
+            onChange: (nextPage) => {
+              if (nextPage === currentPage) {
+                return;
+              }
+
+              const nextSearchParams = new URLSearchParams(searchParams);
+
+              if (nextPage > 1) {
+                nextSearchParams.set('page', String(nextPage));
+              } else {
+                nextSearchParams.delete('page');
+              }
+
+              setSearchParams(nextSearchParams);
+            }
+          }}
           request={async (params) => {
             const result = await listTasks({
               orgid: currentOrgId,
-              page: params.current,
-              pageSize: params.pageSize,
+              page: params.current ?? currentPage,
+              pageSize: params.pageSize ?? 20,
               task_no: submittedFilters.task_no,
               status: submittedFilters.status
             });

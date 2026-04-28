@@ -19,6 +19,8 @@ import {
 } from '../../services/results';
 import { getTaskDetail, type TaskRecord } from '../../services/tasks';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
+import { readPageSession, writePageSession } from '../../workbench/page-session';
+import { resolveWorkbenchRoute } from '../../workbench/registry';
 
 const { Text } = Typography;
 
@@ -45,6 +47,10 @@ export default function TaskResultsPage() {
   const currentOrgId = activeOrgId ?? 29;
   const numericTaskId = Number(taskId || 0);
   const returnTo = `${location.pathname}${location.search}`;
+  const tabKey = useMemo(
+    () => resolveWorkbenchRoute(`${location.pathname}${location.search}`).key,
+    [location.pathname, location.search],
+  );
 
   useEffect(() => {
     if (!numericTaskId) {
@@ -71,6 +77,32 @@ export default function TaskResultsPage() {
       })
       .finally(() => setLoading(false));
   }, [currentOrgId, numericTaskId, refreshSeed]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      writePageSession(currentOrgId, tabKey, { scrollY: window.scrollY });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      handleScroll();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [currentOrgId, tabKey]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    const scrollY = readPageSession<{ scrollY?: number }>(currentOrgId, tabKey)?.scrollY;
+    if (!scrollY) {
+      return;
+    }
+
+    window.scrollTo(0, scrollY);
+  }, [currentOrgId, loading, tabKey]);
 
   const summary = useMemo(() => {
     const highRisk = results.filter((item) => item.risk_level === 'high').length;

@@ -12,6 +12,11 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useOrgContext } from '../context/org-context';
+import {
+  clearPageSession,
+  getPersistedPageSessions,
+  restorePersistedPageSessions
+} from './page-session';
 import { normalizeWorkbenchPath } from './registry';
 import { readWorkbenchSession, writeWorkbenchSession } from './session';
 import {
@@ -22,6 +27,7 @@ import {
   closeTabsToLeft as closeTabsToLeftAction,
   closeTabsToRight as closeTabsToRightAction,
   createInitialWorkbenchState,
+  getClosedTabKeys,
   openTab as openTabAction,
   replaceTabTitle as replaceTabTitleAction,
   restoreSession as restoreSessionAction,
@@ -83,8 +89,12 @@ export function WorkbenchProvider({ children }: PropsWithChildren) {
   const applyAction = useCallback((action: ReturnType<typeof openTabAction> | ReturnType<typeof activateTabAction> | ReturnType<typeof closeTabAction> | ReturnType<typeof closeOtherTabsAction> | ReturnType<typeof closeTabsToLeftAction> | ReturnType<typeof closeTabsToRightAction> | ReturnType<typeof closeAllTabsAction> | ReturnType<typeof replaceTabTitleAction> | ReturnType<typeof restoreSessionAction>) => {
     setState((previous) => {
       const nextState = workbenchReducer(previous, action);
+      const closedTabKeys = getClosedTabKeys(previous, nextState);
       const activeTab = nextState.tabs.find((tab) => tab.key === nextState.activeKey);
 
+      closedTabKeys.forEach((tabKey) => {
+        clearPageSession(previous.orgId, tabKey);
+      });
       desiredHrefRef.current = getHrefFromTab(activeTab);
       return nextState;
     });
@@ -96,6 +106,7 @@ export function WorkbenchProvider({ children }: PropsWithChildren) {
     }
 
     const snapshot = readWorkbenchSession(activeOrgId);
+    restorePersistedPageSessions(activeOrgId, snapshot?.pageSessions);
 
     if (restoredOrgRef.current === null) {
       setState((previous) => {
@@ -115,6 +126,7 @@ export function WorkbenchProvider({ children }: PropsWithChildren) {
     }
 
     if (restoredOrgRef.current !== activeOrgId) {
+      restorePersistedPageSessions(activeOrgId, snapshot?.pageSessions);
       const nextState = snapshot
         ? workbenchReducer(createInitialWorkbenchState({ orgId: activeOrgId }), restoreSessionAction(snapshot))
         : createInitialWorkbenchState({ orgId: activeOrgId });
@@ -170,7 +182,8 @@ export function WorkbenchProvider({ children }: PropsWithChildren) {
     writeWorkbenchSession({
       orgId: activeOrgId,
       activeKey: state.activeKey,
-      tabs: state.tabs
+      tabs: state.tabs,
+      pageSessions: getPersistedPageSessions(activeOrgId, state.tabs.map((tab) => tab.key))
     });
   }, [activeOrgId, isLoading, state]);
 

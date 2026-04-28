@@ -1,7 +1,7 @@
 import { ProForm, ProFormText } from '@ant-design/pro-components';
 import { Button, Empty, Form, Space, Spin, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import HtmlBodyEditor from '../../components/ui/html-body-editor';
 import { PageHeader } from '../../components/ui/page-header';
@@ -15,6 +15,8 @@ import {
   type ArticleDetailRecord
 } from '../../services/articles';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
+import { readPageSession, writePageSession } from '../../workbench/page-session';
+import { resolveWorkbenchRoute } from '../../workbench/registry';
 
 const { Text } = Typography;
 
@@ -30,8 +32,13 @@ type SummaryMetric = {
   helper?: string;
 };
 
+type RectifyPageSession = {
+  draft?: RectifyFormValues;
+};
+
 export default function RectifyPage() {
   const { articleId } = useParams();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm<RectifyFormValues>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -41,6 +48,10 @@ export default function RectifyPage() {
   const { goBack } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
+  const tabKey = useMemo(
+    () => resolveWorkbenchRoute(`${location.pathname}${location.search}`).key,
+    [location.pathname, location.search],
+  );
   const taskIdFromSearch = Number(searchParams.get('task_id') || 0) || undefined;
   const resultIdFromSearch = Number(searchParams.get('result_id') || 0) || undefined;
   const returnTarget = searchParams.get('return_to') || `/articles/${articleId ?? ''}`;
@@ -54,18 +65,21 @@ export default function RectifyPage() {
     setLoading(true);
     void getArticleDetail(Number(articleId), currentOrgId)
       .then((data) => {
+        const pageSession = readPageSession<RectifyPageSession>(currentOrgId, tabKey);
+        const draft = pageSession?.draft;
+
         setRecord(data);
         form.setFieldsValue({
-          title: data.title,
-          desc: data.desc,
-          body: data.body
+          title: draft?.title ?? data.title,
+          desc: draft?.desc ?? data.desc,
+          body: draft?.body ?? data.body
         });
       })
       .catch(() => {
         setRecord(null);
       })
       .finally(() => setLoading(false));
-  }, [articleId, currentOrgId, form]);
+  }, [articleId, currentOrgId, form, tabKey]);
 
   const metrics = useMemo<SummaryMetric[]>(() => {
     if (!record) {
@@ -164,7 +178,24 @@ export default function RectifyPage() {
           <div className="rectify-layout">
             <SectionCard title="整改内容">
               <div className="rectify-form">
-                <ProForm<RectifyFormValues> form={form} submitter={false}>
+                <ProForm<RectifyFormValues>
+                  form={form}
+                  submitter={false}
+                  onValuesChange={(_, values) => {
+                    const draft: RectifyFormValues = {
+                      title: values.title ?? '',
+                      desc: values.desc ?? '',
+                      body: values.body ?? ''
+                    };
+
+                    writePageSession(
+                      currentOrgId,
+                      tabKey,
+                      { draft },
+                      { persisted: { draft: { title: draft.title, desc: draft.desc } } },
+                    );
+                  }}
+                >
                   <ProFormText
                     name="title"
                     label="整改标题"

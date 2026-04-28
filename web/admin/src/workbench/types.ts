@@ -32,4 +32,5 @@ export type PersistedWorkbenchSession = {
   orgId: number;
   activeKey: string;
   tabs: WorkbenchTab[];
+  pageSessions?: Record<string, unknown>;
 };

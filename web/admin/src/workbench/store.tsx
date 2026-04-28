@@ -237,3 +237,11 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return state;
   }
 }
+
+export function getClosedTabKeys(previousState: WorkbenchState, nextState: WorkbenchState) {
+  const nextKeys = new Set(nextState.tabs.map((tab) => tab.key));
+
+  return previousState.tabs
+    .filter((tab) => !nextKeys.has(tab.key))
+    .map((tab) => tab.key);
+}

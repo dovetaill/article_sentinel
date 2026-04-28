@@ -1,5 +1,6 @@
 import { Button, Empty, Input, Space, Spin, Table, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
@@ -29,23 +30,31 @@ function normalizeArticleID(value: string) {
   return Number.isInteger(articleID) && articleID > 0 ? articleID : undefined;
 }
 
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
 export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ArticleListItem[]>([]);
-  const [draftTitle, setDraftTitle] = useState('');
-  const [draftArticleID, setDraftArticleID] = useState('');
-  const [submittedTitle, setSubmittedTitle] = useState('');
-  const [submittedArticleID, setSubmittedArticleID] = useState<number | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const loadingRef = useRef(true);
   const requestIDRef = useRef(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftTitle, setDraftTitle] = useState(() => searchParams.get('title') ?? '');
+  const [draftArticleID, setDraftArticleID] = useState(() => searchParams.get('article_id') ?? '');
   const { activeOrgId } = useOrgContext();
   const { currentHref, buildHref, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
+  const submittedTitle = searchParams.get('title')?.trim() ?? '';
+  const submittedArticleIDText = searchParams.get('article_id') ?? '';
+  const submittedArticleID = normalizeArticleID(submittedArticleIDText);
+  const page = normalizePage(searchParams.get('page'));
+  const pageSize = 20;
 
   function beginReload() {
     if (loadingRef.current) {
@@ -55,6 +64,11 @@ export default function ArticlesPage() {
     setLoading(true);
     return true;
   }
+
+  useEffect(() => {
+    setDraftTitle(searchParams.get('title') ?? '');
+    setDraftArticleID(searchParams.get('article_id') ?? '');
+  }, [searchParams]);
 
   useEffect(() => {
     const requestID = requestIDRef.current + 1;
@@ -122,12 +136,12 @@ export default function ArticlesPage() {
                 if (!beginReload()) {
                   return;
                 }
-                setDraftTitle('');
-                setDraftArticleID('');
-                setSubmittedTitle('');
-                setSubmittedArticleID(undefined);
-                setPage(1);
-                setReloadKey((value) => value + 1);
+                if (searchParams.toString().length === 0) {
+                  setReloadKey((value) => value + 1);
+                  return;
+                }
+
+                setSearchParams(new URLSearchParams());
               }}
             >
               重置
@@ -140,10 +154,24 @@ export default function ArticlesPage() {
                 if (!beginReload()) {
                   return;
                 }
-                setSubmittedTitle(draftTitle.trim());
-                setSubmittedArticleID(normalizeArticleID(draftArticleID));
-                setPage(1);
-                setReloadKey((value) => value + 1);
+                const nextSearchParams = new URLSearchParams();
+                const nextTitle = draftTitle.trim();
+                const nextArticleID = normalizeArticleID(draftArticleID);
+
+                if (nextTitle) {
+                  nextSearchParams.set('title', nextTitle);
+                }
+
+                if (nextArticleID) {
+                  nextSearchParams.set('article_id', String(nextArticleID));
+                }
+
+                if (nextSearchParams.toString() === searchParams.toString()) {
+                  setReloadKey((value) => value + 1);
+                  return;
+                }
+
+                setSearchParams(nextSearchParams);
               }}
             >
               查询文稿
@@ -172,8 +200,21 @@ export default function ArticlesPage() {
                 if (!beginReload()) {
                   return;
                 }
-                setPage(nextPage);
-                setPageSize(nextPageSize);
+                const nextSearchParams = new URLSearchParams(searchParams);
+
+                if (nextPage > 1) {
+                  nextSearchParams.set('page', String(nextPage));
+                } else {
+                  nextSearchParams.delete('page');
+                }
+
+                if (nextPageSize !== pageSize) {
+                  nextSearchParams.set('page_size', String(nextPageSize));
+                } else {
+                  nextSearchParams.delete('page_size');
+                }
+
+                setSearchParams(nextSearchParams);
               }
             }}
             columns={[

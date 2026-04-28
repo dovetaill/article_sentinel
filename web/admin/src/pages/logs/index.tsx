@@ -1,7 +1,7 @@
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Input, Modal } from 'antd';
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
@@ -17,9 +17,19 @@ type Filters = {
   operator_name?: string;
 };
 
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
 export default function LogsPage() {
-  const [draftFilters, setDraftFilters] = useState({ articleId: '', taskId: '', operator: '' });
-  const [submittedFilters, setSubmittedFilters] = useState<Filters>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftFilters, setDraftFilters] = useState(() => ({
+    articleId: searchParams.get('article_id') ?? '',
+    taskId: searchParams.get('task_id') ?? '',
+    operator: searchParams.get('operator_name') ?? ''
+  }));
   const [activeSnapshot, setActiveSnapshot] = useState<OperationLogRecord | null>(null);
   const location = useLocation();
   const { activeOrgId } = useOrgContext();
@@ -27,6 +37,20 @@ export default function LogsPage() {
 
   const currentOrgId = activeOrgId ?? 29;
   const currentHref = `${location.pathname}${location.search}`;
+  const submittedFilters: Filters = {
+    article_id: searchParams.get('article_id') ? Number(searchParams.get('article_id')) : undefined,
+    task_id: searchParams.get('task_id') ? Number(searchParams.get('task_id')) : undefined,
+    operator_name: searchParams.get('operator_name') || undefined
+  };
+  const currentPage = normalizePage(searchParams.get('page'));
+
+  useEffect(() => {
+    setDraftFilters({
+      articleId: searchParams.get('article_id') ?? '',
+      taskId: searchParams.get('task_id') ?? '',
+      operator: searchParams.get('operator_name') ?? ''
+    });
+  }, [searchParams]);
 
   return (
     <>
@@ -61,8 +85,7 @@ export default function LogsPage() {
           <div className="toolbar-strip__actions">
             <Button
               onClick={() => {
-                setDraftFilters({ articleId: '', taskId: '', operator: '' });
-                setSubmittedFilters({});
+                setSearchParams(new URLSearchParams());
               }}
             >
               重置
@@ -70,11 +93,22 @@ export default function LogsPage() {
             <Button
               type="primary"
               onClick={() => {
-                setSubmittedFilters({
-                  article_id: draftFilters.articleId ? Number(draftFilters.articleId) : undefined,
-                  task_id: draftFilters.taskId ? Number(draftFilters.taskId) : undefined,
-                  operator_name: draftFilters.operator || undefined
-                });
+                const nextSearchParams = new URLSearchParams();
+                const nextOperator = draftFilters.operator.trim();
+
+                if (draftFilters.articleId.trim()) {
+                  nextSearchParams.set('article_id', draftFilters.articleId.trim());
+                }
+
+                if (draftFilters.taskId.trim()) {
+                  nextSearchParams.set('task_id', draftFilters.taskId.trim());
+                }
+
+                if (nextOperator) {
+                  nextSearchParams.set('operator_name', nextOperator);
+                }
+
+                setSearchParams(nextSearchParams);
               }}
             >
               查询日志
@@ -87,15 +121,35 @@ export default function LogsPage() {
           cardBordered={false}
           size="small"
           search={false}
-          params={{ ...submittedFilters, orgid: currentOrgId }}
+          params={{ ...submittedFilters, orgid: currentOrgId, page: currentPage }}
           headerTitle={false}
           options={false}
           toolBarRender={false}
+          pagination={{
+            current: currentPage,
+            pageSize: 20,
+            showSizeChanger: false,
+            onChange: (nextPage) => {
+              if (nextPage === currentPage) {
+                return;
+              }
+
+              const nextSearchParams = new URLSearchParams(searchParams);
+
+              if (nextPage > 1) {
+                nextSearchParams.set('page', String(nextPage));
+              } else {
+                nextSearchParams.delete('page');
+              }
+
+              setSearchParams(nextSearchParams);
+            }
+          }}
           request={async (params) => {
             const result = await listOperationLogs({
               orgid: currentOrgId,
-              page: params.current,
-              pageSize: params.pageSize,
+              page: params.current ?? currentPage,
+              pageSize: params.pageSize ?? 20,
               article_id: submittedFilters.article_id,
               task_id: submittedFilters.task_id,
               operator_name: submittedFilters.operator_name

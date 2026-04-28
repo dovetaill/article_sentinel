@@ -1,6 +1,6 @@
 import { Button, Empty, List, Space, Spin, Tabs, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
@@ -16,6 +16,8 @@ import {
 } from '../../services/logs';
 import { getResultDetail, type ResultDetailRecord } from '../../services/results';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
+import { readPageSession, writePageSession } from '../../workbench/page-session';
+import { resolveWorkbenchRoute } from '../../workbench/registry';
 
 const { Paragraph, Text } = Typography;
 
@@ -64,6 +66,7 @@ function renderSuggestAction(value?: string) {
 
 export default function ArticleDetailPage() {
   const { articleId } = useParams();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ArticleDetailRecord | null>(null);
@@ -74,6 +77,13 @@ export default function ArticleDetailPage() {
   const { buildHref, goBack, onLinkClick } = useWorkbenchNavigation();
 
   const currentOrgId = activeOrgId ?? 29;
+  const tabKey = useMemo(
+    () => resolveWorkbenchRoute(`${location.pathname}${location.search}`).key,
+    [location.pathname, location.search],
+  );
+  const [activeTabKey, setActiveTabKey] = useState(() => (
+    readPageSession<{ activeTab?: string }>(currentOrgId, tabKey)?.activeTab ?? 'hits'
+  ));
   const numericArticleId = Number(articleId || 0);
   const returnTarget = searchParams.get('return_to') || '/articles';
   const rectifyHref = buildHref(`/articles/${articleId ?? ''}/rectify`, {
@@ -113,6 +123,14 @@ export default function ArticleDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [currentOrgId, numericArticleId]);
+
+  useEffect(() => {
+    setActiveTabKey(readPageSession<{ activeTab?: string }>(currentOrgId, tabKey)?.activeTab ?? 'hits');
+  }, [currentOrgId, tabKey]);
+
+  useEffect(() => {
+    writePageSession(currentOrgId, tabKey, { activeTab: activeTabKey });
+  }, [activeTabKey, currentOrgId, tabKey]);
 
   const metrics = useMemo<SummaryMetric[]>(() => {
     if (!detail) {
@@ -307,7 +325,7 @@ export default function ArticleDetailPage() {
           </div>
 
           <SectionCard title="详情记录">
-            <Tabs defaultActiveKey="hits" items={tabItems} />
+            <Tabs activeKey={activeTabKey} onChange={setActiveTabKey} items={tabItems} />
           </SectionCard>
         </>
       ) : null}

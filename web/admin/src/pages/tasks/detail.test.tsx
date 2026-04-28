@@ -206,7 +206,7 @@ describe('TaskDetailPage', () => {
 
     renderWorkbenchPage();
 
-    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect((await screen.findAllByText('inspect-20260420-01')).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('tab', { name: '请求快照' }));
     expect(screen.getByText(/title_like/i)).toBeInTheDocument();
@@ -215,7 +215,7 @@ describe('TaskDetailPage', () => {
     expect(await screen.findByText('任务列表探针')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '切回任务详情' }));
-    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect((await screen.findAllByText('inspect-20260420-01')).length).toBeGreaterThan(0);
     expect(screen.getByText(/title_like/i)).toBeInTheDocument();
   });
 });
