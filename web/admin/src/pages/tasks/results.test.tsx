@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useEffect } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +16,7 @@ import {
 } from '../../services/results';
 import { getTaskDetail } from '../../services/tasks';
 import { WorkbenchProvider } from '../../workbench/provider';
+import { useWorkbench } from '../../workbench/use-workbench';
 import TaskResultsPage from './results';
 
 vi.mock('../../services/orgs', () => ({
@@ -50,6 +52,7 @@ const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
 const mockedBatchIgnoreResults = vi.mocked(batchIgnoreResults);
 const mockedBatchProcessResults = vi.mocked(batchProcessResults);
 const mockedListOperationLogs = vi.mocked(listOperationLogs);
+let mockScrollY = 0;
 
 function LocationProbe() {
   const location = useLocation();
@@ -76,9 +79,66 @@ function renderPage(initialEntries: string[] = ['/tasks/77/results']) {
   );
 }
 
+function TaskListProbe() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  return <div>任务列表探针</div>;
+}
+
+function WorkbenchCycleControls() {
+  const { activateTab } = useWorkbench();
+
+  return (
+    <>
+      <button type="button" onClick={() => activateTab('/tasks')}>
+        切换到任务列表
+      </button>
+      <button type="button" onClick={() => activateTab('task:77:results')}>
+        切回任务结果
+      </button>
+    </>
+  );
+}
+
+function renderWorkbenchPage(initialEntries: string[] = ['/tasks/77/results']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <WorkbenchCycleControls />
+            <Routes>
+              <Route path="/tasks/:taskId/results" element={<TaskResultsPage />} />
+              <Route path="/articles/:articleId" element={<div>文稿详情探针</div>} />
+              <Route path="/articles/:articleId/rectify" element={<div>整改页探针</div>} />
+              <Route path="/tasks" element={<TaskListProbe />} />
+            </Routes>
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
+
 describe('TaskResultsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockScrollY = 0;
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      get: () => mockScrollY
+    });
+    window.scrollTo = vi.fn((xOrOptions: number | ScrollToOptions, y?: number) => {
+      if (typeof xOrOptions === 'object') {
+        mockScrollY = Number(xOrOptions.top ?? 0);
+        return;
+      }
+
+      mockScrollY = Number(y ?? 0);
+    });
     mockedListOrgs.mockResolvedValue([
       {
         id: 29,
@@ -213,6 +273,28 @@ describe('TaskResultsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Ftasks%2F77%2Fresults');
+    });
+  });
+
+  it('restores result-page scroll position after a workbench deactivate/reactivate cycle', async () => {
+    const user = userEvent.setup();
+
+    renderWorkbenchPage();
+
+    expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+
+    mockScrollY = 360;
+    fireEvent.scroll(window);
+
+    await user.click(screen.getByRole('button', { name: '切换到任务列表' }));
+    expect(await screen.findByText('任务列表探针')).toBeInTheDocument();
+    expect(mockScrollY).toBe(0);
+
+    await user.click(screen.getByRole('button', { name: '切回任务结果' }));
+    expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockScrollY).toBe(360);
     });
   });
 });

@@ -55,9 +55,44 @@ function SeedWorkbenchTabs({ hrefs }: { hrefs: string[] }) {
   return null;
 }
 
+function WorkbenchCycleControls() {
+  const { activateTab } = useWorkbench();
+
+  return (
+    <>
+      <button type="button" onClick={() => activateTab('/tasks')}>
+        切换到任务列表
+      </button>
+      <button type="button" onClick={() => activateTab('article:501:rectify')}>
+        切回整改页
+      </button>
+    </>
+  );
+}
+
+function renderWorkbenchPage(initialEntries: string[] = ['/articles/501/rectify']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <WorkbenchCycleControls />
+            <Routes>
+              <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
+              <Route path="/tasks" element={<div>任务列表探针</div>} />
+            </Routes>
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
+
 describe('RectifyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     mockedListOrgs.mockResolvedValue([
       { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
     ]);
@@ -212,8 +247,6 @@ describe('RectifyPage', () => {
   });
 
   it('returns to the existing source tab before falling back to the return_to query target', async () => {
-    const user = userEvent.setup();
-
     render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/articles/501/rectify?return_to=%2Farticles%3Fview%3Dsummary']}>
@@ -233,10 +266,31 @@ describe('RectifyPage', () => {
 
     expect(await screen.findByText(/old title/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: '返回上一页' }));
+    fireEvent.click(screen.getByRole('link', { name: '返回上一页' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles?page=2');
     });
+  });
+
+  it('preserves unsaved rectify drafts across a workbench deactivate/reactivate cycle', async () => {
+    const user = userEvent.setup();
+
+    renderWorkbenchPage();
+
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('整改标题'));
+    await user.type(screen.getByLabelText('整改标题'), 'Draft title');
+    await user.clear(screen.getByLabelText('整改摘要'));
+    await user.type(screen.getByLabelText('整改摘要'), 'Draft summary');
+
+    await user.click(screen.getByRole('button', { name: '切换到任务列表' }));
+    expect(await screen.findByText('任务列表探针')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '切回整改页' }));
+    expect(await screen.findByText(/old title/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('整改标题')).toHaveValue('Draft title');
+    expect(screen.getByLabelText('整改摘要')).toHaveValue('Draft summary');
   });
 });

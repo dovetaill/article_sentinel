@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { WorkbenchProvider } from '../../workbench/provider';
+import { useWorkbench } from '../../workbench/use-workbench';
 import TaskDetailPage from './detail';
 import { listOperationLogs } from '../../services/logs';
 import { listOrgs } from '../../services/orgs';
@@ -56,6 +57,41 @@ function renderPage(initialEntries: string[] = ['/tasks/77']) {
             <Routes>
               <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
               <Route path="/articles/:articleId" element={<div>文稿详情探针</div>} />
+            </Routes>
+            <LocationProbe />
+          </WorkbenchProvider>
+        </OrgProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
+
+function WorkbenchCycleControls() {
+  const { activateTab } = useWorkbench();
+
+  return (
+    <>
+      <button type="button" onClick={() => activateTab('/tasks')}>
+        切换到任务列表
+      </button>
+      <button type="button" onClick={() => activateTab('task:77')}>
+        切回任务详情
+      </button>
+    </>
+  );
+}
+
+function renderWorkbenchPage(initialEntries: string[] = ['/tasks/77']) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <OrgProvider>
+          <WorkbenchProvider>
+            <WorkbenchCycleControls />
+            <Routes>
+              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+              <Route path="/articles/:articleId" element={<div>文稿详情探针</div>} />
+              <Route path="/tasks" element={<div>任务列表探针</div>} />
             </Routes>
             <LocationProbe />
           </WorkbenchProvider>
@@ -163,5 +199,23 @@ describe('TaskDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/articles/501?return_to=%2Ftasks%2F77');
     });
+  });
+
+  it('restores the last active local tab after a workbench deactivate/reactivate cycle', async () => {
+    const user = userEvent.setup();
+
+    renderWorkbenchPage();
+
+    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: '请求快照' }));
+    expect(screen.getByText(/title_like/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '切换到任务列表' }));
+    expect(await screen.findByText('任务列表探针')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '切回任务详情' }));
+    expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
+    expect(screen.getByText(/title_like/i)).toBeInTheDocument();
   });
 });
