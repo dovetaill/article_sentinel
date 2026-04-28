@@ -88,7 +88,6 @@ func (s *CategoryService) Create(ctx context.Context, input CreateCategoryInput)
 	item := &InspectionCategory{
 		OrgID:       normalized.OrgID,
 		Name:        normalized.Name,
-		Code:        normalized.Code,
 		Enabled:     normalized.Enabled,
 		Sort:        normalized.Sort,
 		CreatorID:   operatorID,
@@ -115,7 +114,6 @@ func (s *CategoryService) Update(ctx context.Context, input UpdateCategoryInput)
 		ID:          input.ID,
 		OrgID:       normalized.OrgID,
 		Name:        normalized.Name,
-		Code:        normalized.Code,
 		Enabled:     normalized.Enabled,
 		Sort:        normalized.Sort,
 		UpdaterID:   operatorID,
@@ -150,7 +148,6 @@ func buildCategoryDTO(item InspectionCategory) CategoryDTO {
 		ID:          item.ID,
 		OrgID:       item.OrgID,
 		Name:        item.Name,
-		Code:        item.Code,
 		Enabled:     item.Enabled,
 		Sort:        item.Sort,
 		CreatorID:   item.CreatorID,
@@ -170,14 +167,9 @@ func normalizeCategoryInput(input CreateCategoryInput) (*CreateCategoryInput, er
 	if name == "" {
 		return nil, fmt.Errorf("%w: name is required", ErrInvalidCategoryInput)
 	}
-	code := strings.TrimSpace(input.Code)
-	if code == "" {
-		return nil, fmt.Errorf("%w: code is required", ErrInvalidCategoryInput)
-	}
 	return &CreateCategoryInput{
 		OrgID:   input.OrgID,
 		Name:    name,
-		Code:    code,
 		Enabled: input.Enabled,
 		Sort:    input.Sort,
 	}, nil

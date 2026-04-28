@@ -43,7 +43,7 @@ func (r *CategoryRepository) List(ctx context.Context, input CategoryListInput) 
 	}
 	if text := strings.TrimSpace(input.Query); text != "" {
 		like := "%" + text + "%"
-		query = query.Where("name LIKE ? OR code LIKE ?", like, like)
+		query = query.Where("name LIKE ?", like)
 	}
 
 	var total int64
@@ -89,7 +89,6 @@ func (r *CategoryRepository) Update(ctx context.Context, item *InspectionCategor
 		Where("orgid = ? AND id = ?", item.OrgID, item.ID).
 		Updates(map[string]any{
 			"name":         item.Name,
-			"code":         item.Code,
 			"enabled":      item.Enabled,
 			"sort":         item.Sort,
 			"updater_id":   item.UpdaterID,

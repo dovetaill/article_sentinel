@@ -1544,6 +1544,9 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 			if articleInspectUint64Field(t, item, "orgid") != 29 {
 				t.Fatalf("category orgid = %d, want %d", articleInspectUint64Field(t, item, "orgid"), 29)
 			}
+			if _, ok := item["code"]; ok {
+				t.Fatalf("category payload = %#v, do not want code", item)
+			}
 			if _, ok := item["created_at"]; !ok {
 				t.Fatalf("category keys = %#v, want created_at", item)
 			}
@@ -1571,7 +1574,6 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 				path:   "/api/v1/article-inspect/categories",
 				body: map[string]any{
 					"name":    "新增分类",
-					"code":    "new-category",
 					"enabled": true,
 				},
 			},
@@ -1586,7 +1588,6 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 				path:   "/api/v1/article-inspect/categories/501",
 				body: map[string]any{
 					"name":    "分类更新",
-					"code":    "policy-updated",
 					"enabled": true,
 				},
 			},
@@ -1612,6 +1613,45 @@ func TestHandlerOrgCategoryAndArticleCenterContracts(t *testing.T) {
 					t.Fatalf("%s envelope = %+v, want bad request code", tt.name, result.envelope)
 				}
 			})
+		}
+	})
+
+	t.Run("category create and update payloads do not use code", func(t *testing.T) {
+		created := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/categories", map[string]any{
+			"orgid":   29,
+			"name":    "新增分类",
+			"enabled": true,
+			"sort":    10,
+		})
+		if created.status != http.StatusCreated {
+			t.Fatalf("create category status = %d, want %d", created.status, http.StatusCreated)
+		}
+
+		createdData := articleInspectDataMap(t, created.envelope.Data)
+		if articleInspectStringField(t, createdData, "name") != "新增分类" {
+			t.Fatalf("create category name = %q, want %q", articleInspectStringField(t, createdData, "name"), "新增分类")
+		}
+		if _, ok := createdData["code"]; ok {
+			t.Fatalf("category payload = %#v, do not want code", createdData)
+		}
+
+		categoryID := articleInspectUint64String(t, createdData["id"])
+		updated := sendArticleInspectJSONRequest(t, handler, http.MethodPut, "/api/v1/article-inspect/categories/"+categoryID, map[string]any{
+			"orgid":   29,
+			"name":    "新增分类-更新",
+			"enabled": false,
+			"sort":    15,
+		})
+		if updated.status != http.StatusOK {
+			t.Fatalf("update category status = %d, want %d", updated.status, http.StatusOK)
+		}
+
+		updatedData := articleInspectDataMap(t, updated.envelope.Data)
+		if articleInspectStringField(t, updatedData, "name") != "新增分类-更新" {
+			t.Fatalf("update category name = %q, want %q", articleInspectStringField(t, updatedData, "name"), "新增分类-更新")
+		}
+		if _, ok := updatedData["code"]; ok {
+			t.Fatalf("category payload = %#v, do not want code", updatedData)
 		}
 	})
 
@@ -2161,11 +2201,11 @@ func seedOrgCategoryFixtures(t *testing.T, db *gorm.DB) {
 			create_at DATETIME NOT NULL,
 			update_at DATETIME NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS xt_article_inspect_categories (
+		`DROP TABLE IF EXISTS xt_article_inspect_categories`,
+		`CREATE TABLE xt_article_inspect_categories (
 			id INTEGER PRIMARY KEY,
 			orgid INTEGER NOT NULL,
 			name TEXT NOT NULL,
-			code TEXT NOT NULL,
 			enabled INTEGER NOT NULL DEFAULT 1,
 			sort INTEGER NOT NULL DEFAULT 0,
 			creator_id INTEGER NOT NULL DEFAULT 0,
@@ -2195,13 +2235,13 @@ func seedOrgCategoryFixtures(t *testing.T, db *gorm.DB) {
 	}
 
 	if err := db.Exec(
-		`INSERT INTO xt_article_inspect_categories (id, orgid, name, code, enabled, sort, creator_id, creator_name, updater_id, updater_name, create_at, update_at) VALUES
-			(501, 29, '政策红线', 'policy', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
-			(502, 29, '高频违规', 'risk', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
-			(601, 30, '外部分类', 'external', 1, 10, 8, 'bob', 8, 'bob', ?, ?),
-			(1001, 100, '政策红线', 'policy', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
-			(1002, 100, '高频违规', 'risk', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
-			(2001, 200, '其他组织分类', 'other-org', 1, 10, 8, 'bob', 8, 'bob', ?, ?)`,
+		`INSERT INTO xt_article_inspect_categories (id, orgid, name, enabled, sort, creator_id, creator_name, updater_id, updater_name, create_at, update_at) VALUES
+			(501, 29, '政策红线', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
+			(502, 29, '高频违规', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
+			(601, 30, '外部分类', 1, 10, 8, 'bob', 8, 'bob', ?, ?),
+			(1001, 100, '政策红线', 1, 10, 7, 'alice', 7, 'alice', ?, ?),
+			(1002, 100, '高频违规', 1, 20, 7, 'alice', 7, 'alice', ?, ?),
+			(2001, 200, '其他组织分类', 1, 10, 8, 'bob', 8, 'bob', ?, ?)`,
 		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
 	).Error; err != nil {
 		t.Fatalf("seed categories error = %v", err)

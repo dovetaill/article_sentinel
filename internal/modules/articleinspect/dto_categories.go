@@ -25,7 +25,6 @@ type CategoryListInput struct {
 type CreateCategoryInput struct {
 	OrgID   uint64
 	Name    string
-	Code    string
 	Enabled bool
 	Sort    int64
 }
@@ -45,7 +44,6 @@ type CategoryDTO struct {
 	ID          uint64    `json:"id"`
 	OrgID       uint64    `json:"orgid"`
 	Name        string    `json:"name"`
-	Code        string    `json:"code"`
 	Enabled     bool      `json:"enabled"`
 	Sort        int64     `json:"sort"`
 	CreatorID   uint64    `json:"creator_id"`

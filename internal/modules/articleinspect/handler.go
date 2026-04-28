@@ -102,7 +102,6 @@ type categoryDetailRequest struct {
 type categoryBody struct {
 	OrgID   uint64 `json:"orgid,omitempty"`
 	Name    string `json:"name,omitempty"`
-	Code    string `json:"code,omitempty"`
 	Enabled bool   `json:"enabled,omitempty"`
 	Sort    int64  `json:"sort,omitempty"`
 }
@@ -331,7 +330,6 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		item, err := service.Create(ctx, CreateCategoryInput{
 			OrgID:   input.Body.OrgID,
 			Name:    input.Body.Name,
-			Code:    input.Body.Code,
 			Enabled: input.Body.Enabled,
 			Sort:    input.Body.Sort,
 		})
@@ -373,7 +371,6 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 			CreateCategoryInput: CreateCategoryInput{
 				OrgID:   input.Body.OrgID,
 				Name:    input.Body.Name,
-				Code:    input.Body.Code,
 				Enabled: input.Body.Enabled,
 				Sort:    input.Body.Sort,
 			},

@@ -29,7 +29,6 @@ type InspectionCategory struct {
 	ID          uint64 `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	OrgID       uint64 `gorm:"column:orgid;not null;index" json:"orgid"`
 	Name        string `gorm:"column:name;size:128;not null" json:"name"`
-	Code        string `gorm:"column:code;size:64;not null" json:"code"`
 	Enabled     bool   `gorm:"column:enabled;not null;default:true" json:"enabled"`
 	Sort        int64  `gorm:"column:sort;not null;default:0" json:"sort"`
 	CreatorID   uint64 `gorm:"column:creator_id;not null;default:0" json:"creator_id"`
