@@ -27,8 +27,8 @@ export function createPageSessionStore(initialSnapshot: PageSessionSnapshot = {}
   let entries = createEntryMap(initialSnapshot);
 
   return {
-    read(tabKey) {
-      return entries[tabKey]?.live as unknown;
+    read<T>(tabKey: string) {
+      return entries[tabKey]?.live as T | undefined;
     },
     write(tabKey, payload, options) {
       const nextEntry: PageSessionEntry = { live: payload };

@@ -131,7 +131,12 @@ describe('TaskResultsPage', () => {
       configurable: true,
       get: () => mockScrollY
     });
-    window.scrollTo = vi.fn((xOrOptions: number | ScrollToOptions, y?: number) => {
+    window.scrollTo = vi.fn((xOrOptions?: number | ScrollToOptions, y?: number) => {
+      if (xOrOptions === undefined) {
+        mockScrollY = 0;
+        return;
+      }
+
       if (typeof xOrOptions === 'object') {
         mockScrollY = Number(xOrOptions.top ?? 0);
         return;
