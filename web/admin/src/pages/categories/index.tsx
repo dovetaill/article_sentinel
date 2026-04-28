@@ -24,7 +24,6 @@ type ActionRef = {
 type CategoryFormValues = {
   org_name: string;
   name: string;
-  code: string;
   enabled: boolean;
   sort?: number;
 };
@@ -70,7 +69,6 @@ export default function CategoriesPage() {
       return {
         org_name: currentOrgName,
         name: '',
-        code: '',
         enabled: true,
         sort: 10
       };
@@ -79,7 +77,6 @@ export default function CategoriesPage() {
     return {
       org_name: currentOrgName,
       name: editingCategory.name,
-      code: editingCategory.code,
       enabled: editingCategory.enabled,
       sort: editingCategory.sort
     };
@@ -227,10 +224,6 @@ export default function CategoriesPage() {
               dataIndex: 'name'
             },
             {
-              title: '分类编码',
-              dataIndex: 'code'
-            },
-            {
               title: '所属机构',
               dataIndex: 'org_name',
               hideInSearch: true,
@@ -329,7 +322,6 @@ export default function CategoriesPage() {
           const payload: CategoryMutationInput = {
             orgid: currentOrgId,
             name: values.name,
-            code: values.code,
             enabled: values.enabled,
             sort: values.sort ?? 0
           };
@@ -350,7 +342,6 @@ export default function CategoriesPage() {
       >
         <ProFormText name="org_name" label="所属机构" disabled fieldProps={{ 'aria-label': '所属机构' }} />
         <ProFormText name="name" label="分类名称" fieldProps={{ 'aria-label': '分类名称' }} rules={[{ required: true }]} />
-        <ProFormText name="code" label="分类编码" fieldProps={{ 'aria-label': '分类编码' }} rules={[{ required: true }]} />
         <ProFormDigit name="sort" label="排序" fieldProps={{ precision: 0, min: 0 }} />
         <ProFormSwitch name="enabled" label="启用状态" />
       </ModalForm>

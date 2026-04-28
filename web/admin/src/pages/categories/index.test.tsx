@@ -89,7 +89,6 @@ describe('CategoriesPage', () => {
           id: 501,
           orgid: 29,
           name: '政策红线',
-          code: 'policy-risk',
           enabled: true,
           sort: 10,
           creator_name: 'alice',
@@ -102,7 +101,6 @@ describe('CategoriesPage', () => {
       id: 502,
       orgid: 29,
       name: '高频违规',
-      code: 'freq-risk',
       enabled: true,
       sort: 20
     } as never);
@@ -111,7 +109,6 @@ describe('CategoriesPage', () => {
       id: 501,
       orgid: 29,
       name: '政策调整',
-      code: 'policy-risk',
       enabled: true,
       sort: 10
     } as never);
@@ -120,7 +117,6 @@ describe('CategoriesPage', () => {
       id: 501,
       orgid: 29,
       name: '政策红线',
-      code: 'policy-risk',
       enabled: false,
       sort: 10
     } as never);
@@ -152,16 +148,22 @@ describe('CategoriesPage', () => {
     await user.click(screen.getByRole('button', { name: '新增分类' }));
     const createDialog = await screen.findByRole('dialog', { name: '新增分类' });
     expect(createDialog).toBeInTheDocument();
+    expect(within(createDialog).queryByLabelText('分类编码')).not.toBeInTheDocument();
 
     await user.type(within(createDialog).getByLabelText('分类名称'), '高频违规');
-    await user.type(within(createDialog).getByLabelText('分类编码'), 'freq-risk');
+    await user.clear(within(createDialog).getByRole('spinbutton', { name: '排序' }));
+    await user.type(within(createDialog).getByRole('spinbutton', { name: '排序' }), '20');
     await user.click(within(createDialog).getByRole('button', { name: '确认新增' }));
 
     await waitFor(() => {
       expect(mockedCreateCategory).toHaveBeenCalledWith(expect.objectContaining({
         orgid: 29,
         name: '高频违规',
-        code: 'freq-risk'
+        enabled: true,
+        sort: 20
+      }));
+      expect(mockedCreateCategory).not.toHaveBeenCalledWith(expect.objectContaining({
+        code: expect.anything()
       }));
     });
 

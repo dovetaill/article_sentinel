@@ -81,7 +81,6 @@ describe('KeywordsPage', () => {
         id: 501,
         orgid: 29,
         name: '政策红线',
-        code: 'policy-risk',
         enabled: true,
         sort: 10
       },
@@ -89,7 +88,6 @@ describe('KeywordsPage', () => {
         id: 502,
         orgid: 29,
         name: '高频违规',
-        code: 'freq-risk',
         enabled: true,
         sort: 20
       }

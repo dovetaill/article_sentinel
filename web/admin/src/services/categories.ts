@@ -4,7 +4,6 @@ export interface CategoryRecord {
   id: number;
   orgid: number;
   name: string;
-  code: string;
   enabled: boolean;
   sort: number;
   creator_id?: number;
@@ -33,7 +32,6 @@ export interface CategoryListParams {
 export interface CategoryMutationInput {
   orgid: number;
   name: string;
-  code: string;
   enabled: boolean;
   sort?: number;
 }
