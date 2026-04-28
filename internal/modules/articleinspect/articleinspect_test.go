@@ -953,6 +953,48 @@ func TestBatchAction(t *testing.T) {
 		t.Fatalf("BatchProcess() summary = %+v, want success 1 skip 1", processed)
 	}
 
+	t.Run("batch logs inherit task relation and audit snapshot from result rows", func(t *testing.T) {
+		db := newArticleInspectTestDB(t)
+		seedActionFixtures(t, db)
+		service := NewActionService(db, NewActionRepository(db))
+
+		ctx := identity.ContextWithActor(context.Background(), identity.NewActor(17, "auditor", "reviewer", "active"))
+		ctx = identity.ContextWithRequestMetadata(ctx, identity.RequestMetadata{
+			RequestID: "req-batch-1",
+			SourceIP:  "203.0.113.20",
+		})
+
+		if _, err := service.BatchIgnore(ctx, BatchActionInput{
+			OrgID:     100,
+			ResultIDs: []uint64{1001},
+			Reason:    "ignore duplicates",
+		}); err != nil {
+			t.Fatalf("BatchIgnore() error = %v", err)
+		}
+
+		var log InspectionOperationLog
+		if err := db.Where("orgid = ? AND result_id = ? AND operation_type = ?", 100, 1001, ActionTypeBatchIgnore).
+			Order("id DESC").
+			First(&log).Error; err != nil {
+			t.Fatalf("load batch operation log error = %v", err)
+		}
+		if log.TaskID != 501 {
+			t.Fatalf("operation log TaskID = %d, want %d", log.TaskID, 501)
+		}
+		if log.OperatorName != "auditor" {
+			t.Fatalf("operation log OperatorName = %q, want %q", log.OperatorName, "auditor")
+		}
+		if log.Summary == "" {
+			t.Fatal("operation log Summary = empty, want non-empty")
+		}
+		if log.RequestSnapshot == "" || !strings.Contains(log.RequestSnapshot, "\"task_id\":501") || !strings.Contains(log.RequestSnapshot, "\"result_id\":1001") {
+			t.Fatalf("operation log RequestSnapshot = %q, want task/result identifiers", log.RequestSnapshot)
+		}
+		if log.RequestID != "req-batch-1" || log.SourceIP != "203.0.113.20" {
+			t.Fatalf("operation log audit metadata = %+v, want request id and source ip", log)
+		}
+	})
+
 	t.Run("offline updates article and result state", func(t *testing.T) {
 		db := newArticleInspectTestDB(t)
 		seedLifecycleArticles(t, db)
@@ -1152,6 +1194,12 @@ func TestOperatorResolverPreservesAuditMetadataOnLogs(t *testing.T) {
 	}
 	if opLogs[0].RequestID != "req-456" || opLogs[0].SourceIP != "198.51.100.25" {
 		t.Fatalf("operation log audit metadata = %+v, want request id and source ip", opLogs[0])
+	}
+	if opLogs[0].Summary == "" {
+		t.Fatal("operation log Summary = empty, want non-empty")
+	}
+	if opLogs[0].RequestSnapshot == "" || !strings.Contains(opLogs[0].RequestSnapshot, "\"article_id\":12") {
+		t.Fatalf("operation log RequestSnapshot = %q, want article identifier", opLogs[0].RequestSnapshot)
 	}
 
 	var changeLogs []InspectionFieldChangeLog

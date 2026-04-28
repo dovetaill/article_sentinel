@@ -19,6 +19,18 @@ type ActionRef = {
 
 const { Text } = Typography;
 
+function resolveSharedTaskId(resultIds: number[], rows: ResultRecord[]) {
+  const selectedIDs = new Set(resultIds);
+  const taskIDs = Array.from(new Set(
+    rows
+      .filter((row) => selectedIDs.has(row.id))
+      .map((row) => row.task_id)
+      .filter((taskID) => Number.isFinite(taskID) && taskID > 0),
+  ));
+
+  return taskIDs.length === 1 ? taskIDs[0] : undefined;
+}
+
 export default function ResultsPage() {
   const actionRef = useRef<ActionRef>({});
   const location = useLocation();
@@ -195,6 +207,7 @@ export default function ResultsPage() {
         onOk={async () => {
           await batchOfflineResults({
             orgid: currentOrgId,
+            task_id: resolveSharedTaskId(confirmIds, pageRows),
             result_ids: confirmIds,
             reason: 'manual batch offline'
           });

@@ -77,7 +77,38 @@ func (s *LifecycleService) OfflineArticle(ctx context.Context, input OfflineArti
 
 	result := &LifecycleActionResult{ArticleID: article.ID, BeforeState: article.State, AfterState: article.State, Status: ActionStatusSkipped}
 	if article.State == ArticleStateOffline || article.State == ArticleStateOfflineSync {
-		_ = s.writeOperationLog(ctx, input.OrgID, input.ActionID, input.TaskID, input.ResultID, article.ID, ActionTypeOffline, article.State, article.State, ActionStatusSkipped, input.Reason, input.OperatorID, input.OperatorName)
+		_ = s.writeOperationLog(
+			ctx,
+			input.OrgID,
+			input.ActionID,
+			input.TaskID,
+			input.ResultID,
+			article.ID,
+			ActionTypeOffline,
+			article.State,
+			article.State,
+			ActionStatusSkipped,
+			input.Reason,
+			input.OperatorID,
+			input.OperatorName,
+			buildAuditSnapshot(struct {
+				OrgID         uint64 `json:"orgid"`
+				TaskID        uint64 `json:"task_id,omitempty"`
+				ResultID      uint64 `json:"result_id,omitempty"`
+				ActionID      uint64 `json:"action_id,omitempty"`
+				ArticleID     uint64 `json:"article_id"`
+				OperationType string `json:"operation_type"`
+				Reason        string `json:"reason,omitempty"`
+			}{
+				OrgID:         input.OrgID,
+				TaskID:        input.TaskID,
+				ResultID:      input.ResultID,
+				ActionID:      input.ActionID,
+				ArticleID:     article.ID,
+				OperationType: ActionTypeOffline,
+				Reason:        strings.TrimSpace(input.Reason),
+			}),
+		)
 		return result, nil
 	}
 
@@ -92,7 +123,38 @@ func (s *LifecycleService) OfflineArticle(ctx context.Context, input OfflineArti
 	}
 	result.Status = ActionStatusSuccess
 	result.AfterState = ArticleStateOffline
-	_ = s.writeOperationLog(ctx, input.OrgID, input.ActionID, input.TaskID, input.ResultID, article.ID, ActionTypeOffline, article.State, ArticleStateOffline, ActionStatusSuccess, input.Reason, input.OperatorID, input.OperatorName)
+	_ = s.writeOperationLog(
+		ctx,
+		input.OrgID,
+		input.ActionID,
+		input.TaskID,
+		input.ResultID,
+		article.ID,
+		ActionTypeOffline,
+		article.State,
+		ArticleStateOffline,
+		ActionStatusSuccess,
+		input.Reason,
+		input.OperatorID,
+		input.OperatorName,
+		buildAuditSnapshot(struct {
+			OrgID         uint64 `json:"orgid"`
+			TaskID        uint64 `json:"task_id,omitempty"`
+			ResultID      uint64 `json:"result_id,omitempty"`
+			ActionID      uint64 `json:"action_id,omitempty"`
+			ArticleID     uint64 `json:"article_id"`
+			OperationType string `json:"operation_type"`
+			Reason        string `json:"reason,omitempty"`
+		}{
+			OrgID:         input.OrgID,
+			TaskID:        input.TaskID,
+			ResultID:      input.ResultID,
+			ActionID:      input.ActionID,
+			ArticleID:     article.ID,
+			OperationType: ActionTypeOffline,
+			Reason:        strings.TrimSpace(input.Reason),
+		}),
+	)
 	return result, nil
 }
 
@@ -146,7 +208,41 @@ func (s *LifecycleService) UpdateArticleFields(ctx context.Context, input Update
 		if err := (&ActionRepository{db: tx}).CreateFieldChangeLogs(ctx, changeLogs); err != nil {
 			return err
 		}
-		return s.writeOperationLogWithDB(ctx, tx, input.OrgID, input.ActionID, input.TaskID, input.ResultID, input.ArticleID, ActionTypeRectify, article.State, article.State, ActionStatusSuccess, input.Reason, input.OperatorID, input.OperatorName)
+		return s.writeOperationLogWithDB(
+			ctx,
+			tx,
+			input.OrgID,
+			input.ActionID,
+			input.TaskID,
+			input.ResultID,
+			input.ArticleID,
+			ActionTypeRectify,
+			article.State,
+			article.State,
+			ActionStatusSuccess,
+			input.Reason,
+			input.OperatorID,
+			input.OperatorName,
+			buildAuditSnapshot(struct {
+				OrgID         uint64                `json:"orgid"`
+				TaskID        uint64                `json:"task_id,omitempty"`
+				ResultID      uint64                `json:"result_id,omitempty"`
+				ActionID      uint64                `json:"action_id,omitempty"`
+				ArticleID     uint64                `json:"article_id"`
+				OperationType string                `json:"operation_type"`
+				Reason        string                `json:"reason,omitempty"`
+				Fields        EditableArticleFields `json:"fields"`
+			}{
+				OrgID:         input.OrgID,
+				TaskID:        input.TaskID,
+				ResultID:      input.ResultID,
+				ActionID:      input.ActionID,
+				ArticleID:     input.ArticleID,
+				OperationType: ActionTypeRectify,
+				Reason:        strings.TrimSpace(input.Reason),
+				Fields:        input.Fields,
+			}),
+		)
 	})
 	if err != nil {
 		return nil, err
@@ -177,7 +273,38 @@ func (s *LifecycleService) RepublishArticle(ctx context.Context, input Republish
 		Update("state", targetState).Error; err != nil {
 		return nil, err
 	}
-	_ = s.writeOperationLog(ctx, input.OrgID, input.ActionID, input.TaskID, input.ResultID, article.ID, ActionTypeRepublish, article.State, targetState, ActionStatusSuccess, input.Reason, input.OperatorID, input.OperatorName)
+	_ = s.writeOperationLog(
+		ctx,
+		input.OrgID,
+		input.ActionID,
+		input.TaskID,
+		input.ResultID,
+		article.ID,
+		ActionTypeRepublish,
+		article.State,
+		targetState,
+		ActionStatusSuccess,
+		input.Reason,
+		input.OperatorID,
+		input.OperatorName,
+		buildAuditSnapshot(struct {
+			OrgID         uint64 `json:"orgid"`
+			TaskID        uint64 `json:"task_id,omitempty"`
+			ResultID      uint64 `json:"result_id,omitempty"`
+			ActionID      uint64 `json:"action_id,omitempty"`
+			ArticleID     uint64 `json:"article_id"`
+			OperationType string `json:"operation_type"`
+			Reason        string `json:"reason,omitempty"`
+		}{
+			OrgID:         input.OrgID,
+			TaskID:        input.TaskID,
+			ResultID:      input.ResultID,
+			ActionID:      input.ActionID,
+			ArticleID:     article.ID,
+			OperationType: ActionTypeRepublish,
+			Reason:        strings.TrimSpace(input.Reason),
+		}),
+	)
 	return &LifecycleActionResult{Status: ActionStatusSuccess, ArticleID: article.ID, BeforeState: article.State, AfterState: targetState}, nil
 }
 
@@ -202,11 +329,11 @@ func buildFieldChangeLogs(ctx context.Context, input UpdateArticleFieldsInput, c
 	return logs
 }
 
-func (s *LifecycleService) writeOperationLog(ctx context.Context, orgID, actionID, taskID, resultID, articleID uint64, operationType string, beforeState, afterState int8, status, reason string, operatorID uint64, operatorName string) error {
-	return s.writeOperationLogWithDB(ctx, s.db, orgID, actionID, taskID, resultID, articleID, operationType, beforeState, afterState, status, reason, operatorID, operatorName)
+func (s *LifecycleService) writeOperationLog(ctx context.Context, orgID, actionID, taskID, resultID, articleID uint64, operationType string, beforeState, afterState int8, status, reason string, operatorID uint64, operatorName, requestSnapshot string) error {
+	return s.writeOperationLogWithDB(ctx, s.db, orgID, actionID, taskID, resultID, articleID, operationType, beforeState, afterState, status, reason, operatorID, operatorName, requestSnapshot)
 }
 
-func (s *LifecycleService) writeOperationLogWithDB(ctx context.Context, db *gorm.DB, orgID, actionID, taskID, resultID, articleID uint64, operationType string, beforeState, afterState int8, status, reason string, operatorID uint64, operatorName string) error {
+func (s *LifecycleService) writeOperationLogWithDB(ctx context.Context, db *gorm.DB, orgID, actionID, taskID, resultID, articleID uint64, operationType string, beforeState, afterState int8, status, reason string, operatorID uint64, operatorName, requestSnapshot string) error {
 	if s == nil || s.actionRepo == nil {
 		return nil
 	}
@@ -225,8 +352,19 @@ func (s *LifecycleService) writeOperationLogWithDB(ctx context.Context, db *gorm
 		AfterState:    strconv.Itoa(int(afterState)),
 		Status:        status,
 		Reason:        reason,
-		OperatorID:    operatorID,
-		OperatorName:  strings.TrimSpace(operatorName),
+		Summary: buildOperationLogSummary(
+			operationType,
+			status,
+			strconv.Itoa(int(beforeState)),
+			strconv.Itoa(int(afterState)),
+			reason,
+			taskID,
+			articleID,
+			resultID,
+		),
+		RequestSnapshot: requestSnapshot,
+		OperatorID:      operatorID,
+		OperatorName:    strings.TrimSpace(operatorName),
 	}
 	enrichOperationLogWithOperator(ctx, logEntry)
 	return repo.CreateOperationLog(ctx, logEntry)

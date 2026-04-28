@@ -123,6 +123,7 @@ export default function TaskResultsPage() {
 
     const input = {
       orgid: currentOrgId,
+      task_id: numericTaskId || undefined,
       result_ids: ids,
       reason: `task-${kind}-action`
     };

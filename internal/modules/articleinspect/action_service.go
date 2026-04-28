@@ -55,13 +55,26 @@ func (s *ActionService) BatchOffline(ctx context.Context, input BatchActionInput
 
 	now := time.Now().UTC()
 	action := &InspectionAction{
-		OrgID:        input.OrgID,
-		ActionNo:     buildActionNumber(now),
-		ActionType:   ActionTypeOffline,
-		TaskID:       input.TaskID,
-		TargetCount:  int64(len(input.ResultIDs)),
-		Status:       ActionStatusRunning,
-		Reason:       strings.TrimSpace(input.Reason),
+		OrgID:       input.OrgID,
+		ActionNo:    buildActionNumber(now),
+		ActionType:  ActionTypeOffline,
+		TaskID:      input.TaskID,
+		TargetCount: int64(len(input.ResultIDs)),
+		Status:      ActionStatusRunning,
+		Reason:      strings.TrimSpace(input.Reason),
+		RequestSnapshot: buildAuditSnapshot(struct {
+			OrgID      uint64   `json:"orgid"`
+			TaskID     uint64   `json:"task_id,omitempty"`
+			ResultIDs  []uint64 `json:"result_ids"`
+			Reason     string   `json:"reason,omitempty"`
+			ActionType string   `json:"action_type"`
+		}{
+			OrgID:      input.OrgID,
+			TaskID:     input.TaskID,
+			ResultIDs:  append([]uint64(nil), input.ResultIDs...),
+			Reason:     strings.TrimSpace(input.Reason),
+			ActionType: ActionTypeOffline,
+		}),
 		OperatorID:   input.OperatorID,
 		OperatorName: strings.TrimSpace(input.OperatorName),
 		StartedAt:    &now,
@@ -95,10 +108,11 @@ func (s *ActionService) BatchOffline(ctx context.Context, input BatchActionInput
 				continue
 			}
 
+			taskID := resolveAuditTaskID(input.TaskID, result.TaskID)
 			lifecycleResult, err := lifecycle.OfflineArticle(ctx, OfflineArticleInput{
 				OrgID:        input.OrgID,
 				ArticleID:    result.ArticleID,
-				TaskID:       input.TaskID,
+				TaskID:       taskID,
 				ResultID:     result.ID,
 				ActionID:     action.ID,
 				Reason:       input.Reason,
@@ -153,13 +167,26 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 
 	now := time.Now().UTC()
 	action := &InspectionAction{
-		OrgID:        input.OrgID,
-		ActionNo:     buildActionNumber(now),
-		ActionType:   actionType,
-		TaskID:       input.TaskID,
-		TargetCount:  int64(len(input.ResultIDs)),
-		Status:       ActionStatusRunning,
-		Reason:       strings.TrimSpace(input.Reason),
+		OrgID:       input.OrgID,
+		ActionNo:    buildActionNumber(now),
+		ActionType:  actionType,
+		TaskID:      input.TaskID,
+		TargetCount: int64(len(input.ResultIDs)),
+		Status:      ActionStatusRunning,
+		Reason:      strings.TrimSpace(input.Reason),
+		RequestSnapshot: buildAuditSnapshot(struct {
+			OrgID      uint64   `json:"orgid"`
+			TaskID     uint64   `json:"task_id,omitempty"`
+			ResultIDs  []uint64 `json:"result_ids"`
+			Reason     string   `json:"reason,omitempty"`
+			ActionType string   `json:"action_type"`
+		}{
+			OrgID:      input.OrgID,
+			TaskID:     input.TaskID,
+			ResultIDs:  append([]uint64(nil), input.ResultIDs...),
+			Reason:     strings.TrimSpace(input.Reason),
+			ActionType: actionType,
+		}),
 		OperatorID:   input.OperatorID,
 		OperatorName: strings.TrimSpace(input.OperatorName),
 		StartedAt:    &now,
@@ -190,6 +217,7 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 
 			status := ActionStatusSuccess
 			beforeDisposition := result.DispositionStatus
+			taskID := resolveAuditTaskID(input.TaskID, result.TaskID)
 			if result.DispositionStatus == targetDisposition {
 				status = ActionStatusSkipped
 				summary.SkipCount++
@@ -212,7 +240,7 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 			logEntry := &InspectionOperationLog{
 				OrgID:         input.OrgID,
 				ActionID:      action.ID,
-				TaskID:        input.TaskID,
+				TaskID:        taskID,
 				ResultID:      result.ID,
 				ArticleID:     result.ArticleID,
 				OperationType: actionType,
@@ -220,8 +248,39 @@ func (s *ActionService) applyDisposition(ctx context.Context, input BatchActionI
 				AfterState:    targetDisposition,
 				Status:        status,
 				Reason:        input.Reason,
-				OperatorID:    input.OperatorID,
-				OperatorName:  strings.TrimSpace(input.OperatorName),
+				Summary: buildOperationLogSummary(
+					actionType,
+					status,
+					beforeDisposition,
+					targetDisposition,
+					input.Reason,
+					taskID,
+					result.ArticleID,
+					result.ID,
+				),
+				RequestSnapshot: buildAuditSnapshot(struct {
+					OrgID         uint64   `json:"orgid"`
+					TaskID        uint64   `json:"task_id,omitempty"`
+					ActionID      uint64   `json:"action_id,omitempty"`
+					ResultID      uint64   `json:"result_id,omitempty"`
+					ResultIDs     []uint64 `json:"result_ids"`
+					ArticleID     uint64   `json:"article_id,omitempty"`
+					OperationType string   `json:"operation_type"`
+					Status        string   `json:"status"`
+					Reason        string   `json:"reason,omitempty"`
+				}{
+					OrgID:         input.OrgID,
+					TaskID:        taskID,
+					ActionID:      action.ID,
+					ResultID:      result.ID,
+					ResultIDs:     append([]uint64(nil), input.ResultIDs...),
+					ArticleID:     result.ArticleID,
+					OperationType: actionType,
+					Status:        status,
+					Reason:        strings.TrimSpace(input.Reason),
+				}),
+				OperatorID:   input.OperatorID,
+				OperatorName: strings.TrimSpace(input.OperatorName),
 			}
 			enrichOperationLogWithOperator(ctx, logEntry)
 			if err := (&ActionRepository{db: tx}).CreateOperationLog(ctx, logEntry); err != nil {

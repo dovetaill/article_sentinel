@@ -78,6 +78,7 @@ export interface ResultListParams {
 
 export interface BatchOfflineInput {
   orgid: number;
+  task_id?: number;
   result_ids?: number[];
   filter_snapshot?: Record<string, unknown>;
   reason?: string;

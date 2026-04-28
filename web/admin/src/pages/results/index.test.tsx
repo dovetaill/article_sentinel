@@ -131,6 +131,7 @@ describe('ResultsPage', () => {
     await waitFor(() => {
       expect(mockedBatchOfflineResults).toHaveBeenCalledWith({
         orgid: 29,
+        task_id: 77,
         result_ids: [11],
         reason: 'manual batch offline'
       });

@@ -281,6 +281,26 @@ describe('TaskResultsPage', () => {
     });
   });
 
+  it('submits batch actions with the current task id so logs can link back to the task', async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    expect(await screen.findByText('Spam alert')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '本页全选' }));
+    await user.click(screen.getByRole('button', { name: '批量忽略' }));
+
+    await waitFor(() => {
+      expect(mockedBatchIgnoreResults).toHaveBeenCalledWith({
+        orgid: 29,
+        task_id: 77,
+        result_ids: [11],
+        reason: 'task-ignore-action'
+      });
+    });
+  });
+
   it('restores result-page scroll position after a workbench deactivate/reactivate cycle', async () => {
     const user = userEvent.setup();
 
