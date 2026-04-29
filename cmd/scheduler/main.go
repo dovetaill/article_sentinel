@@ -33,7 +33,8 @@ func main() {
 		log.Fatalf("build scheduler client: %v", err)
 	}
 	dispatcher := queueasynq.NewArticleInspectTaskDispatcher(client, rt.Config.Queue.Asynq.QueueName)
-	outboxRelay := articleinspectmodule.NewTaskOutboxRelay(rt.Resources.DB, dispatcher, rt.Logger)
+	outboxRelay := articleinspectmodule.NewTaskOutboxRelay(rt.Resources.DB, dispatcher, rt.Logger).
+		WithSettings(articleinspectmodule.NewTaskOutboxSettings(rt.Config.Queue.Outbox))
 
 	cronScheduler := scheduler.New()
 	if err := scheduler.RegisterJobs(

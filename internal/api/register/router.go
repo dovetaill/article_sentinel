@@ -86,6 +86,9 @@ func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes 
 	// 任务创建接口只负责落库和投递，真正扫描放到 worker 中异步执行。
 	routes := articleinspectmodule.NewRoutes(rt.Resources.DB, newArticleInspectDispatcher(rt))
 	routes.Logger = nilLogger(rt)
+	if rt.Config != nil {
+		routes.Outbox = articleinspectmodule.NewTaskOutboxSettings(rt.Config.Queue.Outbox)
+	}
 	return routes
 }
 

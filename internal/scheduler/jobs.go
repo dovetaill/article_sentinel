@@ -17,6 +17,10 @@ type ArticleInspectTaskOutboxRelay interface {
 	RelayPendingArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error)
 }
 
+type ArticleInspectTaskOutboxCleaner interface {
+	CleanupArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error)
+}
+
 type asynqEnqueuer struct {
 	client    queueasynq.Enqueuer
 	queueName string
@@ -56,6 +60,17 @@ func NewArticleInspectTaskOutboxRelayJob(logger *slog.Logger, relay ArticleInspe
 		}
 		if _, err := relay.RelayPendingArticleInspectTaskOutbox(context.Background(), limit); err != nil && logger != nil {
 			logger.Error("relay article inspect outbox", "error", err, "batch_size", limit)
+		}
+	}
+}
+
+func NewArticleInspectTaskOutboxCleanupJob(logger *slog.Logger, cleaner ArticleInspectTaskOutboxCleaner, limit int) func() {
+	return func() {
+		if cleaner == nil {
+			return
+		}
+		if _, err := cleaner.CleanupArticleInspectTaskOutbox(context.Background(), limit); err != nil && logger != nil {
+			logger.Error("cleanup article inspect outbox", "error", err, "batch_size", limit)
 		}
 	}
 }

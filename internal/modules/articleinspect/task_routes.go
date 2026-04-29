@@ -25,7 +25,7 @@ type taskDetailRequest struct {
 	OrgID uint64Param `query:"orgid"`
 }
 
-func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispatcher, logger *slog.Logger) {
+func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispatcher, logger *slog.Logger, outboxSettings TaskOutboxSettings) {
 	huma.Register(api, huma.Operation{
 		OperationID:        "article-inspect-task-list",
 		Method:             http.MethodGet,
@@ -65,7 +65,11 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		Summary:       "create article inspection task",
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, input *taskCreateRequest) (*createdEnvelopeOutput, error) {
-		task, err := service.CreateAndEnqueue(ctx, input.Body, NewTaskOutboxRelay(service.db, dispatcher, logger))
+		relay := NewTaskOutboxRelay(service.db, dispatcher, logger)
+		if relay != nil {
+			relay = relay.WithSettings(outboxSettings)
+		}
+		task, err := service.CreateAndEnqueue(ctx, input.Body, relay)
 		if err != nil {
 			return failureCreatedFromError(err)
 		}

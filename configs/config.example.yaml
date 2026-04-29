@@ -58,7 +58,12 @@ queue:
   outbox:
     enabled: true
     relay_spec: "@every 15s"
+    cleanup_spec: "@every 1h"
     batch_size: 20
+    lease_duration_seconds: 30
+    max_attempts: 10
+    dispatched_retention_hours: 168
+    dead_letter_retention_hours: 720
 
 scheduler:
   enabled: false

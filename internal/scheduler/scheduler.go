@@ -47,6 +47,18 @@ func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer, outbox
 		if _, err := c.AddFunc(relaySpec, NewArticleInspectTaskOutboxRelayJob(rt.Logger, outboxRelay, rt.Config.Queue.Outbox.BatchSize)); err != nil {
 			return fmt.Errorf("register article inspect outbox relay job: %w", err)
 		}
+
+		cleanupRelay, ok := outboxRelay.(ArticleInspectTaskOutboxCleaner)
+		if !ok {
+			return errors.New("outbox cleanup relay is required")
+		}
+		cleanupSpec := strings.TrimSpace(rt.Config.Queue.Outbox.CleanupSpec)
+		if cleanupSpec == "" {
+			return errors.New("outbox cleanup spec is required")
+		}
+		if _, err := c.AddFunc(cleanupSpec, NewArticleInspectTaskOutboxCleanupJob(rt.Logger, cleanupRelay, rt.Config.Queue.Outbox.BatchSize)); err != nil {
+			return fmt.Errorf("register article inspect outbox cleanup job: %w", err)
+		}
 	}
 	return nil
 }

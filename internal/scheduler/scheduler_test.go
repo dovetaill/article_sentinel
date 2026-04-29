@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
@@ -21,6 +22,9 @@ type outboxRelayRecorder struct {
 	limits     []int
 	dispatched int
 	err        error
+	cleanCalls int
+	cleaned    int
+	cleanErr   error
 }
 
 func (r *enqueueRecorder) EnqueueRuntimeHeartbeat(payload tasks.Payload) error {
@@ -34,6 +38,13 @@ func (r *outboxRelayRecorder) RelayPendingArticleInspectTaskOutbox(ctx context.C
 	r.calls++
 	r.limits = append(r.limits, limit)
 	return r.dispatched, r.err
+}
+
+func (r *outboxRelayRecorder) CleanupArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error) {
+	_ = ctx
+	r.cleanCalls++
+	r.limits = append(r.limits, limit)
+	return r.cleaned, r.cleanErr
 }
 
 func TestRegisterJobsAddsCronEntries(t *testing.T) {
@@ -53,13 +64,18 @@ func TestRegisterJobsAddsCronEntries(t *testing.T) {
 			},
 		},
 	}
+	cleanupSpecField := reflect.ValueOf(&rt.Config.Queue.Outbox).Elem().FieldByName("CleanupSpec")
+	if !cleanupSpecField.IsValid() {
+		t.Fatal("OutboxConfig missing CleanupSpec field")
+	}
+	cleanupSpecField.SetString("@every 1h")
 
 	if err := RegisterJobs(c, rt, &enqueueRecorder{}, &outboxRelayRecorder{}); err != nil {
 		t.Fatalf("RegisterJobs() error = %v", err)
 	}
 
-	if got := len(c.Entries()); got != 2 {
-		t.Fatalf("len(c.Entries()) = %d, want %d", got, 2)
+	if got := len(c.Entries()); got != 3 {
+		t.Fatalf("len(c.Entries()) = %d, want %d", got, 3)
 	}
 }
 
@@ -91,5 +107,20 @@ func TestArticleInspectTaskOutboxRelayJobDispatchesPendingMessages(t *testing.T)
 	}
 	if len(recorder.limits) != 1 || recorder.limits[0] != 20 {
 		t.Fatalf("limits = %#v, want %#v", recorder.limits, []int{20})
+	}
+}
+
+func TestOutboxConfigIncludesPhase3Fields(t *testing.T) {
+	typ := reflect.TypeOf(config.OutboxConfig{})
+	for _, field := range []string{
+		"CleanupSpec",
+		"LeaseDurationSeconds",
+		"MaxAttempts",
+		"DispatchedRetentionHours",
+		"DeadLetterRetentionHours",
+	} {
+		if _, ok := typ.FieldByName(field); !ok {
+			t.Fatalf("OutboxConfig missing field %q", field)
+		}
 	}
 }

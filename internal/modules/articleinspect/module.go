@@ -22,5 +22,6 @@ func NewRoutes(db *gorm.DB, dispatcher TaskDispatcher) Routes {
 		Logs:       NewLogService(db),
 		Articles:   NewArticleService(articleRepo),
 		Dispatcher: dispatcher,
+		Outbox:     defaultTaskOutboxSettings(),
 	}
 }

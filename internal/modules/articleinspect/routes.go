@@ -23,6 +23,7 @@ type Routes struct {
 	Articles   *ArticleService
 	Dispatcher TaskDispatcher
 	Logger     *slog.Logger
+	Outbox     TaskOutboxSettings
 }
 
 func RegisterRoutes(api huma.API, routes Routes) {
@@ -42,7 +43,7 @@ func RegisterRoutes(api huma.API, routes Routes) {
 		registerKeywordRoutes(inspect, routes.Keywords)
 	}
 	if routes.Tasks != nil {
-		registerTaskRoutes(inspect, routes.Tasks, routes.Dispatcher, routes.Logger)
+		registerTaskRoutes(inspect, routes.Tasks, routes.Dispatcher, routes.Logger, routes.Outbox)
 	}
 	if routes.Results != nil {
 		registerResultRoutes(inspect, routes.Results)
