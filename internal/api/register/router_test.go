@@ -207,7 +207,6 @@ func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 				Session: config.SessionConfig{
 					LegacySecret: "legacy-secret",
 					Secret:       "session-secret",
-					CookieName:   "as_admin_session",
 					Issuer:       "article-sentinel-admin",
 					TTLHours:     24,
 				},

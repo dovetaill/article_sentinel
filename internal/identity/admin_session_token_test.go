@@ -96,6 +96,19 @@ func TestAdminSessionManagerRejectsExpiredOrInvalidLegacyJWT(t *testing.T) {
 	}
 }
 
+func TestAdminSessionManagerAlwaysUsesFixedCookieName(t *testing.T) {
+	mgr := NewAdminSessionManager(config.SessionConfig{
+		LegacySecret: "legacy-secret",
+		Secret:       "session-secret",
+		Issuer:       "article-sentinel-admin",
+		TTLHours:     24,
+	})
+
+	if got := mgr.CookieName(); got != "as_admin_session" {
+		t.Fatalf("CookieName() = %q, want %q", got, "as_admin_session")
+	}
+}
+
 func TestContextWithAdminSessionStoresSession(t *testing.T) {
 	session := AdminSession{
 		UserID:   90525,

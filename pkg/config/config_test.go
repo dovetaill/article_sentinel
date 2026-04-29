@@ -19,6 +19,7 @@ func TestStarterConfigTypeShape(t *testing.T) {
 		{name: "config keeps database field", typ: reflect.TypeOf(config.Config{}), field: "Database", wantPresent: true},
 		{name: "config drops legacy top level mysql field", typ: reflect.TypeOf(config.Config{}), field: "MySQL", wantPresent: false},
 		{name: "auth drops seed admin field", typ: reflect.TypeOf(config.AuthConfig{}), field: "SeedAdmin", wantPresent: false},
+		{name: "session drops configurable cookie name field", typ: reflect.TypeOf(config.SessionConfig{}), field: "CookieName", wantPresent: false},
 		{name: "http exposes request timeout field", typ: reflect.TypeOf(config.HTTPConfig{}), field: "RequestTimeoutSeconds", wantPresent: true},
 	}
 

@@ -14,13 +14,14 @@ import (
 type AdminSessionManager struct {
 	legacySecret []byte
 	secret       []byte
-	cookieName   string
 	issuer       string
 	ttl          time.Duration
 	secureCookie bool
 	now          func() time.Time
 	err          error
 }
+
+const adminSessionCookieName = "as_admin_session"
 
 type adminSessionClaims struct {
 	UserID       uint64 `json:"id"`
@@ -43,11 +44,6 @@ func NewAdminSessionManager(cfg config.SessionConfig) *AdminSessionManager {
 		ttl = 24 * time.Hour
 	}
 
-	cookieName := strings.TrimSpace(cfg.CookieName)
-	if cookieName == "" {
-		cookieName = "as_admin_session"
-	}
-
 	issuer := strings.TrimSpace(cfg.Issuer)
 	if issuer == "" {
 		issuer = "article-sentinel-admin"
@@ -56,7 +52,6 @@ func NewAdminSessionManager(cfg config.SessionConfig) *AdminSessionManager {
 	manager := &AdminSessionManager{
 		legacySecret: []byte(cfg.LegacySecret),
 		secret:       []byte(cfg.Secret),
-		cookieName:   cookieName,
 		issuer:       issuer,
 		ttl:          ttl,
 		secureCookie: cfg.SecureCookie,
@@ -71,10 +66,7 @@ func NewAdminSessionManager(cfg config.SessionConfig) *AdminSessionManager {
 }
 
 func (m *AdminSessionManager) CookieName() string {
-	if m == nil {
-		return "as_admin_session"
-	}
-	return m.cookieName
+	return adminSessionCookieName
 }
 
 func (m *AdminSessionManager) SecureCookie() bool {

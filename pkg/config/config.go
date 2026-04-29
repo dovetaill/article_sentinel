@@ -91,7 +91,6 @@ type JWTConfig struct {
 type SessionConfig struct {
 	LegacySecret string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
 	Secret       string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
-	CookieName   string `yaml:"cookie_name" env:"AUTH_SESSION_COOKIE_NAME" env-default:"as_admin_session"`
 	Issuer       string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
 	TTLHours     int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
 	SecureCookie bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE" env-default:"true"`

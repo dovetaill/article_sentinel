@@ -86,7 +86,6 @@ func newTestAdminSessionManager() *identity.AdminSessionManager {
 	return identity.NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		CookieName:   "as_admin_session",
 		Issuer:       "article-sentinel-admin",
 		TTLHours:     24,
 	})
