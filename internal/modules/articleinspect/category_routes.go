@@ -70,9 +70,12 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		Summary:            "list inspection categories",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *categoryQueryRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {
@@ -106,8 +109,12 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		Summary:       "create inspection category",
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, input *categoryCreateRequest) (*createdEnvelopeOutput, error) {
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureCreatedFromError(err)
+		}
 		item, err := service.Create(ctx, CreateCategoryInput{
-			OrgID:   input.Body.OrgID,
+			OrgID:   orgID,
 			Name:    input.Body.Name,
 			Enabled: input.Body.Enabled,
 			Sort:    input.Body.Sort,
@@ -129,9 +136,12 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		item, err := service.Get(ctx, orgID, id)
 		if err != nil {
@@ -151,10 +161,14 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
 		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
+		}
 		item, err := service.Update(ctx, UpdateCategoryInput{
 			ID: id,
 			CreateCategoryInput: CreateCategoryInput{
-				OrgID:   input.Body.OrgID,
+				OrgID:   orgID,
 				Name:    input.Body.Name,
 				Enabled: input.Body.Enabled,
 				Sort:    input.Body.Sort,
@@ -177,8 +191,12 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
 		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
+		}
 		item, err := service.PatchEnabled(ctx, PatchCategoryStatusInput{
-			OrgID:      input.Body.OrgID,
+			OrgID:      orgID,
 			CategoryID: id,
 			Enabled:    input.Body.Enabled,
 		})
@@ -199,9 +217,12 @@ func registerCategoryRoutes(api huma.API, service *CategoryService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid category input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		if err := service.Delete(ctx, orgID, id); err != nil {
 			return failureOKFromError(err)

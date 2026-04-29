@@ -4,6 +4,14 @@ export interface ApiEnvelope<T> {
   data?: T;
 }
 
+export const FIXED_LOGIN_URL = 'https://appadmin.cq.qiludev.com/cq-admin/index.html';
+
+export function redirectToFixedLogin() {
+  if (typeof window !== 'undefined' && typeof window.location?.assign === 'function') {
+    window.location.assign(FIXED_LOGIN_URL);
+  }
+}
+
 export async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
     headers: {
@@ -11,7 +19,8 @@ export async function apiRequest<T>(input: string, init?: RequestInit): Promise<
       'Content-Type': 'application/json',
       ...(init?.headers ?? {})
     },
-    ...init
+    ...init,
+    credentials: 'same-origin'
   });
 
   let envelope: ApiEnvelope<T> | null = null;
@@ -19,6 +28,10 @@ export async function apiRequest<T>(input: string, init?: RequestInit): Promise<
     envelope = (await response.json()) as ApiEnvelope<T>;
   } catch {
     envelope = null;
+  }
+
+  if (response.status === 401) {
+    redirectToFixedLogin();
   }
 
   if (!response.ok || !envelope || envelope.code !== 0) {

@@ -1,7 +1,6 @@
 import { apiRequest } from '../lib/request';
 
 export interface ArticleListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   state?: number;
@@ -41,7 +40,6 @@ export interface ArticleDetailRecord extends ArticleListItem {
 }
 
 export interface ArticleLifecycleInput {
-  orgid: number;
   task_id?: number;
   result_id?: number;
   action_id?: string;
@@ -66,7 +64,6 @@ export interface ArticleLifecycleResult {
 
 export async function listArticles(params: ArticleListParams): Promise<ArticleListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.state !== undefined) query.set('state', String(params.state));
@@ -85,8 +82,8 @@ export async function listArticles(params: ArticleListParams): Promise<ArticleLi
   };
 }
 
-export function getArticleDetail(articleId: number, orgid: number): Promise<ArticleDetailRecord> {
-  return apiRequest<ArticleDetailRecord>(`/api/v1/article-inspect/articles/${articleId}?orgid=${orgid}`);
+export function getArticleDetail(articleId: number): Promise<ArticleDetailRecord> {
+  return apiRequest<ArticleDetailRecord>(`/api/v1/article-inspect/articles/${articleId}`);
 }
 
 function postArticleAction(path: string, input: ArticleLifecycleInput): Promise<ArticleLifecycleResult> {

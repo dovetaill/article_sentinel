@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,8 +30,13 @@ const {
   mockedListArticleFieldChanges: vi.fn()
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: mockedListOrgs
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/articles', () => ({
@@ -120,9 +126,6 @@ describe('ArticleDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
     mockedGetArticleDetail.mockResolvedValue({
       id: 501,
       orgid: 29,

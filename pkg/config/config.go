@@ -76,7 +76,8 @@ type PostgresConfig struct {
 
 // AuthConfig 定义 starter 认证配置。
 type AuthConfig struct {
-	JWT JWTConfig `yaml:"jwt"`
+	JWT     JWTConfig     `yaml:"jwt"`
+	Session SessionConfig `yaml:"session"`
 }
 
 // JWTConfig 定义 JWT 生成与校验参数。
@@ -84,6 +85,16 @@ type JWTConfig struct {
 	Secret     string `yaml:"secret" env:"AUTH_JWT_SECRET" env-default:"change-me-in-production"`
 	Issuer     string `yaml:"issuer" env:"AUTH_JWT_ISSUER" env-default:"article-sentinel"`
 	TTLMinutes int    `yaml:"ttl_minutes" env:"AUTH_JWT_TTL_MINUTES" env-default:"120"`
+}
+
+// SessionConfig 定义管理台第三方跳转登录的 session 参数。
+type SessionConfig struct {
+	LegacySecret string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
+	Secret       string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
+	CookieName   string `yaml:"cookie_name" env:"AUTH_SESSION_COOKIE_NAME" env-default:"as_admin_session"`
+	Issuer       string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
+	TTLHours     int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
+	SecureCookie bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE" env-default:"true"`
 }
 
 // QueueConfig 定义后台队列运行参数。

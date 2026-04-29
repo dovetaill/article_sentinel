@@ -23,7 +23,6 @@ export interface OperationLogListResult {
 }
 
 export interface OperationLogListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   article_id?: number;
@@ -54,7 +53,6 @@ export interface FieldChangeLogListResult {
 
 export async function listOperationLogs(params: OperationLogListParams): Promise<OperationLogListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.article_id) query.set('article_id', String(params.article_id));
@@ -73,18 +71,16 @@ export async function listOperationLogs(params: OperationLogListParams): Promise
   };
 }
 
-export function listTaskOperationLogs(taskId: number, orgid = 100, page = 1, pageSize = 20): Promise<OperationLogListResult> {
+export function listTaskOperationLogs(taskId: number, page = 1, pageSize = 20): Promise<OperationLogListResult> {
   return listOperationLogs({
-    orgid,
     task_id: taskId,
     page,
     pageSize
   });
 }
 
-export async function listArticleOperationLogs(articleId: number, orgid = 100, page = 1, pageSize = 20): Promise<OperationLogListResult> {
+export async function listArticleOperationLogs(articleId: number, page = 1, pageSize = 20): Promise<OperationLogListResult> {
   const query = new URLSearchParams({
-    orgid: String(orgid),
     page: String(page),
     page_size: String(pageSize)
   });
@@ -101,9 +97,8 @@ export async function listArticleOperationLogs(articleId: number, orgid = 100, p
   };
 }
 
-export async function listArticleFieldChanges(articleId: number, orgid = 100, page = 1, pageSize = 20): Promise<FieldChangeLogListResult> {
+export async function listArticleFieldChanges(articleId: number, page = 1, pageSize = 20): Promise<FieldChangeLogListResult> {
   const query = new URLSearchParams({
-    orgid: String(orgid),
     page: String(page),
     page_size: String(pageSize)
   });

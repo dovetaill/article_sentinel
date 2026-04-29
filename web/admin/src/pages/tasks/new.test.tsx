@@ -1,11 +1,11 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listKeywords } from '../../services/keywords';
-import { listOrgs } from '../../services/orgs';
 import NewTaskPage from './new';
 import { createTask } from '../../services/tasks';
 
@@ -42,8 +42,13 @@ vi.mock('../../services/keywords', () => ({
   listKeywords: vi.fn()
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/tasks', () => ({
@@ -53,21 +58,11 @@ vi.mock('../../services/tasks', () => ({
 }));
 
 const mockedListKeywords = vi.mocked(listKeywords);
-const mockedListOrgs = vi.mocked(listOrgs);
 const mockedCreateTask = vi.mocked(createTask);
 
 describe('NewTaskPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
     mockedListKeywords.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -105,10 +100,11 @@ describe('NewTaskPage', () => {
     expect(screen.getByLabelText('发布时间止')).toHaveAttribute('readonly');
     expect(screen.getByDisplayValue('一县一端')).toBeDisabled();
     await waitFor(() => {
-      expect(mockedListKeywords).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
+      const lastCall = mockedListKeywords.mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({
         enabled: true
-      }));
+      });
+      expect(lastCall).not.toHaveProperty('orgid');
     });
 
     const ruleSelect = await screen.findByRole('combobox', { name: '规则选择' });
@@ -122,12 +118,12 @@ describe('NewTaskPage', () => {
 
     await waitFor(() => {
       expect(mockedCreateTask).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
         keyword_ids: [7]
       }));
     });
 
     const payload = mockedCreateTask.mock.calls[0]?.[0];
+    expect(payload).not.toHaveProperty('orgid');
     expect(payload).not.toHaveProperty('article_id');
     expect(payload).not.toHaveProperty('title_like');
     expect(payload).not.toHaveProperty('include_body');

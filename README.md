@@ -175,8 +175,9 @@ cp configs/config.example.yaml configs/config.local.yaml
 说明：
 
 - `.env` 控制 Docker Compose 的 MySQL / Redis 端口、密码、数据库名、业务账号
-- `configs/config.local.yaml` 控制后端连接哪个 MySQL / Redis
+- `configs/config.local.yaml` 控制后端连接哪个 MySQL / Redis，以及管理台第三方跳转登录的 session 配置
 - 如果你改了 `.env` 中的端口或密码，记得同步更新 `configs/config.local.yaml`
+- `auth.session.legacy_secret` 与 `auth.session.secret` 只允许放占位值或本地联调密钥，生产环境请通过环境变量注入，避免把真实密钥提交进仓库
 
 `.env.example` 默认值：
 

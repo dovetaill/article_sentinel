@@ -31,12 +31,16 @@ func registerBatchActionRoute(api huma.API, service *ActionService, path, operat
 		Path:        path,
 		Summary:     summary,
 	}, func(ctx context.Context, input *batchActionRequest) (*okEnvelopeOutput, error) {
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
+		}
 		if len(input.Body.ResultIDs) == 0 {
 			return failureOKEnvelope(http.StatusBadRequest, "result_ids are required"), nil
 		}
 		operator := ResolveOperator(ctx)
 		result, err := handler(ctx, BatchActionInput{
-			OrgID:        input.Body.OrgID,
+			OrgID:        orgID,
 			TaskID:       input.Body.TaskID,
 			ResultIDs:    input.Body.ResultIDs,
 			Reason:       input.Body.Reason,

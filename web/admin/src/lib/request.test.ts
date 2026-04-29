@@ -1,9 +1,29 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiRequest } from './request';
 
+const FIXED_LOGIN_URL = 'https://appadmin.cq.qiludev.com/cq-admin/index.html';
+const originalLocation = window.location;
+
 describe('apiRequest', () => {
+  let assignSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        assign: assignSpy,
+      },
+    });
+  });
+
   afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
     vi.restoreAllMocks();
   });
 
@@ -24,6 +44,13 @@ describe('apiRequest', () => {
       id: 7,
       name: 'keyword',
     });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/article-inspect/keywords/7',
+      expect.objectContaining({
+        credentials: 'same-origin',
+      }),
+    );
   });
 
   it('throws a readable error when the API returns a failure envelope', async () => {
@@ -39,5 +66,23 @@ describe('apiRequest', () => {
     );
 
     await expect(apiRequest('/api/v1/article-inspect/keywords')).rejects.toThrow('invalid keyword input');
+  });
+
+  it('redirects to the fixed login page when the API returns 401', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          code: 401,
+          message: 'unauthorized',
+        }),
+      }),
+    );
+
+    await expect(apiRequest('/api/v1/auth/session')).rejects.toThrow('unauthorized');
+
+    expect(assignSpy).toHaveBeenCalledWith(FIXED_LOGIN_URL);
   });
 });

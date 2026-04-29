@@ -22,7 +22,6 @@ export interface CategoryListResult {
 }
 
 export interface CategoryListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   name?: string;
@@ -30,7 +29,6 @@ export interface CategoryListParams {
 }
 
 export interface CategoryMutationInput {
-  orgid: number;
   name: string;
   enabled: boolean;
   sort?: number;
@@ -38,7 +36,6 @@ export interface CategoryMutationInput {
 
 export async function listCategories(params: CategoryListParams): Promise<CategoryListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.name) query.set('name', params.name);
@@ -56,9 +53,8 @@ export async function listCategories(params: CategoryListParams): Promise<Catego
   };
 }
 
-export async function listEnabledCategories(orgid: number): Promise<CategoryRecord[]> {
+export async function listEnabledCategories(): Promise<CategoryRecord[]> {
   const result = await listCategories({
-    orgid,
     page: 1,
     pageSize: 200,
     enabled: true
@@ -81,15 +77,15 @@ export function updateCategory(id: number, input: CategoryMutationInput): Promis
   });
 }
 
-export function patchCategoryStatus(id: number, orgid: number, enabled: boolean): Promise<CategoryRecord> {
+export function patchCategoryStatus(id: number, enabled: boolean): Promise<CategoryRecord> {
   return apiRequest<CategoryRecord>(`/api/v1/article-inspect/categories/${id}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ orgid, enabled })
+    body: JSON.stringify({ enabled })
   });
 }
 
-export function deleteCategory(id: number, orgid: number): Promise<{ id: number }> {
-  return apiRequest<{ id: number }>(`/api/v1/article-inspect/categories/${id}?orgid=${orgid}`, {
+export function deleteCategory(id: number): Promise<{ id: number }> {
+  return apiRequest<{ id: number }>(`/api/v1/article-inspect/categories/${id}`, {
     method: 'DELETE'
   });
 }

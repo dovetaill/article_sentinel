@@ -23,7 +23,6 @@ export interface TaskListResult {
 }
 
 export interface TaskListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   status?: string;
@@ -31,7 +30,6 @@ export interface TaskListParams {
 }
 
 export interface CreateTaskInput {
-  orgid: number;
   keyword_ids: number[];
   publish_time_start?: string;
   publish_time_end?: string;
@@ -40,7 +38,6 @@ export interface CreateTaskInput {
 
 export async function listTasks(params: TaskListParams): Promise<TaskListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.status) query.set('status', params.status);
@@ -58,8 +55,8 @@ export async function listTasks(params: TaskListParams): Promise<TaskListResult>
   };
 }
 
-export function getTaskDetail(id: number, orgid = 100): Promise<TaskRecord> {
-  return apiRequest<TaskRecord>(`/api/v1/article-inspect/tasks/${id}?orgid=${orgid}`);
+export function getTaskDetail(id: number): Promise<TaskRecord> {
+  return apiRequest<TaskRecord>(`/api/v1/article-inspect/tasks/${id}`);
 }
 
 export function createTask(input: CreateTaskInput): Promise<TaskRecord> {
@@ -69,8 +66,8 @@ export function createTask(input: CreateTaskInput): Promise<TaskRecord> {
   });
 }
 
-export function deleteTask(id: number, orgid: number): Promise<{ id: number }> {
-  return apiRequest<{ id: number }>(`/api/v1/article-inspect/tasks/${id}?orgid=${orgid}`, {
+export function deleteTask(id: number): Promise<{ id: number }> {
+  return apiRequest<{ id: number }>(`/api/v1/article-inspect/tasks/${id}`, {
     method: 'DELETE'
   });
 }

@@ -2,12 +2,12 @@ import { ConfigProvider } from 'antd';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listOperationLogs } from '../../services/logs';
-import { listOrgs } from '../../services/orgs';
 import {
   batchIgnoreResults,
   batchOfflineResults,
@@ -19,8 +19,13 @@ import { WorkbenchProvider } from '../../workbench/provider';
 import { useWorkbench } from '../../workbench/use-workbench';
 import TaskResultsPage from './results';
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/tasks', () => ({
@@ -45,7 +50,6 @@ vi.mock('../../services/logs', () => ({
   listArticleFieldChanges: vi.fn()
 }));
 
-const mockedListOrgs = vi.mocked(listOrgs);
 const mockedGetTaskDetail = vi.mocked(getTaskDetail);
 const mockedListResults = vi.mocked(listResults);
 const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
@@ -144,15 +148,6 @@ describe('TaskResultsPage', () => {
 
       mockScrollY = Number(y ?? 0);
     });
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
     mockedGetTaskDetail.mockResolvedValue({
       id: 77,
       orgid: 29,
@@ -293,7 +288,6 @@ describe('TaskResultsPage', () => {
 
     await waitFor(() => {
       expect(mockedBatchIgnoreResults).toHaveBeenCalledWith({
-        orgid: 29,
         task_id: 77,
         result_ids: [11],
         reason: 'task-ignore-action'

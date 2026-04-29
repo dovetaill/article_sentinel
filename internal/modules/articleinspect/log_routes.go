@@ -43,9 +43,12 @@ func registerLogRoutes(api huma.API, service *LogService) {
 		Summary:            "list inspection operation logs",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *operationLogListRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid log query"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		articleID, err := input.ArticleID.Value()
 		if err != nil {
@@ -94,9 +97,12 @@ func registerLogRoutes(api huma.API, service *LogService) {
 		Summary:            "list inspection field change logs",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *fieldChangeLogListRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid log query"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		articleID, err := input.ArticleID.Value()
 		if err != nil {
@@ -144,9 +150,12 @@ func registerLogRoutes(api huma.API, service *LogService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {
@@ -179,9 +188,12 @@ func registerLogRoutes(api huma.API, service *LogService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {

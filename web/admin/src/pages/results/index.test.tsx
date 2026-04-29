@@ -1,17 +1,22 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
-import { listOrgs } from '../../services/orgs';
 import { WorkbenchProvider } from '../../workbench/provider';
 import ResultsPage from './index';
 import { batchOfflineResults, listResults } from '../../services/results';
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/results', () => ({
@@ -22,7 +27,6 @@ vi.mock('../../services/results', () => ({
   rectifyArticle: vi.fn()
 }));
 
-const mockedListOrgs = vi.mocked(listOrgs);
 const mockedListResults = vi.mocked(listResults);
 const mockedBatchOfflineResults = vi.mocked(batchOfflineResults);
 
@@ -50,15 +54,6 @@ function renderPage(initialEntries: string[] = ['/results']) {
 describe('ResultsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
     mockedListResults.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -130,7 +125,6 @@ describe('ResultsPage', () => {
 
     await waitFor(() => {
       expect(mockedBatchOfflineResults).toHaveBeenCalledWith({
-        orgid: 29,
         task_id: 77,
         result_ids: [11],
         reason: 'manual batch offline'

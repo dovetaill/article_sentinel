@@ -31,9 +31,12 @@ func registerResultRoutes(api huma.API, service *ResultService) {
 		Summary:            "list article inspection results",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *resultListRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid result query"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		taskID, err := input.TaskID.Value()
 		if err != nil {
@@ -78,9 +81,12 @@ func registerResultRoutes(api huma.API, service *ResultService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid result input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid result input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		result, err := service.GetDetail(ctx, orgID, id)
 		if err != nil {

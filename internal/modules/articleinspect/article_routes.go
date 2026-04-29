@@ -29,9 +29,12 @@ func registerArticleRoutes(api huma.API, service *ArticleService) {
 		Summary:            "list real articles for the article center",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *articleListRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article query"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {
@@ -74,9 +77,12 @@ func registerArticleRoutes(api huma.API, service *ArticleService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		result, err := service.Get(ctx, orgID, articleID)
 		if err != nil {

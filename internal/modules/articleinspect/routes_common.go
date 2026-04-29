@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/dovetaill/article-sentinel/internal/api/response"
+	"github.com/dovetaill/article-sentinel/internal/identity"
 	"gorm.io/gorm"
 )
 
@@ -207,6 +208,8 @@ func articleInspectStatusFromError(err error) (int, string) {
 	switch {
 	case err == nil:
 		return http.StatusOK, "ok"
+	case errors.Is(err, identity.ErrUnauthorized):
+		return http.StatusUnauthorized, "unauthorized"
 	case errors.Is(err, ErrCategoryNotFound):
 		return http.StatusNotFound, "resource not found"
 	case errors.Is(err, ErrKeywordNotFound), errors.Is(err, gorm.ErrRecordNotFound):

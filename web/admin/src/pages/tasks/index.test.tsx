@@ -1,11 +1,11 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
-import { listOrgs } from '../../services/orgs';
 import { WorkbenchProvider } from '../../workbench/provider';
 import TasksPage from './index';
 import { deleteTask, listTasks } from '../../services/tasks';
@@ -17,12 +17,16 @@ vi.mock('../../services/tasks', () => ({
   deleteTask: vi.fn()
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 const mockedListTasks = vi.mocked(listTasks);
-const mockedListOrgs = vi.mocked(listOrgs);
 const mockedDeleteTask = vi.mocked(deleteTask);
 
 function LocationProbe() {
@@ -59,15 +63,6 @@ function readLocationState() {
 describe('TasksPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
     mockedListTasks.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -123,7 +118,7 @@ describe('TasksPage', () => {
     expect(screen.getByText('已执行不可删')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '删除任务' }));
     await user.click(await screen.findByRole('button', { name: '确认删除' }));
-    expect(mockedDeleteTask).toHaveBeenCalledWith(501, 29);
+    expect(mockedDeleteTask).toHaveBeenCalledWith(501);
     expect(screen.queryByText('统一发起巡检任务，查看执行状态、扫描规模与命中情况。')).not.toBeInTheDocument();
   });
 
@@ -134,13 +129,14 @@ describe('TasksPage', () => {
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
     expect(screen.getByLabelText('任务编号')).toHaveValue('inspect-20260420-01');
     await waitFor(() => {
-      expect(mockedListTasks).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      const lastCall = mockedListTasks.mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({
         page: 2,
         pageSize: 20,
         task_no: 'inspect-20260420-01',
         status: 'running'
-      }));
+      });
+      expect(lastCall).not.toHaveProperty('orgid');
     });
 
     await user.clear(screen.getByLabelText('任务编号'));
@@ -160,13 +156,14 @@ describe('TasksPage', () => {
     expect(await screen.findByText('inspect-20260420-01')).toBeInTheDocument();
     expect(screen.getByLabelText('任务编号')).toHaveValue('inspect-20260420-02');
     await waitFor(() => {
-      expect(mockedListTasks).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      const lastCall = mockedListTasks.mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({
         page: 1,
         pageSize: 20,
         task_no: 'inspect-20260420-02',
         status: 'running'
-      }));
+      });
+      expect(lastCall).not.toHaveProperty('orgid');
     });
   });
 });

@@ -50,6 +50,13 @@ auth:
     secret: change-me-in-production
     issuer: article-sentinel
     ttl_minutes: 120
+  session:
+    legacy_secret: set-via-env-or-local-secret
+    secret: set-via-env-or-local-secret
+    cookie_name: as_admin_session
+    issuer: article-sentinel-admin
+    ttl_hours: 24
+    secure_cookie: true
 
 queue:
   asynq:

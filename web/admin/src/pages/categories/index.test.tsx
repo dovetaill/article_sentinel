@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +14,6 @@ import {
   patchCategoryStatus,
   updateCategory
 } from '../../services/categories';
-import { listOrgs } from '../../services/orgs';
 import { WorkbenchProvider } from '../../workbench/provider';
 
 vi.mock('../../services/categories', () => ({
@@ -24,8 +24,13 @@ vi.mock('../../services/categories', () => ({
   deleteCategory: vi.fn()
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 const mockedListCategories = vi.mocked(listCategories);
@@ -33,7 +38,6 @@ const mockedCreateCategory = vi.mocked(createCategory);
 const mockedUpdateCategory = vi.mocked(updateCategory);
 const mockedPatchCategoryStatus = vi.mocked(patchCategoryStatus);
 const mockedDeleteCategory = vi.mocked(deleteCategory);
-const mockedListOrgs = vi.mocked(listOrgs);
 
 function LocationProbe() {
   const location = useLocation();
@@ -69,16 +73,6 @@ function readLocationState() {
 describe('CategoriesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
 
     mockedListCategories.mockResolvedValue({
       page: 1,
@@ -124,6 +118,16 @@ describe('CategoriesPage', () => {
     mockedDeleteCategory.mockResolvedValue({ id: 501 });
   });
 
+  function expectNoOrgID(input: unknown) {
+    expect(input).not.toHaveProperty('orgid');
+  }
+
+  function expectLastCategoryList(expected: Record<string, unknown>) {
+    const lastCall = mockedListCategories.mock.calls.at(-1)?.[0];
+    expect(lastCall).toMatchObject(expected);
+    expectNoOrgID(lastCall);
+  }
+
   it('loads categories for the current org and wires create/edit modal submissions', async () => {
     const user = userEvent.setup();
 
@@ -142,7 +146,7 @@ describe('CategoriesPage', () => {
     });
 
     await waitFor(() => {
-      expect(mockedListCategories).toHaveBeenCalledWith(expect.objectContaining({ orgid: 29 }));
+      expectLastCategoryList({});
     });
 
     await user.click(screen.getByRole('button', { name: '新增分类' }));
@@ -156,12 +160,13 @@ describe('CategoriesPage', () => {
     await user.click(within(createDialog).getByRole('button', { name: '确认新增' }));
 
     await waitFor(() => {
-      expect(mockedCreateCategory).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
+      const createInput = mockedCreateCategory.mock.calls.at(-1)?.[0];
+      expect(createInput).toMatchObject({
         name: '高频违规',
         enabled: true,
         sort: 20
-      }));
+      });
+      expectNoOrgID(createInput);
       expect(mockedCreateCategory).not.toHaveBeenCalledWith(expect.objectContaining({
         code: expect.anything()
       }));
@@ -176,10 +181,11 @@ describe('CategoriesPage', () => {
     await user.click(within(editDialog).getByRole('button', { name: '保存修改' }));
 
     await waitFor(() => {
-      expect(mockedUpdateCategory).toHaveBeenCalledWith(501, expect.objectContaining({
-        orgid: 29,
+      const updateInput = mockedUpdateCategory.mock.calls.at(-1)?.[1];
+      expect(updateInput).toMatchObject({
         name: '政策调整'
-      }));
+      });
+      expectNoOrgID(updateInput);
     });
   }, 10_000);
 
@@ -192,14 +198,14 @@ describe('CategoriesPage', () => {
 
     await user.click(screen.getByRole('button', { name: '停用' }));
     await waitFor(() => {
-      expect(mockedPatchCategoryStatus).toHaveBeenCalledWith(501, 29, false);
+      expect(mockedPatchCategoryStatus).toHaveBeenCalledWith(501, false);
     });
 
     await user.click(screen.getByRole('button', { name: '删除分类' }));
     await user.click(await screen.findByRole('button', { name: '确认删除' }));
 
     await waitFor(() => {
-      expect(mockedDeleteCategory).toHaveBeenCalledWith(501, 29);
+      expect(mockedDeleteCategory).toHaveBeenCalledWith(501);
     });
   }, 10_000);
 
@@ -210,13 +216,12 @@ describe('CategoriesPage', () => {
     expect(await screen.findByText('政策红线')).toBeInTheDocument();
     expect(screen.getByLabelText('分类名称')).toHaveValue('政策');
     await waitFor(() => {
-      expect(mockedListCategories).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastCategoryList({
         page: 2,
         pageSize: 20,
         name: '政策',
         enabled: true
-      }));
+      });
     });
 
     await user.clear(screen.getByLabelText('分类名称'));
@@ -236,13 +241,12 @@ describe('CategoriesPage', () => {
     expect(await screen.findByText('政策红线')).toBeInTheDocument();
     expect(screen.getByLabelText('分类名称')).toHaveValue('高频');
     await waitFor(() => {
-      expect(mockedListCategories).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastCategoryList({
         page: 1,
         pageSize: 20,
         name: '高频',
         enabled: true
-      }));
+      });
     });
   }, 10_000);
 });

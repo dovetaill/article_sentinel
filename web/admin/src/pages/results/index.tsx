@@ -8,7 +8,6 @@ import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
-import { useOrgContext } from '../../context/org-context';
 import { batchOfflineResults, listResults, type ResultRecord } from '../../services/results';
 import { WorkbenchLink } from '../../workbench/link';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
@@ -38,10 +37,8 @@ export default function ResultsPage() {
   const [pageRows, setPageRows] = useState<ResultRecord[]>([]);
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
-  const { activeOrgId } = useOrgContext();
   const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
-  const currentOrgId = activeOrgId ?? 29;
   const [returnTo] = useState(() => `${location.pathname}${location.search}`);
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
@@ -106,7 +103,6 @@ export default function ResultsPage() {
           }}
           request={async (params) => {
             const result = await listResults({
-              orgid: currentOrgId,
               page: params.current,
               pageSize: params.pageSize
             });
@@ -206,7 +202,6 @@ export default function ResultsPage() {
         onCancel={() => setConfirmIds([])}
         onOk={async () => {
           await batchOfflineResults({
-            orgid: currentOrgId,
             task_id: resolveSharedTaskId(confirmIds, pageRows),
             result_ids: confirmIds,
             reason: 'manual batch offline'

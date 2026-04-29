@@ -33,9 +33,12 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		Summary:            "list article inspection tasks",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *taskQueryRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid task input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {
@@ -65,11 +68,17 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		Summary:       "create article inspection task",
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, input *taskCreateRequest) (*createdEnvelopeOutput, error) {
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureCreatedFromError(err)
+		}
 		relay := NewTaskOutboxRelay(service.db, dispatcher, logger)
 		if relay != nil {
 			relay = relay.WithSettings(outboxSettings)
 		}
-		task, err := service.CreateAndEnqueue(ctx, input.Body, relay)
+		createInput := input.Body
+		createInput.OrgID = orgID
+		task, err := service.CreateAndEnqueue(ctx, createInput, relay)
 		if err != nil {
 			return failureCreatedFromError(err)
 		}
@@ -87,9 +96,12 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid task input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid task input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		result, err := service.Get(ctx, orgID, id)
 		if err != nil {
@@ -109,9 +121,12 @@ func registerTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispa
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid task input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid task input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		if err := service.Delete(ctx, orgID, id); err != nil {
 			return failureOKFromError(err)

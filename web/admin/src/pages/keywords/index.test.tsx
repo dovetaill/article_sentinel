@@ -1,12 +1,12 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { listEnabledCategories } from '../../services/categories';
-import { listOrgs } from '../../services/orgs';
 import KeywordsPage from './index';
 import { createKeyword, deleteKeyword, listKeywords, updateKeyword } from '../../services/keywords';
 
@@ -22,8 +22,13 @@ vi.mock('../../services/categories', () => ({
   listEnabledCategories: vi.fn()
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 const mockedListKeywords = vi.mocked(listKeywords);
@@ -31,7 +36,6 @@ const mockedCreateKeyword = vi.mocked(createKeyword);
 const mockedUpdateKeyword = vi.mocked(updateKeyword);
 const mockedDeleteKeyword = vi.mocked(deleteKeyword);
 const mockedListEnabledCategories = vi.mocked(listEnabledCategories);
-const mockedListOrgs = vi.mocked(listOrgs);
 
 function LocationProbe() {
   const location = useLocation();
@@ -65,16 +69,6 @@ function readLocationState() {
 describe('KeywordsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockedListOrgs.mockResolvedValue([
-      {
-        id: 29,
-        name: '一县一端',
-        cate_id: 0,
-        enabled: true,
-        sort: 1
-      }
-    ]);
 
     mockedListEnabledCategories.mockResolvedValue([
       {
@@ -130,7 +124,8 @@ describe('KeywordsPage', () => {
     expect(screen.queryByRole('link', { name: '查看分类' })).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockedListKeywords).toHaveBeenCalledWith(expect.objectContaining({ orgid: 29 }));
+      const lastCall = mockedListKeywords.mock.calls.at(-1)?.[0];
+      expect(lastCall).not.toHaveProperty('orgid');
     });
 
     await user.click(screen.getByRole('button', { name: '新增规则' }));
@@ -147,7 +142,6 @@ describe('KeywordsPage', () => {
 
     await waitFor(() => {
       expect(mockedCreateKeyword).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
         category_id: 501,
         name: 'new keyword'
       }));
@@ -165,7 +159,7 @@ describe('KeywordsPage', () => {
     await user.click(await screen.findByRole('button', { name: '确认删除' }));
 
     await waitFor(() => {
-      expect(mockedDeleteKeyword).toHaveBeenCalledWith(7, 29);
+      expect(mockedDeleteKeyword).toHaveBeenCalledWith(7);
     });
   });
 
@@ -176,13 +170,14 @@ describe('KeywordsPage', () => {
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByLabelText('关键词名称')).toHaveValue('spam');
     await waitFor(() => {
-      expect(mockedListKeywords).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      const lastCall = mockedListKeywords.mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({
         page: 2,
         pageSize: 20,
         keyword: 'spam',
         categoryId: 501
-      }));
+      });
+      expect(lastCall).not.toHaveProperty('orgid');
     });
 
     await user.clear(screen.getByLabelText('关键词名称'));
@@ -202,13 +197,14 @@ describe('KeywordsPage', () => {
     expect(await screen.findByText('spam')).toBeInTheDocument();
     expect(screen.getByLabelText('关键词名称')).toHaveValue('risk');
     await waitFor(() => {
-      expect(mockedListKeywords).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      const lastCall = mockedListKeywords.mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({
         page: 1,
         pageSize: 20,
         keyword: 'risk',
         categoryId: 501
-      }));
+      });
+      expect(lastCall).not.toHaveProperty('orgid');
     });
   });
 });

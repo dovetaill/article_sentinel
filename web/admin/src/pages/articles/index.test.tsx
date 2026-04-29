@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,17 +9,21 @@ import { OrgProvider } from '../../context/org-context';
 import { WorkbenchProvider } from '../../workbench/provider';
 import ArticlesPage from './index';
 
-const { mockedListArticles, mockedListOrgs } = vi.hoisted(() => ({
-  mockedListArticles: vi.fn(),
-  mockedListOrgs: vi.fn()
+const { mockedListArticles } = vi.hoisted(() => ({
+  mockedListArticles: vi.fn()
 }));
 
 vi.mock('../../services/articles', () => ({
   listArticles: mockedListArticles
 }));
 
-vi.mock('../../services/orgs', () => ({
-  listOrgs: mockedListOrgs
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 function LocationProbe() {
@@ -55,9 +60,6 @@ function readLocationState() {
 describe('ArticlesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
     mockedListArticles.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -81,6 +83,12 @@ describe('ArticlesPage', () => {
       ]
     });
   });
+
+  function expectLastArticleQuery(expected: Record<string, unknown>) {
+    const lastCall = mockedListArticles.mock.calls.at(-1)?.[0];
+    expect(lastCall).toMatchObject(expected);
+    expect(lastCall).not.toHaveProperty('orgid');
+  }
 
   it('renders article search, pagination, and latest inspect enrichment', async () => {
     const user = userEvent.setup();
@@ -169,11 +177,10 @@ describe('ArticlesPage', () => {
     expect(screen.getByRole('textbox', { name: '按文稿ID查询' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /查询文稿/ })).toBeInTheDocument();
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
+      expectLastArticleQuery({
         page: 1,
-        pageSize: 20,
-        orgid: 29
-      }));
+        pageSize: 20
+      });
     });
     expect(screen.getByText('501')).toBeInTheDocument();
     expect(screen.queryByText('#501')).not.toBeInTheDocument();
@@ -187,11 +194,10 @@ describe('ArticlesPage', () => {
 
     expect(await screen.findByText('第二页稿件')).toBeInTheDocument();
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 2,
         pageSize: 20
-      }));
+      });
     });
 
     await user.type(screen.getByRole('textbox', { name: '标题模糊查询' }), '命中');
@@ -199,12 +205,11 @@ describe('ArticlesPage', () => {
 
     expect(await screen.findByText('搜索命中文稿')).toBeInTheDocument();
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 1,
         pageSize: 20,
         title: '命中'
-      }));
+      });
     });
 
     await user.clear(screen.getByRole('textbox', { name: '标题模糊查询' }));
@@ -213,12 +218,11 @@ describe('ArticlesPage', () => {
 
     expect(await screen.findByText('ID 精确命中文稿')).toBeInTheDocument();
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 1,
         pageSize: 20,
         article_id: 901
-      }));
+      });
     });
   });
 
@@ -293,12 +297,11 @@ describe('ArticlesPage', () => {
 
     await waitFor(() => {
       expect(mockedListArticles).toHaveBeenCalledTimes(3);
-      expect(mockedListArticles).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 1,
         pageSize: 20,
         title: '重复查询'
-      }));
+      });
     });
   });
 
@@ -310,13 +313,12 @@ describe('ArticlesPage', () => {
     expect(screen.getByLabelText('标题模糊查询')).toHaveValue('命中');
     expect(screen.getByLabelText('按文稿ID查询')).toHaveValue('901');
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 2,
         pageSize: 20,
         title: '命中',
         article_id: 901
-      }));
+      });
     });
 
     await user.clear(screen.getByLabelText('标题模糊查询'));
@@ -339,13 +341,12 @@ describe('ArticlesPage', () => {
     expect(screen.getByLabelText('标题模糊查询')).toHaveValue('复盘');
     expect(screen.getByLabelText('按文稿ID查询')).toHaveValue('902');
     await waitFor(() => {
-      expect(mockedListArticles).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastArticleQuery({
         page: 1,
         pageSize: 20,
         title: '复盘',
         article_id: 902
-      }));
+      });
     });
   });
 });

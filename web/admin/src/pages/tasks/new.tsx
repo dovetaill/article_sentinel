@@ -32,18 +32,17 @@ export default function NewTaskPage() {
   const { open, onLinkClick } = useWorkbenchNavigation();
   const redirectTimerRef = useRef<number | null>(null);
 
-  const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
 
   useEffect(() => {
-    void listKeywords({ orgid: currentOrgId, page: 1, pageSize: 100, enabled: true })
+    void listKeywords({ page: 1, pageSize: 100, enabled: true })
       .then((result) => {
         setKeywords(result.items.filter((item) => item.enabled));
       })
       .catch(() => {
         setKeywords([]);
       });
-  }, [currentOrgId]);
+  }, [activeOrgId]);
 
   useEffect(() => () => {
     if (redirectTimerRef.current !== null) {
@@ -69,7 +68,6 @@ export default function NewTaskPage() {
 
     try {
       await createTask({
-        orgid: currentOrgId,
         keyword_ids: draft.keyword_ids,
         publish_time_start: draft.publish_time_start?.format(timePayloadFormat),
         publish_time_end: draft.publish_time_end?.format(timePayloadFormat),

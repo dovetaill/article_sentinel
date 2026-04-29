@@ -5,7 +5,6 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { SectionCard } from '../../components/ui/section-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
-import { useOrgContext } from '../../context/org-context';
 import { formatInspectionSnapshot } from '../../lib/inspection-snapshot';
 import { listOperationLogs, type OperationLogRecord } from '../../services/logs';
 import { WorkbenchLink } from '../../workbench/link';
@@ -32,10 +31,8 @@ export default function LogsPage() {
   }));
   const [activeSnapshot, setActiveSnapshot] = useState<OperationLogRecord | null>(null);
   const location = useLocation();
-  const { activeOrgId } = useOrgContext();
   const { buildHref } = useWorkbenchNavigation();
 
-  const currentOrgId = activeOrgId ?? 29;
   const currentHref = `${location.pathname}${location.search}`;
   const submittedFilters: Filters = {
     article_id: searchParams.get('article_id') ? Number(searchParams.get('article_id')) : undefined,
@@ -121,7 +118,7 @@ export default function LogsPage() {
           cardBordered={false}
           size="small"
           search={false}
-          params={{ ...submittedFilters, orgid: currentOrgId, page: currentPage }}
+          params={{ ...submittedFilters, page: currentPage }}
           headerTitle={false}
           options={false}
           toolBarRender={false}
@@ -147,7 +144,6 @@ export default function LogsPage() {
           }}
           request={async (params) => {
             const result = await listOperationLogs({
-              orgid: currentOrgId,
               page: params.current ?? currentPage,
               pageSize: params.pageSize ?? 20,
               article_id: submittedFilters.article_id,

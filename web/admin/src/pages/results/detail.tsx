@@ -27,11 +27,10 @@ function escapePattern(value: string) {
 export interface ResultDetailDrawerProps {
   open: boolean;
   resultId?: number;
-  orgid?: number;
   onClose: () => void;
 }
 
-export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClose }: ResultDetailDrawerProps) {
+export default function ResultDetailDrawer({ open, resultId, onClose }: ResultDetailDrawerProps) {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ResultDetailRecord | null>(null);
 
@@ -41,10 +40,10 @@ export default function ResultDetailDrawer({ open, resultId, orgid = 100, onClos
     }
 
     setLoading(true);
-    void getResultDetail(resultId, orgid)
+    void getResultDetail(resultId)
       .then((data) => setDetail(data))
       .finally(() => setLoading(false));
-  }, [open, orgid, resultId]);
+  }, [open, resultId]);
 
   const items = useMemo(() => [
     {

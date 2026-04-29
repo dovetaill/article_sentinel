@@ -99,6 +99,7 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 	assertOperation(t, doc.Paths, "/api/v1/posts/{id}", http.MethodDelete)
 
 	assertPathAbsent(t, doc.Paths, "/api/v1/auth/login")
+	assertPathAbsent(t, doc.Paths, "/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/member/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/admin/users")
 }
@@ -135,6 +136,31 @@ func TestRouterServesStarterHealthAndDocsEndpoints(t *testing.T) {
 				t.Fatalf("%s status = %d, want %d", tt.path, rec.Code, tt.wantStatus)
 			}
 		})
+	}
+}
+
+func TestRouterServesAuthBridgeAndSessionRoutesAtRuntime(t *testing.T) {
+	handler := register.NewRouter(newRouterTestRuntime(true))
+
+	loginReq := httptest.NewRequest(http.MethodGet, "/auth/login?jwt=bad-token", nil)
+	loginRec := httptest.NewRecorder()
+	handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusFound {
+		t.Fatalf("/auth/login status = %d, want %d", loginRec.Code, http.StatusFound)
+	}
+
+	sessionReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+	sessionRec := httptest.NewRecorder()
+	handler.ServeHTTP(sessionRec, sessionReq)
+	if sessionRec.Code != http.StatusUnauthorized {
+		t.Fatalf("/api/v1/auth/session status = %d, want %d", sessionRec.Code, http.StatusUnauthorized)
+	}
+
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	logoutRec := httptest.NewRecorder()
+	handler.ServeHTTP(logoutRec, logoutReq)
+	if logoutRec.Code != http.StatusOK {
+		t.Fatalf("/api/v1/auth/logout status = %d, want %d", logoutRec.Code, http.StatusOK)
 	}
 }
 
@@ -177,6 +203,13 @@ func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 					Secret:     "test-secret",
 					Issuer:     "article-sentinel-test",
 					TTLMinutes: 120,
+				},
+				Session: config.SessionConfig{
+					LegacySecret: "legacy-secret",
+					Secret:       "session-secret",
+					CookieName:   "as_admin_session",
+					Issuer:       "article-sentinel-admin",
+					TTLHours:     24,
 				},
 			},
 		},

@@ -56,12 +56,13 @@ func registerLifecycleRoutes(api huma.API, service *LifecycleService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		if input.Body.OrgID == 0 {
-			return failureOKEnvelope(http.StatusBadRequest, "orgid is required"), nil
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		operator := ResolveOperator(ctx)
 		result, err := service.OfflineArticle(ctx, OfflineArticleInput{
-			OrgID:        input.Body.OrgID,
+			OrgID:        orgID,
 			ArticleID:    articleID,
 			TaskID:       input.Body.TaskID,
 			ResultID:     input.Body.ResultID,
@@ -87,12 +88,13 @@ func registerLifecycleRoutes(api huma.API, service *LifecycleService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		if input.Body.OrgID == 0 {
-			return failureOKEnvelope(http.StatusBadRequest, "orgid is required"), nil
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		operator := ResolveOperator(ctx)
 		result, err := service.UpdateArticleFields(ctx, UpdateArticleFieldsInput{
-			OrgID:        input.Body.OrgID,
+			OrgID:        orgID,
 			ArticleID:    articleID,
 			TaskID:       input.Body.TaskID,
 			ResultID:     input.Body.ResultID,
@@ -126,12 +128,13 @@ func registerLifecycleRoutes(api huma.API, service *LifecycleService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid article input"), nil
 		}
-		if input.Body.OrgID == 0 {
-			return failureOKEnvelope(http.StatusBadRequest, "orgid is required"), nil
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		operator := ResolveOperator(ctx)
 		result, err := service.RepublishArticle(ctx, RepublishArticleInput{
-			OrgID:        input.Body.OrgID,
+			OrgID:        orgID,
 			ArticleID:    articleID,
 			TaskID:       input.Body.TaskID,
 			ResultID:     input.Body.ResultID,

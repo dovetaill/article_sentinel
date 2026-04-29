@@ -37,9 +37,9 @@ describe('listArticles', () => {
   });
 
   it('requests the real article-center endpoint instead of aggregating result rows', async () => {
-    const result = await listArticles({ orgid: 29, page: 1, pageSize: 20 } as never);
+    const result = await listArticles({ page: 1, pageSize: 20 } as never);
 
-    expect(mockedApiRequest).toHaveBeenCalledWith('/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20');
+    expect(mockedApiRequest).toHaveBeenCalledWith('/api/v1/article-inspect/articles?page=1&page_size=20');
     expect(mockedListResults).not.toHaveBeenCalled();
     expect(result.items[0]).toMatchObject({
       id: 501,
@@ -51,7 +51,6 @@ describe('listArticles', () => {
 
   it('sends explicit title and article_id filters', async () => {
     await listArticles({
-      orgid: 29,
       page: 1,
       pageSize: 20,
       title: '命中标题',
@@ -59,18 +58,17 @@ describe('listArticles', () => {
     } as never);
 
     expect(mockedApiRequest).toHaveBeenCalledWith(
-      '/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&article_id=9001&title=%E5%91%BD%E4%B8%AD%E6%A0%87%E9%A2%98'
+      '/api/v1/article-inspect/articles?page=1&page_size=20&article_id=9001&title=%E5%91%BD%E4%B8%AD%E6%A0%87%E9%A2%98'
     );
   });
 
   it('still sends an explicit state when a caller provides one', async () => {
     await listArticles({
-      orgid: 29,
       page: 1,
       pageSize: 20,
       state: 9
     } as never);
 
-    expect(mockedApiRequest).toHaveBeenCalledWith('/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&state=9');
+    expect(mockedApiRequest).toHaveBeenCalledWith('/api/v1/article-inspect/articles?page=1&page_size=20&state=9');
   });
 });

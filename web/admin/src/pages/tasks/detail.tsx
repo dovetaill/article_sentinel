@@ -61,9 +61,9 @@ export default function TaskDetailPage() {
     setLoading(true);
 
     void Promise.all([
-      getTaskDetail(Number(taskId), currentOrgId),
-      listResults({ orgid: currentOrgId, task_id: Number(taskId), page: 1, pageSize: 20 }),
-      listOperationLogs({ orgid: currentOrgId, task_id: Number(taskId), page: 1, pageSize: 20 })
+      getTaskDetail(Number(taskId)),
+      listResults({ task_id: Number(taskId), page: 1, pageSize: 20 }),
+      listOperationLogs({ task_id: Number(taskId), page: 1, pageSize: 20 })
     ])
       .then(([taskDetail, resultList, logList]) => {
         setTask(taskDetail);

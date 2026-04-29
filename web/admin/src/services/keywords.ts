@@ -22,7 +22,6 @@ export interface KeywordListResult {
 }
 
 export interface KeywordListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   categoryId?: number;
@@ -31,7 +30,6 @@ export interface KeywordListParams {
 }
 
 export interface KeywordMutationInput {
-  orgid: number;
   name: string;
   category_id: number;
   match_type: string;
@@ -44,7 +42,6 @@ export interface KeywordMutationInput {
 
 export async function listKeywords(params: KeywordListParams): Promise<KeywordListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.categoryId) query.set('category_id', String(params.categoryId));
@@ -77,15 +74,15 @@ export function updateKeyword(id: number, input: KeywordMutationInput): Promise<
   });
 }
 
-export function patchKeywordStatus(id: number, orgid: number, enabled: boolean): Promise<KeywordRecord> {
+export function patchKeywordStatus(id: number, enabled: boolean): Promise<KeywordRecord> {
   return apiRequest<KeywordRecord>(`/api/v1/article-inspect/keywords/${id}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ orgid, enabled })
+    body: JSON.stringify({ enabled })
   });
 }
 
-export function deleteKeyword(id: number, orgid: number): Promise<{ id: number }> {
-  return apiRequest<{ id: number }>(`/api/v1/article-inspect/keywords/${id}?orgid=${orgid}`, {
+export function deleteKeyword(id: number): Promise<{ id: number }> {
+  return apiRequest<{ id: number }>(`/api/v1/article-inspect/keywords/${id}`, {
     method: 'DELETE'
   });
 }

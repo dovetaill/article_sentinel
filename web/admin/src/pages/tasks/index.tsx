@@ -7,7 +7,6 @@ import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { SummaryCard } from '../../components/ui/summary-card';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
-import { useOrgContext } from '../../context/org-context';
 import { deleteTask, listTasks, type TaskRecord } from '../../services/tasks';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
 
@@ -35,10 +34,8 @@ export default function TasksPage() {
     taskNo: searchParams.get('task_no') ?? '',
     status: searchParams.get('status') || undefined
   }));
-  const { activeOrgId } = useOrgContext();
   const { buildHref, onLinkClick } = useWorkbenchNavigation();
 
-  const currentOrgId = activeOrgId ?? 29;
   const submittedFilters: Filters = {
     task_no: searchParams.get('task_no')?.trim() || undefined,
     status: searchParams.get('status') || undefined
@@ -150,7 +147,7 @@ export default function TasksPage() {
           headerTitle={false}
           size="small"
           search={false}
-          params={{ ...submittedFilters, orgid: currentOrgId, page: currentPage }}
+          params={{ ...submittedFilters, page: currentPage }}
           options={false}
           toolBarRender={false}
           pagination={{
@@ -175,7 +172,6 @@ export default function TasksPage() {
           }}
           request={async (params) => {
             const result = await listTasks({
-              orgid: currentOrgId,
               page: params.current ?? currentPage,
               pageSize: params.pageSize ?? 20,
               task_no: submittedFilters.task_no,
@@ -228,7 +224,7 @@ export default function TasksPage() {
                       okText="确认删除"
                       cancelText="取消"
                       onConfirm={async () => {
-                        await deleteTask(record.id, currentOrgId);
+                        await deleteTask(record.id);
                         messageApi.success('任务已删除');
                         actionRef.current.reload?.();
                       }}

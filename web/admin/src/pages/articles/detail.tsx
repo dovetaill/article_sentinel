@@ -100,14 +100,14 @@ export default function ArticleDetailPage() {
 
     setLoading(true);
 
-    void getArticleDetail(numericArticleId, currentOrgId)
+    void getArticleDetail(numericArticleId)
       .then(async (articleDetail) => {
         const [resultDetail, logsResult, changesResult] = await Promise.all([
           articleDetail.latest_result_id
-            ? getResultDetail(articleDetail.latest_result_id, currentOrgId)
+            ? getResultDetail(articleDetail.latest_result_id)
             : Promise.resolve(null),
-          listArticleOperationLogs(numericArticleId, currentOrgId),
-          listArticleFieldChanges(numericArticleId, currentOrgId)
+          listArticleOperationLogs(numericArticleId),
+          listArticleFieldChanges(numericArticleId)
         ]);
 
         setDetail(articleDetail);

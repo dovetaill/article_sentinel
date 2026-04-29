@@ -75,7 +75,7 @@ export default function KeywordsPage() {
       return;
     }
 
-    void listEnabledCategories(activeOrgId)
+    void listEnabledCategories()
       .then((items) => {
         setCategoryOptions(items.map((item) => ({
           value: item.id,
@@ -93,7 +93,6 @@ export default function KeywordsPage() {
     }
   }, [activeOrgId]);
 
-  const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
   const categoryIdFromSearch = Number(searchParams.get('category_id') || 0) || undefined;
   const currentPage = normalizePage(searchParams.get('page'));
@@ -218,7 +217,6 @@ export default function KeywordsPage() {
           headerTitle={false}
           toolBarRender={false}
           params={{
-            orgid: currentOrgId,
             name: submittedKeyword,
             category_id: categoryIdFromSearch,
             page: currentPage
@@ -246,7 +244,6 @@ export default function KeywordsPage() {
           request={async (params) => {
             const requestPage = Number(params.page ?? params.current ?? currentPage) || currentPage;
             const result = await listKeywords({
-              orgid: currentOrgId,
               page: requestPage,
               pageSize: params.pageSize ?? 20,
               categoryId: categoryIdFromSearch,
@@ -317,7 +314,7 @@ export default function KeywordsPage() {
                   okText="确认删除"
                   cancelText="取消"
                   onConfirm={async () => {
-                    await deleteKeyword(record.id, currentOrgId);
+                    await deleteKeyword(record.id);
                     messageApi.success('规则已删除');
                     actionRef.current.reload?.();
                   }}
@@ -349,7 +346,6 @@ export default function KeywordsPage() {
         initialValues={initialValues}
         onFinish={async (values) => {
           const payload: KeywordMutationInput = {
-            orgid: currentOrgId,
             name: values.name,
             category_id: Number(values.category_id),
             match_type: values.match_type,

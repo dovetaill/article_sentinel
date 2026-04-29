@@ -2,20 +2,23 @@ import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../context/org-context';
-import { listOrgs } from '../services/orgs';
 import { WorkbenchProvider } from './provider';
 import { WorkbenchTabs } from './tabs';
 import { useWorkbench } from './use-workbench';
 
-vi.mock('../services/orgs', () => ({
-  listOrgs: vi.fn()
+vi.mock('../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
-
-const mockedListOrgs = vi.mocked(listOrgs);
 
 function SeedWorkbenchTabs() {
   const { openTab } = useWorkbench();
@@ -32,9 +35,6 @@ function SeedWorkbenchTabs() {
 describe('WorkbenchTabs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
   });
 
   it('renders one tab per open descriptor and keeps list tabs deduplicated', async () => {

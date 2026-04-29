@@ -56,7 +56,7 @@ describe('ResultDetailDrawer', () => {
 
     render(
       <ConfigProvider>
-        <ResultDetailDrawer open resultId={11} orgid={100} onClose={() => undefined} />
+        <ResultDetailDrawer open resultId={11} onClose={() => undefined} />
       </ConfigProvider>,
     );
 

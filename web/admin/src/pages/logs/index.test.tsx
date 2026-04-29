@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,12 +10,13 @@ import LogsPage from './index';
 import { listOperationLogs } from '../../services/logs';
 import { WorkbenchProvider } from '../../workbench/provider';
 
-const { mockedListOrgs } = vi.hoisted(() => ({
-  mockedListOrgs: vi.fn()
-}));
-
-vi.mock('../../services/orgs', () => ({
-  listOrgs: mockedListOrgs
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/logs', () => ({
@@ -57,9 +59,6 @@ function readLocationState() {
 describe('LogsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
     mockedListOperationLogs.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -81,6 +80,12 @@ describe('LogsPage', () => {
       ]
     } as never);
   });
+
+  function expectLastLogQuery(expected: Record<string, unknown>) {
+    const lastCall = mockedListOperationLogs.mock.calls.at(-1)?.[0];
+    expect(lastCall).toMatchObject(expected);
+    expect(lastCall).not.toHaveProperty('orgid');
+  }
 
   it('filters logs and links task records into the task-results workspace', async () => {
     const user = userEvent.setup();
@@ -112,13 +117,11 @@ describe('LogsPage', () => {
     await user.click(screen.getByRole('button', { name: '查询日志' }));
 
     await waitFor(() => {
-      expect(mockedListOperationLogs).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          article_id: 501,
-          task_id: 77,
-          operator_name: 'alice'
-        }),
-      );
+      expectLastLogQuery({
+        article_id: 501,
+        task_id: 77,
+        operator_name: 'alice'
+      });
     });
 
     await user.click(screen.getByRole('button', { name: '查看快照' }));
@@ -137,14 +140,13 @@ describe('LogsPage', () => {
     expect(screen.getByLabelText('任务编号')).toHaveValue('77');
     expect(screen.getByLabelText('操作人')).toHaveValue('alice');
     await waitFor(() => {
-      expect(mockedListOperationLogs).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastLogQuery({
         page: 2,
         pageSize: 20,
         article_id: 501,
         task_id: 77,
         operator_name: 'alice'
-      }));
+      });
     });
 
     await user.clear(screen.getByLabelText('文章编号'));
@@ -171,14 +173,13 @@ describe('LogsPage', () => {
     expect(screen.getByLabelText('任务编号')).toHaveValue('99');
     expect(screen.getByLabelText('操作人')).toHaveValue('bob');
     await waitFor(() => {
-      expect(mockedListOperationLogs).toHaveBeenLastCalledWith(expect.objectContaining({
-        orgid: 29,
+      expectLastLogQuery({
         page: 1,
         pageSize: 20,
         article_id: 808,
         task_id: 99,
         operator_name: 'bob'
-      }));
+      });
     });
   });
 });

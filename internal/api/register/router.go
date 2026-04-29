@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/dovetaill/article-sentinel/internal/api/handlers"
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
+	"github.com/dovetaill/article-sentinel/internal/identity"
 	"github.com/dovetaill/article-sentinel/internal/middleware"
 	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
@@ -19,6 +20,8 @@ import (
 // NewRouter 构建基于 Huma 的 HTTP 路由。
 func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	apiMux := http.NewServeMux()
+	adminSessionManager := newAdminSessionManager(rt)
+	handlers.RegisterAuthRoutes(apiMux, adminSessionManager)
 	cfg := huma.DefaultConfig("article-sentinel API", "0.1.0")
 	if rt != nil && rt.Config != nil {
 		if rt.Config.App.Name != "" {
@@ -53,6 +56,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	return middleware.Chain(
 		apiMux,
 		middleware.RequestID(),
+		middleware.SessionContext(adminSessionManager),
 		middleware.Recover(),
 		middleware.Timeout(timeout),
 		middleware.AccessLog(nilLogger(rt)),
@@ -115,4 +119,11 @@ func nilLogger(rt *bootstrap.Runtime) *slog.Logger {
 		return nil
 	}
 	return rt.Logger
+}
+
+func newAdminSessionManager(rt *bootstrap.Runtime) *identity.AdminSessionManager {
+	if rt == nil || rt.Config == nil {
+		return nil
+	}
+	return identity.NewAdminSessionManager(rt.Config.Auth.Session)
 }

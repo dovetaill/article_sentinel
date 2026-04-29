@@ -5,7 +5,6 @@ import { useSearchParams } from 'react-router-dom';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { ToolbarStrip } from '../../components/ui/toolbar-strip';
-import { useOrgContext } from '../../context/org-context';
 import { listArticles, type ArticleListItem } from '../../services/articles';
 import { WorkbenchLink } from '../../workbench/link';
 import { useWorkbenchNavigation } from '../../workbench/navigation';
@@ -46,10 +45,8 @@ export default function ArticlesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [draftTitle, setDraftTitle] = useState(() => searchParams.get('title') ?? '');
   const [draftArticleID, setDraftArticleID] = useState(() => searchParams.get('article_id') ?? '');
-  const { activeOrgId } = useOrgContext();
   const { currentHref, buildHref, onLinkClick } = useWorkbenchNavigation();
 
-  const currentOrgId = activeOrgId ?? 29;
   const submittedTitle = searchParams.get('title')?.trim() ?? '';
   const submittedArticleIDText = searchParams.get('article_id') ?? '';
   const submittedArticleID = normalizeArticleID(submittedArticleIDText);
@@ -76,7 +73,6 @@ export default function ArticlesPage() {
     loadingRef.current = true;
     setLoading(true);
     void listArticles({
-      orgid: currentOrgId,
       page,
       pageSize,
       article_id: submittedArticleID,
@@ -103,7 +99,7 @@ export default function ArticlesPage() {
         loadingRef.current = false;
         setLoading(false);
       });
-  }, [currentOrgId, page, pageSize, submittedArticleID, submittedTitle, reloadKey]);
+  }, [page, pageSize, submittedArticleID, submittedTitle, reloadKey]);
 
   return (
     <>

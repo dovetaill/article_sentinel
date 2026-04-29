@@ -61,9 +61,9 @@ export default function TaskResultsPage() {
     setLoading(true);
 
     void Promise.all([
-      getTaskDetail(numericTaskId, currentOrgId),
-      listResults({ orgid: currentOrgId, task_id: numericTaskId, page: 1, pageSize: 50 }),
-      listOperationLogs({ orgid: currentOrgId, task_id: numericTaskId, page: 1, pageSize: 20 })
+      getTaskDetail(numericTaskId),
+      listResults({ task_id: numericTaskId, page: 1, pageSize: 50 }),
+      listOperationLogs({ task_id: numericTaskId, page: 1, pageSize: 20 })
     ])
       .then(([taskDetail, resultList, logList]) => {
         setTask(taskDetail);
@@ -122,7 +122,6 @@ export default function TaskResultsPage() {
     }
 
     const input = {
-      orgid: currentOrgId,
       task_id: numericTaskId || undefined,
       result_ids: ids,
       reason: `task-${kind}-action`

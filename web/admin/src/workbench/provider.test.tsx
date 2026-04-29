@@ -1,21 +1,24 @@
 import { ConfigProvider } from 'antd';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OrgProvider, useOrgContext } from '../context/org-context';
-import { listOrgs } from '../services/orgs';
+import { OrgProvider } from '../context/org-context';
+import { SessionProvider } from '../context/session-context';
 import { getWorkbenchSessionKey } from './session';
 import { WorkbenchProvider } from './provider';
 import { useWorkbench } from './use-workbench';
 
-vi.mock('../services/orgs', () => ({
-  listOrgs: vi.fn()
+const { mockedGetSession, mockedLogout } = vi.hoisted(() => ({
+  mockedGetSession: vi.fn(),
+  mockedLogout: vi.fn(),
 }));
 
-const mockedListOrgs = vi.mocked(listOrgs);
+vi.mock('../services/auth', () => ({
+  getSession: mockedGetSession,
+  logout: mockedLogout,
+}));
 
 function WorkbenchProbe() {
   const { activeKey, tabs } = useWorkbench();
@@ -27,20 +30,10 @@ function WorkbenchProbe() {
         tabs: tabs.map((tab) => ({
           key: tab.key,
           pathname: tab.pathname,
-          search: tab.search
-        }))
+          search: tab.search,
+        })),
       })}
     </pre>
-  );
-}
-
-function SwitchOrgButton() {
-  const { setActiveOrgId } = useOrgContext();
-
-  return (
-    <button type="button" onClick={() => setActiveOrgId(30)}>
-      切换到机构30
-    </button>
   );
 }
 
@@ -54,70 +47,41 @@ function DeferredRestoreObserver() {
   return null;
 }
 
-describe('WorkbenchProvider', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    window.sessionStorage.clear();
-    delete document.body.dataset.activeKey;
-  });
-
-  it('restores tabs from sessionStorage and uses the current URL as the active tab while merging the org snapshot', async () => {
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
-    window.sessionStorage.setItem(
-      getWorkbenchSessionKey(29),
-      JSON.stringify({
-        orgId: 29,
-        activeKey: '/articles',
-        tabs: [
-          {
-            key: '/tasks',
-            pathname: '/tasks',
-            search: '',
-            title: '检测任务',
-            closable: false,
-            keepAlive: false,
-            orgId: 29
-          },
-          {
-            key: '/articles',
-            pathname: '/articles',
-            search: '',
-            title: '文稿中心',
-            closable: true,
-            keepAlive: false,
-            orgId: 29
-          }
-        ]
-      }),
-    );
-
-    render(
-      <ConfigProvider>
-        <MemoryRouter initialEntries={['/tasks/new']}>
+function renderWorkbench(initialEntries: string[]) {
+  return render(
+    <ConfigProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <SessionProvider>
           <OrgProvider>
             <WorkbenchProvider>
               <WorkbenchProbe />
             </WorkbenchProvider>
           </OrgProvider>
-        </MemoryRouter>
-      </ConfigProvider>,
-    );
+        </SessionProvider>
+      </MemoryRouter>
+    </ConfigProvider>,
+  );
+}
 
-    await waitFor(() => {
-      expect(screen.getByTestId('workbench-state')).toHaveTextContent('/tasks/new');
-    });
-    expect(screen.getByTestId('workbench-state')).toHaveTextContent('/articles');
+describe('WorkbenchProvider', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.sessionStorage.clear();
+    delete document.body.dataset.activeKey;
+    mockedLogout.mockResolvedValue(undefined);
   });
 
-  it('falls back to the base tab for orgs without a snapshot and restores the matching snapshot after an org switch', async () => {
-    const user = userEvent.setup();
-
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 },
-      { id: 30, name: '机构30', cate_id: 0, enabled: true, sort: 2 }
-    ]);
+  it('restores tabs from the current session org snapshot and merges the current URL', async () => {
+    mockedGetSession.mockResolvedValue({
+      id: 90525,
+      orgid: 30,
+      orgname: '机构30',
+      platform: 'chuangqi',
+      priv: 'super',
+      roleid: '1',
+      nickname: '用户A',
+      avatar: 'https://example.com/a.png',
+    });
     window.sessionStorage.setItem(
       getWorkbenchSessionKey(30),
       JSON.stringify({
@@ -131,7 +95,7 @@ describe('WorkbenchProvider', () => {
             title: '检测任务',
             closable: false,
             keepAlive: false,
-            orgId: 30
+            orgId: 30,
           },
           {
             key: '/logs',
@@ -140,42 +104,59 @@ describe('WorkbenchProvider', () => {
             title: '操作日志',
             closable: true,
             keepAlive: false,
-            orgId: 30
-          }
-        ]
+            orgId: 30,
+          },
+        ],
       }),
     );
 
-    render(
-      <ConfigProvider>
-        <MemoryRouter initialEntries={['/tasks']}>
-          <OrgProvider>
-            <WorkbenchProvider>
-              <SwitchOrgButton />
-              <WorkbenchProbe />
-            </WorkbenchProvider>
-          </OrgProvider>
-        </MemoryRouter>
-      </ConfigProvider>,
-    );
+    renderWorkbench(['/tasks/new']);
 
     await waitFor(() => {
-      expect(screen.getByTestId('workbench-state')).toHaveTextContent('/tasks');
+      expect(screen.getByTestId('workbench-state')).toHaveTextContent('/tasks/new');
     });
-    expect(screen.getByTestId('workbench-state')).not.toHaveTextContent('/logs');
-
-    await user.click(screen.getByRole('button', { name: '切换到机构30' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('workbench-state')).toHaveTextContent('/logs');
-    });
+    expect(screen.getByTestId('workbench-state')).toHaveTextContent('/logs');
   });
 
-  it('waits for org initialization before restoring a snapshot', async () => {
-    let resolveOrgs: ((value: Array<{ id: number; name: string; cate_id: number; enabled: boolean; sort: number }>) => void) | undefined;
-    mockedListOrgs.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveOrgs = resolve;
-    }));
+  it('persists the workbench session under the current session org id', async () => {
+    mockedGetSession.mockResolvedValue({
+      id: 90525,
+      orgid: 30,
+      orgname: '机构30',
+      platform: 'chuangqi',
+      priv: 'super',
+      roleid: '1',
+      nickname: '用户A',
+      avatar: 'https://example.com/a.png',
+    });
+
+    renderWorkbench(['/tasks']);
+
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem(getWorkbenchSessionKey(30))).not.toBeNull();
+    });
+    expect(window.sessionStorage.getItem(getWorkbenchSessionKey(29))).toBeNull();
+  });
+
+  it('waits for session initialization before restoring a snapshot', async () => {
+    let resolveSession:
+      | ((value: {
+          id: number;
+          orgid: number;
+          orgname: string;
+          platform: string;
+          priv: string;
+          roleid: string;
+          nickname: string;
+          avatar?: string;
+        }) => void)
+      | undefined;
+    mockedGetSession.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
     window.sessionStorage.setItem(
       getWorkbenchSessionKey(29),
       JSON.stringify({
@@ -189,7 +170,7 @@ describe('WorkbenchProvider', () => {
             title: '检测任务',
             closable: false,
             keepAlive: false,
-            orgId: 29
+            orgId: 29,
           },
           {
             key: '/articles',
@@ -198,20 +179,22 @@ describe('WorkbenchProvider', () => {
             title: '文稿中心',
             closable: true,
             keepAlive: false,
-            orgId: 29
-          }
-        ]
+            orgId: 29,
+          },
+        ],
       }),
     );
 
     render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/tasks']}>
-          <OrgProvider>
-            <WorkbenchProvider>
-              <DeferredRestoreObserver />
-            </WorkbenchProvider>
-          </OrgProvider>
+          <SessionProvider>
+            <OrgProvider>
+              <WorkbenchProvider>
+                <DeferredRestoreObserver />
+              </WorkbenchProvider>
+            </OrgProvider>
+          </SessionProvider>
         </MemoryRouter>
       </ConfigProvider>,
     );
@@ -219,7 +202,16 @@ describe('WorkbenchProvider', () => {
     expect(document.body.dataset.activeKey).not.toBe('/articles');
 
     await act(async () => {
-      resolveOrgs?.([{ id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }]);
+      resolveSession?.({
+        id: 90525,
+        orgid: 29,
+        orgname: '一县一端',
+        platform: 'chuangqi',
+        priv: 'super',
+        roleid: '1',
+        nickname: '用户A',
+        avatar: 'https://example.com/a.png',
+      });
     });
 
     await waitFor(() => {

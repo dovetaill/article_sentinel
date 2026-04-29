@@ -72,6 +72,17 @@ func TestStarterHTTPAndDocsConfigTagsAreExplicit(t *testing.T) {
 	}
 }
 
+func TestAuthConfigExposesSessionFields(t *testing.T) {
+	typ := reflect.TypeOf(config.AuthConfig{})
+	field, ok := typ.FieldByName("Session")
+	if !ok {
+		t.Fatal("AuthConfig.Session missing")
+	}
+	if field.Type != reflect.TypeOf(config.SessionConfig{}) {
+		t.Fatalf("AuthConfig.Session type = %v", field.Type)
+	}
+}
+
 func TestLoadReadsStarterPrimaryDatabaseConfig(t *testing.T) {
 	clearLegacyDatabaseEnv(t)
 

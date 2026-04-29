@@ -64,7 +64,6 @@ export interface ResultListResult {
 }
 
 export interface ResultListParams {
-  orgid: number;
   page?: number;
   pageSize?: number;
   task_id?: number;
@@ -77,7 +76,6 @@ export interface ResultListParams {
 }
 
 export interface BatchOfflineInput {
-  orgid: number;
   task_id?: number;
   result_ids?: number[];
   filter_snapshot?: Record<string, unknown>;
@@ -103,7 +101,6 @@ export interface RectifyArticleRecord {
 }
 
 export interface RectifyArticleInput {
-  orgid: number;
   title: string;
   desc: string;
   body: string;
@@ -112,7 +109,6 @@ export interface RectifyArticleInput {
 
 export async function listResults(params: ResultListParams): Promise<ResultListResult> {
   const query = new URLSearchParams();
-  query.set('orgid', String(params.orgid));
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('page_size', String(params.pageSize));
   if (params.task_id) query.set('task_id', String(params.task_id));
@@ -135,7 +131,7 @@ export async function listResults(params: ResultListParams): Promise<ResultListR
   };
 }
 
-export function getResultDetail(id: number, orgid = 100): Promise<ResultDetailRecord> {
+export function getResultDetail(id: number): Promise<ResultDetailRecord> {
   return apiRequest<
     ResultDetailRecord | {
       result: ResultRecord;
@@ -143,7 +139,7 @@ export function getResultDetail(id: number, orgid = 100): Promise<ResultDetailRe
       operation_logs?: ResultOperationRecord[];
       field_change_logs?: ResultFieldChangeRecord[];
     }
-  >(`/api/v1/article-inspect/results/${id}?orgid=${orgid}`).then((data) => {
+  >(`/api/v1/article-inspect/results/${id}`).then((data) => {
     if ('result' in data) {
       return {
         ...data.result,
@@ -189,8 +185,8 @@ export function batchProcessResults(input: BatchOfflineInput): Promise<BatchActi
   return postBatchAction('/api/v1/article-inspect/actions/batch-process', input);
 }
 
-export function getArticleRectify(articleId: number, orgid = 100): Promise<RectifyArticleRecord> {
-  return apiRequest<RectifyArticleRecord>(`/api/v1/article-inspect/articles/${articleId}/rectify?orgid=${orgid}`);
+export function getArticleRectify(articleId: number): Promise<RectifyArticleRecord> {
+  return apiRequest<RectifyArticleRecord>(`/api/v1/article-inspect/articles/${articleId}/rectify`);
 }
 
 export function rectifyArticle(articleId: number, input: RectifyArticleInput): Promise<{ article_id: number; status: string }> {

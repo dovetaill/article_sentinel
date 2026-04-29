@@ -63,7 +63,7 @@ export default function RectifyPage() {
     }
 
     setLoading(true);
-    void getArticleDetail(Number(articleId), currentOrgId)
+    void getArticleDetail(Number(articleId))
       .then((data) => {
         const pageSession = readPageSession<RectifyPageSession>(currentOrgId, tabKey);
         const draft = pageSession?.draft;
@@ -116,7 +116,6 @@ export default function RectifyPage() {
     const resultId = resultIdFromSearch ?? record.latest_result_id;
 
     await rectifyArticle(Number(articleId), {
-      orgid: currentOrgId,
       task_id: taskId,
       result_id: resultId,
       title: values.title,
@@ -129,7 +128,6 @@ export default function RectifyPage() {
 
     if (targetArticleState === 1) {
       await republishArticle(Number(articleId), {
-        orgid: currentOrgId,
         task_id: taskId,
         result_id: resultId
       });

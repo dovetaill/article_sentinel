@@ -2,21 +2,24 @@ import { ConfigProvider } from 'antd';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
+import type { PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrgProvider } from '../../context/org-context';
 import { WorkbenchProvider } from '../../workbench/provider';
+import { getWorkbenchSessionKey } from '../../workbench/session';
 import { useWorkbench } from '../../workbench/use-workbench';
 import RectifyPage from './rectify';
 import { getArticleDetail, rectifyArticle, republishArticle } from '../../services/articles';
 
-const { mockedListOrgs } = vi.hoisted(() => ({
-  mockedListOrgs: vi.fn()
-}));
-
-vi.mock('../../services/orgs', () => ({
-  listOrgs: mockedListOrgs
+vi.mock('../../context/org-context', () => ({
+  OrgProvider: ({ children }: PropsWithChildren) => <>{children}</>,
+  useOrgContext: () => ({
+    activeOrgId: 29,
+    activeOrgName: '一县一端',
+    isLoading: false
+  })
 }));
 
 vi.mock('../../services/results', () => ({
@@ -93,9 +96,6 @@ describe('RectifyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
-    mockedListOrgs.mockResolvedValue([
-      { id: 29, name: '一县一端', cate_id: 0, enabled: true, sort: 1 }
-    ]);
     mockedGetArticleDetail.mockResolvedValue({
       id: 501,
       orgid: 29,
@@ -144,7 +144,6 @@ describe('RectifyPage', () => {
 
     await waitFor(() => {
       expect(mockedRectifyArticle).toHaveBeenCalledWith(501, {
-        orgid: 29,
         task_id: 77,
         result_id: 9001,
         title: 'New title',
@@ -177,7 +176,6 @@ describe('RectifyPage', () => {
 
     await waitFor(() => {
       expect(mockedRepublishArticle).toHaveBeenCalledWith(501, {
-        orgid: 29,
         task_id: 77,
         result_id: 9001
       });
@@ -247,12 +245,39 @@ describe('RectifyPage', () => {
   });
 
   it('returns to the existing source tab before falling back to the return_to query target', async () => {
+    window.sessionStorage.setItem(
+      getWorkbenchSessionKey(29),
+      JSON.stringify({
+        orgId: 29,
+        activeKey: '/articles',
+        tabs: [
+          {
+            key: '/tasks',
+            pathname: '/tasks',
+            search: '',
+            title: '检测任务',
+            closable: false,
+            keepAlive: false,
+            orgId: 29
+          },
+          {
+            key: '/articles',
+            pathname: '/articles',
+            search: '?page=2',
+            title: '文稿中心',
+            closable: true,
+            keepAlive: false,
+            orgId: 29
+          }
+        ]
+      }),
+    );
+
     render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/articles/501/rectify?return_to=%2Farticles%3Fview%3Dsummary']}>
           <OrgProvider>
             <WorkbenchProvider>
-              <SeedWorkbenchTabs hrefs={['/articles?page=2']} />
               <Routes>
                 <Route path="/articles/:articleId/rectify" element={<RectifyPage />} />
                 <Route path="/articles" element={<div>文稿列表探针</div>} />

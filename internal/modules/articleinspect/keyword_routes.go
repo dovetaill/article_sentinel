@@ -60,8 +60,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		Summary:       "create inspection keyword",
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, input *keywordCreateRequest) (*createdEnvelopeOutput, error) {
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureCreatedFromError(err)
+		}
 		item, err := service.Create(ctx, CreateKeywordInput{
-			OrgID:         input.Body.OrgID,
+			OrgID:         orgID,
 			Name:          input.Body.Name,
 			CategoryID:    input.Body.CategoryID,
 			MatchType:     input.Body.MatchType,
@@ -84,9 +88,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		Summary:            "list inspection keywords",
 		SkipValidateParams: true,
 	}, func(ctx context.Context, input *keywordQueryRequest) (*okEnvelopeOutput, error) {
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		page, err := input.Page.Value()
 		if err != nil {
@@ -129,9 +136,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		item, err := service.Get(ctx, orgID, id)
 		if err != nil {
@@ -151,10 +161,14 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
 		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
+		}
 		item, err := service.Update(ctx, UpdateKeywordInput{
 			ID: id,
 			CreateKeywordInput: CreateKeywordInput{
-				OrgID:         input.Body.OrgID,
+				OrgID:         orgID,
 				Name:          input.Body.Name,
 				CategoryID:    input.Body.CategoryID,
 				MatchType:     input.Body.MatchType,
@@ -182,8 +196,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
 		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
+		}
 		item, err := service.PatchEnabled(ctx, PatchKeywordStatusInput{
-			OrgID:     input.Body.OrgID,
+			OrgID:     orgID,
 			KeywordID: id,
 			Enabled:   input.Body.Enabled,
 		})
@@ -204,9 +222,12 @@ func registerKeywordRoutes(api huma.API, service *KeywordService) {
 		if err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
 		}
-		orgID, err := input.OrgID.Parse()
-		if err != nil {
+		if err := validateOptionalOrgID(input.OrgID); err != nil {
 			return failureOKEnvelope(http.StatusBadRequest, "invalid keyword input"), nil
+		}
+		orgID, err := currentOrgID(ctx)
+		if err != nil {
+			return failureOKFromError(err)
 		}
 		if err := service.Delete(ctx, orgID, id); err != nil {
 			return failureOKFromError(err)

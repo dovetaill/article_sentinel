@@ -58,7 +58,6 @@ export default function CategoriesPage() {
     }
   }, [activeOrgId]);
 
-  const currentOrgId = activeOrgId ?? 29;
   const currentOrgName = activeOrgName || '一县一端';
   const currentPage = normalizePage(searchParams.get('page'));
   const submittedName = searchParams.get('name')?.trim() ?? '';
@@ -176,7 +175,6 @@ export default function CategoriesPage() {
           headerTitle={false}
           toolBarRender={false}
           params={{
-            orgid: currentOrgId,
             name: submittedName,
             enabled: submittedEnabled,
             page: currentPage
@@ -205,7 +203,6 @@ export default function CategoriesPage() {
             const enabled = submittedEnabled === 'true' ? true : submittedEnabled === 'false' ? false : undefined;
             const requestPage = Number(params.page ?? params.current ?? currentPage) || currentPage;
             const result = await listCategories({
-              orgid: currentOrgId,
               page: requestPage,
               pageSize: params.pageSize ?? 20,
               name: submittedName || undefined,
@@ -274,7 +271,7 @@ export default function CategoriesPage() {
                   key="toggle"
                   type="link"
                   onClick={async () => {
-                    await patchCategoryStatus(record.id, currentOrgId, !record.enabled);
+                    await patchCategoryStatus(record.id, !record.enabled);
                     messageApi.success(`分类已${record.enabled ? '停用' : '启用'}`);
                     actionRef.current.reload?.();
                   }}
@@ -288,7 +285,7 @@ export default function CategoriesPage() {
                   okText="确认删除"
                   cancelText="取消"
                   onConfirm={async () => {
-                    await deleteCategory(record.id, currentOrgId);
+                    await deleteCategory(record.id);
                     messageApi.success('分类已删除');
                     actionRef.current.reload?.();
                   }}
@@ -320,7 +317,6 @@ export default function CategoriesPage() {
         initialValues={initialValues}
         onFinish={async (values) => {
           const payload: CategoryMutationInput = {
-            orgid: currentOrgId,
             name: values.name,
             enabled: values.enabled,
             sort: values.sort ?? 0
