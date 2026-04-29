@@ -59,11 +59,21 @@ const (
 
 const (
 	TaskOutboxStatusPending    = "pending"
+	TaskOutboxStatusClaimed    = "claimed"
 	TaskOutboxStatusDispatched = "dispatched"
+	TaskOutboxStatusDeadLetter = "dead_letter"
 )
 
 const (
 	TaskOutboxMessageTypeRunTask = "articleinspect.task.run"
+)
+
+const (
+	TaskOutboxErrorDispatch              = "dispatch_error"
+	TaskOutboxErrorDispatcherUnavailable = "dispatcher_unavailable"
+	TaskOutboxErrorPayloadDecode         = "payload_decode_error"
+	TaskOutboxErrorUnsupportedMessage    = "unsupported_message_type"
+	TaskOutboxErrorDBUpdate              = "db_update_error"
 )
 
 const (

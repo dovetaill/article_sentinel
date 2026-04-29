@@ -3,6 +3,7 @@ package articleinspect
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -705,7 +706,152 @@ func TestTaskOutboxRelayDispatchesPendingMessage(t *testing.T) {
 	}
 }
 
-func TestTaskOutboxRelayRetriesPoisonRowWithoutBlockingLaterMessages(t *testing.T) {
+func TestTaskOutboxRelayReclaimsExpiredLease(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	payload, err := json.Marshal(queuetasks.ArticleInspectTaskPayload{
+		TaskID:        88,
+		OrgID:         100,
+		TriggerSource: "api",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	expiredAt := mustTime(t, "2026-04-20T13:00:00Z")
+	claimedAt := expiredAt.Add(-time.Minute)
+	if err := db.Exec(
+		`INSERT INTO xt_article_inspect_task_outbox
+		(orgid, task_id, message_type, status, payload, claimed_by, claimed_at, claim_until, create_at, update_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		100, 88, TaskOutboxMessageTypeRunTask, "claimed", string(payload), "scheduler@test", claimedAt, expiredAt, claimedAt, claimedAt,
+	).Error; err != nil {
+		t.Fatalf("insert claimed outbox row: %v", err)
+	}
+
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+
+	report, err := relay.DispatchPending(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("DispatchPending() error = %v", err)
+	}
+	if report.Dispatched != 1 {
+		t.Fatalf("DispatchPending().Dispatched = %d, want %d", report.Dispatched, 1)
+	}
+	if len(dispatcher.payloads) != 1 {
+		t.Fatalf("dispatcher payload count = %d, want %d", len(dispatcher.payloads), 1)
+	}
+
+	row := loadOutboxPhase3Row(t, db, 1)
+	if row.Status != TaskOutboxStatusDispatched {
+		t.Fatalf("reclaimed outbox status = %q, want %q", row.Status, TaskOutboxStatusDispatched)
+	}
+	if !row.DispatchedAt.Valid {
+		t.Fatal("reclaimed outbox dispatched_at = NULL, want timestamp")
+	}
+}
+
+func TestTaskOutboxRelayRetryableFailureSchedulesNextAttempt(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	payload, err := json.Marshal(queuetasks.ArticleInspectTaskPayload{
+		TaskID:        99,
+		OrgID:         100,
+		TriggerSource: "api",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	message := InspectionTaskOutboxMessage{
+		OrgID:       100,
+		TaskID:      99,
+		MessageType: TaskOutboxMessageTypeRunTask,
+		Status:      TaskOutboxStatusPending,
+		Payload:     string(payload),
+	}
+	if err := db.Create(&message).Error; err != nil {
+		t.Fatalf("create outbox row: %v", err)
+	}
+
+	dispatcher := &articleInspectTaskDispatcherStub{err: errors.New("queue down")}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+
+	report, err := relay.DispatchPending(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("DispatchPending() error = %v", err)
+	}
+	if report.Failed != 1 {
+		t.Fatalf("DispatchPending().Failed = %d, want %d", report.Failed, 1)
+	}
+
+	row := loadOutboxPhase3Row(t, db, message.ID)
+	if row.Status != TaskOutboxStatusPending {
+		t.Fatalf("retryable failure status = %q, want %q", row.Status, TaskOutboxStatusPending)
+	}
+	if !row.NextAttemptAt.Valid {
+		t.Fatal("retryable failure next_attempt_at = NULL, want timestamp")
+	}
+	if row.LastErrorCode.String != "dispatch_error" {
+		t.Fatalf("retryable failure last_error_code = %q, want %q", row.LastErrorCode.String, "dispatch_error")
+	}
+}
+
+func TestTaskOutboxRelayMovesPoisonMessageToDeadLetter(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	message := InspectionTaskOutboxMessage{
+		OrgID:       100,
+		TaskID:      77,
+		MessageType: TaskOutboxMessageTypeRunTask,
+		Status:      TaskOutboxStatusPending,
+		Payload:     "{bad-json",
+	}
+	if err := db.Create(&message).Error; err != nil {
+		t.Fatalf("create poison outbox row: %v", err)
+	}
+
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+
+	report, err := relay.DispatchPending(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("DispatchPending() error = %v", err)
+	}
+	if report.Failed != 1 {
+		t.Fatalf("DispatchPending().Failed = %d, want %d", report.Failed, 1)
+	}
+	if len(dispatcher.payloads) != 0 {
+		t.Fatalf("dispatcher payload count = %d, want %d", len(dispatcher.payloads), 0)
+	}
+
+	row := loadOutboxPhase3Row(t, db, message.ID)
+	if row.Status != "dead_letter" {
+		t.Fatalf("poison message status = %q, want %q", row.Status, "dead_letter")
+	}
+	if !row.DeadLetteredAt.Valid {
+		t.Fatal("poison message dead_lettered_at = NULL, want timestamp")
+	}
+	if row.LastErrorCode.String != "payload_decode_error" {
+		t.Fatalf("poison message last_error_code = %q, want %q", row.LastErrorCode.String, "payload_decode_error")
+	}
+}
+
+func TestTaskOutboxRelayImplementsCleanerContract(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	relay := NewTaskOutboxRelay(db, nil, nil)
+	if relay == nil {
+		t.Fatal("NewTaskOutboxRelay() = nil, want relay")
+	}
+
+	type outboxCleaner interface {
+		CleanupArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error)
+	}
+
+	if _, ok := any(relay).(outboxCleaner); !ok {
+		t.Fatal("TaskOutboxRelay does not implement CleanupArticleInspectTaskOutbox")
+	}
+}
+
+func TestTaskOutboxRelayDeadLettersPoisonRowWithoutBlockingLaterMessages(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	dispatcher := &articleInspectTaskDispatcherStub{}
 	relay := NewTaskOutboxRelay(db, dispatcher, nil)
@@ -752,14 +898,18 @@ func TestTaskOutboxRelayRetriesPoisonRowWithoutBlockingLaterMessages(t *testing.
 	if err := db.First(&badStored, bad.ID).Error; err != nil {
 		t.Fatalf("load bad outbox row: %v", err)
 	}
-	if badStored.AttemptCount != 1 {
-		t.Fatalf("bad outbox attempt_count = %d, want %d", badStored.AttemptCount, 1)
+	badPhase3 := loadOutboxPhase3Row(t, db, bad.ID)
+	if badStored.Status != TaskOutboxStatusDeadLetter {
+		t.Fatalf("bad outbox status = %q, want %q", badStored.Status, TaskOutboxStatusDeadLetter)
 	}
-	if badStored.LastAttemptAt == nil {
-		t.Fatal("bad outbox last_attempt_at = nil, want timestamp")
+	if badPhase3.AttemptCount != 1 {
+		t.Fatalf("bad outbox attempt_count = %d, want %d", badPhase3.AttemptCount, 1)
 	}
-	if badStored.LastError == "" {
-		t.Fatal("bad outbox last_error = empty, want decode error")
+	if !badPhase3.DeadLetteredAt.Valid {
+		t.Fatal("bad outbox dead_lettered_at = NULL, want timestamp")
+	}
+	if badPhase3.LastErrorCode.String != TaskOutboxErrorPayloadDecode {
+		t.Fatalf("bad outbox last_error_code = %q, want %q", badPhase3.LastErrorCode.String, TaskOutboxErrorPayloadDecode)
 	}
 
 	second, err := relay.DispatchPending(context.Background(), 1)
@@ -2301,6 +2451,19 @@ type articleInspectTaskDispatcherStub struct {
 	err      error
 }
 
+type outboxPhase3Row struct {
+	Status         string
+	AttemptCount   int64
+	ClaimedBy      sql.NullString
+	ClaimedAt      sql.NullTime
+	ClaimUntil     sql.NullTime
+	NextAttemptAt  sql.NullTime
+	LastErrorCode  sql.NullString
+	DeadLetteredAt sql.NullTime
+	RetainedUntil  sql.NullTime
+	DispatchedAt   sql.NullTime
+}
+
 func (s *articleInspectTaskDispatcherStub) DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error {
 	_ = ctx
 	s.payloads = append(s.payloads, payload)
@@ -2362,6 +2525,22 @@ func articleInspectDataMap(t *testing.T, value any) map[string]any {
 		t.Fatalf("data type = %T, want map[string]any", value)
 	}
 	return data
+}
+
+func loadOutboxPhase3Row(t *testing.T, db *gorm.DB, id uint64) outboxPhase3Row {
+	t.Helper()
+
+	var row outboxPhase3Row
+	if err := db.Raw(
+		`SELECT status, attempt_count, claimed_by, claimed_at, claim_until, next_attempt_at,
+		        last_error_code, dead_lettered_at, retained_until, dispatched_at
+		   FROM xt_article_inspect_task_outbox
+		  WHERE id = ?`,
+		id,
+	).Scan(&row).Error; err != nil {
+		t.Fatalf("load outbox phase 3 row: %v", err)
+	}
+	return row
 }
 
 func articleInspectListField(t *testing.T, m map[string]any, key string) []any {

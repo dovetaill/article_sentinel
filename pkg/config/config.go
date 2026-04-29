@@ -100,9 +100,14 @@ type AsynqConfig struct {
 
 // OutboxConfig 定义持久化 outbox relay 的最小运行参数。
 type OutboxConfig struct {
-	Enabled   bool   `yaml:"enabled" env:"OUTBOX_ENABLED" env-default:"true"`
-	RelaySpec string `yaml:"relay_spec" env:"OUTBOX_RELAY_SPEC" env-default:"@every 15s"`
-	BatchSize int    `yaml:"batch_size" env:"OUTBOX_BATCH_SIZE" env-default:"20"`
+	Enabled                  bool   `yaml:"enabled" env:"OUTBOX_ENABLED" env-default:"true"`
+	RelaySpec                string `yaml:"relay_spec" env:"OUTBOX_RELAY_SPEC" env-default:"@every 15s"`
+	CleanupSpec              string `yaml:"cleanup_spec" env:"OUTBOX_CLEANUP_SPEC" env-default:"@every 1h"`
+	BatchSize                int    `yaml:"batch_size" env:"OUTBOX_BATCH_SIZE" env-default:"20"`
+	LeaseDurationSeconds     int    `yaml:"lease_duration_seconds" env:"OUTBOX_LEASE_DURATION_SECONDS" env-default:"30"`
+	MaxAttempts              int    `yaml:"max_attempts" env:"OUTBOX_MAX_ATTEMPTS" env-default:"10"`
+	DispatchedRetentionHours int    `yaml:"dispatched_retention_hours" env:"OUTBOX_DISPATCHED_RETENTION_HOURS" env-default:"168"`
+	DeadLetterRetentionHours int    `yaml:"dead_letter_retention_hours" env:"OUTBOX_DEAD_LETTER_RETENTION_HOURS" env-default:"720"`
 }
 
 // SchedulerConfig 定义定时任务调度参数。
