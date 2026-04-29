@@ -3,6 +3,7 @@ package queueasynq
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -123,6 +124,24 @@ func TestArticleInspectQueueBuildsPayload(t *testing.T) {
 	if recorder.task.Type() != tasks.TypeArticleInspectRunTask {
 		t.Fatalf("task.Type() = %q, want %q", recorder.task.Type(), tasks.TypeArticleInspectRunTask)
 	}
+	var (
+		queueName string
+		taskID    string
+	)
+	for _, opt := range recorder.opts {
+		switch opt.Type() {
+		case libasynq.QueueOpt:
+			queueName, _ = opt.Value().(string)
+		case libasynq.TaskIDOpt:
+			taskID, _ = opt.Value().(string)
+		}
+	}
+	if queueName != "critical" {
+		t.Fatalf("queue option = %q, want %q", queueName, "critical")
+	}
+	if taskID != "articleinspect-task-88" {
+		t.Fatalf("task id option = %q, want %q", taskID, "articleinspect-task-88")
+	}
 
 	decoded, err := tasks.DecodeArticleInspectTaskPayload(recorder.task)
 	if err != nil {
@@ -130,6 +149,41 @@ func TestArticleInspectQueueBuildsPayload(t *testing.T) {
 	}
 	if decoded != payload {
 		t.Fatalf("payload = %+v, want %+v", decoded, payload)
+	}
+}
+
+func TestArticleInspectDispatcherIgnoresTaskIDConflict(t *testing.T) {
+	recorder := &enqueueRecorder{err: libasynq.ErrTaskIDConflict}
+	dispatcher := NewArticleInspectTaskDispatcher(recorder, "critical")
+	if dispatcher == nil {
+		t.Fatal("NewArticleInspectTaskDispatcher() = nil, want dispatcher")
+	}
+
+	err := dispatcher.DispatchArticleInspectTask(context.Background(), tasks.ArticleInspectTaskPayload{
+		TaskID:        88,
+		OrgID:         100,
+		TriggerSource: "manual",
+	})
+	if err != nil {
+		t.Fatalf("DispatchArticleInspectTask() error = %v, want nil", err)
+	}
+}
+
+func TestArticleInspectDispatcherPropagatesEnqueueError(t *testing.T) {
+	wantErr := errors.New("redis down")
+	recorder := &enqueueRecorder{err: wantErr}
+	dispatcher := NewArticleInspectTaskDispatcher(recorder, "critical")
+	if dispatcher == nil {
+		t.Fatal("NewArticleInspectTaskDispatcher() = nil, want dispatcher")
+	}
+
+	err := dispatcher.DispatchArticleInspectTask(context.Background(), tasks.ArticleInspectTaskPayload{
+		TaskID:        88,
+		OrgID:         100,
+		TriggerSource: "manual",
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("DispatchArticleInspectTask() error = %v, want %v", err, wantErr)
 	}
 }
 

@@ -20,6 +20,7 @@ func init() {
 		articleinspectmodule.InspectionKeywordScope{},
 		articleinspectmodule.InspectionTask{},
 		articleinspectmodule.InspectionTaskKeyword{},
+		articleinspectmodule.InspectionTaskOutboxMessage{},
 		articleinspectmodule.InspectionResult{},
 		articleinspectmodule.InspectionResultHit{},
 		articleinspectmodule.InspectionAction{},

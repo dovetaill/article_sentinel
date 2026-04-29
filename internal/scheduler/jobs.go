@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"log/slog"
 
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
@@ -10,6 +11,10 @@ import (
 // Enqueuer 抽象定时任务的投递行为，便于测试替换。
 type Enqueuer interface {
 	EnqueueRuntimeHeartbeat(payload tasks.Payload) error
+}
+
+type ArticleInspectTaskOutboxRelay interface {
+	RelayPendingArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error)
 }
 
 type asynqEnqueuer struct {
@@ -40,6 +45,17 @@ func NewRuntimeHeartbeatJob(logger *slog.Logger, enqueuer Enqueuer) func() {
 		// scheduler 只负责定时触发 enqueue，不在 cron 回调里做重业务逻辑。
 		if err := enqueuer.EnqueueRuntimeHeartbeat(tasks.Payload{Source: "scheduler"}); err != nil && logger != nil {
 			logger.Error("enqueue scheduled task", "type", tasks.TypeRuntimeHeartbeat, "error", err)
+		}
+	}
+}
+
+func NewArticleInspectTaskOutboxRelayJob(logger *slog.Logger, relay ArticleInspectTaskOutboxRelay, limit int) func() {
+	return func() {
+		if relay == nil {
+			return
+		}
+		if _, err := relay.RelayPendingArticleInspectTaskOutbox(context.Background(), limit); err != nil && logger != nil {
+			logger.Error("relay article inspect outbox", "error", err, "batch_size", limit)
 		}
 	}
 }

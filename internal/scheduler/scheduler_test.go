@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
@@ -15,10 +16,24 @@ type enqueueRecorder struct {
 	err      error
 }
 
+type outboxRelayRecorder struct {
+	calls      int
+	limits     []int
+	dispatched int
+	err        error
+}
+
 func (r *enqueueRecorder) EnqueueRuntimeHeartbeat(payload tasks.Payload) error {
 	r.calls++
 	r.payloads = append(r.payloads, payload)
 	return r.err
+}
+
+func (r *outboxRelayRecorder) RelayPendingArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error) {
+	_ = ctx
+	r.calls++
+	r.limits = append(r.limits, limit)
+	return r.dispatched, r.err
 }
 
 func TestRegisterJobsAddsCronEntries(t *testing.T) {
@@ -29,15 +44,22 @@ func TestRegisterJobsAddsCronEntries(t *testing.T) {
 				Enabled: true,
 				Spec:    "@every 1m",
 			},
+			Queue: config.QueueConfig{
+				Outbox: config.OutboxConfig{
+					Enabled:   true,
+					RelaySpec: "@every 15s",
+					BatchSize: 20,
+				},
+			},
 		},
 	}
 
-	if err := RegisterJobs(c, rt, &enqueueRecorder{}); err != nil {
+	if err := RegisterJobs(c, rt, &enqueueRecorder{}, &outboxRelayRecorder{}); err != nil {
 		t.Fatalf("RegisterJobs() error = %v", err)
 	}
 
-	if got := len(c.Entries()); got != 1 {
-		t.Fatalf("len(c.Entries()) = %d, want %d", got, 1)
+	if got := len(c.Entries()); got != 2 {
+		t.Fatalf("len(c.Entries()) = %d, want %d", got, 2)
 	}
 }
 
@@ -55,5 +77,19 @@ func TestScheduledJobOnlyEnqueuesTask(t *testing.T) {
 	}
 	if recorder.payloads[0].Source != "scheduler" {
 		t.Fatalf("payload.Source = %q, want %q", recorder.payloads[0].Source, "scheduler")
+	}
+}
+
+func TestArticleInspectTaskOutboxRelayJobDispatchesPendingMessages(t *testing.T) {
+	recorder := &outboxRelayRecorder{dispatched: 3}
+
+	job := NewArticleInspectTaskOutboxRelayJob(nil, recorder, 20)
+	job()
+
+	if recorder.calls != 1 {
+		t.Fatalf("calls = %d, want %d", recorder.calls, 1)
+	}
+	if len(recorder.limits) != 1 || recorder.limits[0] != 20 {
+		t.Fatalf("limits = %#v, want %#v", recorder.limits, []int{20})
 	}
 }

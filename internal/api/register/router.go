@@ -1,7 +1,6 @@
 package register
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
-	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 )
 
 // NewRouter 构建基于 Huma 的 HTTP 路由。
@@ -85,32 +83,18 @@ func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes 
 		return articleinspectmodule.Routes{}
 	}
 
-	db := rt.Resources.DB
-	categoryRepo := articleinspectmodule.NewCategoryRepository(db)
-	keywordRepo := articleinspectmodule.NewKeywordRepository(db)
-	articleRepo := articleinspectmodule.NewArticleRepository(db)
-	return articleinspectmodule.Routes{
-		Categories: articleinspectmodule.NewCategoryService(categoryRepo),
-		Keywords:   articleinspectmodule.NewKeywordService(keywordRepo),
-		Tasks:      articleinspectmodule.NewTaskService(db, keywordRepo, articleRepo),
-		Results:    articleinspectmodule.NewResultService(db),
-		Actions:    articleinspectmodule.NewActionService(db, articleinspectmodule.NewActionRepository(db)),
-		Lifecycle:  articleinspectmodule.NewLifecycleService(db),
-		Logs:       articleinspectmodule.NewLogService(db),
-		Articles:   articleinspectmodule.NewArticleService(articleRepo),
-		// 任务创建接口只负责落库和投递，真正扫描放到 worker 中异步执行。
-		Dispatcher: newArticleInspectDispatcher(rt),
-	}
-}
-
-type articleInspectDispatcher struct {
-	client    queueasynq.Enqueuer
-	queueName string
+	// 任务创建接口只负责落库和投递，真正扫描放到 worker 中异步执行。
+	routes := articleinspectmodule.NewRoutes(rt.Resources.DB, newArticleInspectDispatcher(rt))
+	routes.Logger = nilLogger(rt)
+	return routes
 }
 
 func newArticleInspectDispatcher(rt *bootstrap.Runtime) articleinspectmodule.TaskDispatcher {
 	client, err := queueasynq.NewClient(rt)
 	if err != nil {
+		if logger := nilLogger(rt); logger != nil {
+			logger.Error("article inspect dispatcher unavailable", "error", err)
+		}
 		return nil
 	}
 	if rt != nil {
@@ -120,17 +104,7 @@ func newArticleInspectDispatcher(rt *bootstrap.Runtime) articleinspectmodule.Tas
 	if rt != nil && rt.Config != nil {
 		queueName = rt.Config.Queue.Asynq.QueueName
 	}
-	return &articleInspectDispatcher{client: client, queueName: queueName}
-}
-
-func (d *articleInspectDispatcher) DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error {
-	_ = ctx
-	if d == nil {
-		return nil
-	}
-	// 这里统一经过 enqueue helper，避免 handler 直接依赖 Asynq 细节。
-	_, err := queueasynq.EnqueueArticleInspectTask(d.client, d.queueName, payload)
-	return err
+	return queueasynq.NewArticleInspectTaskDispatcher(client, queueName)
 }
 
 func nilLogger(rt *bootstrap.Runtime) *slog.Logger {

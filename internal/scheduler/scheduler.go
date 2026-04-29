@@ -15,7 +15,7 @@ func New() *cron.Cron {
 }
 
 // RegisterJobs 按当前配置注册所有 scheduler jobs。
-func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer) error {
+func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer, outboxRelay ArticleInspectTaskOutboxRelay) error {
 	if c == nil {
 		return errors.New("cron is required")
 	}
@@ -38,6 +38,15 @@ func RegisterJobs(c *cron.Cron, rt *bootstrap.Runtime, enqueuer Enqueuer) error 
 	// 当前只保留一个 heartbeat 骨架 job，真实业务 cron 后续按同样模式扩展。
 	if _, err := c.AddFunc(spec, NewRuntimeHeartbeatJob(rt.Logger, enqueuer)); err != nil {
 		return fmt.Errorf("register runtime heartbeat job: %w", err)
+	}
+	if rt.Config.Queue.Outbox.Enabled && outboxRelay != nil {
+		relaySpec := strings.TrimSpace(rt.Config.Queue.Outbox.RelaySpec)
+		if relaySpec == "" {
+			return errors.New("outbox relay spec is required")
+		}
+		if _, err := c.AddFunc(relaySpec, NewArticleInspectTaskOutboxRelayJob(rt.Logger, outboxRelay, rt.Config.Queue.Outbox.BatchSize)); err != nil {
+			return fmt.Errorf("register article inspect outbox relay job: %w", err)
+		}
 	}
 	return nil
 }

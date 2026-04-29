@@ -2,6 +2,7 @@ package queueasynq
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
@@ -53,11 +54,16 @@ func EnqueueArticleInspectTask(client Enqueuer, queueName string, payload tasks.
 		return nil, err
 	}
 
+	opts := []libasynq.Option{libasynq.TaskID(articleInspectTaskID(payload))}
 	queueName = strings.TrimSpace(queueName)
-	if queueName == "" {
-		return client.Enqueue(task)
+	if queueName != "" {
+		opts = append(opts, libasynq.Queue(queueName))
 	}
-	return client.Enqueue(task, libasynq.Queue(queueName))
+	return client.Enqueue(task, opts...)
+}
+
+func articleInspectTaskID(payload tasks.ArticleInspectTaskPayload) string {
+	return fmt.Sprintf("articleinspect-task-%d", payload.TaskID)
 }
 
 func runtimeRedis(rt *bootstrap.Runtime) (*redis.Client, error) {

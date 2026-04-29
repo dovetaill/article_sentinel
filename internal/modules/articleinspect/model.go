@@ -121,6 +121,24 @@ func (InspectionTaskKeyword) TableName() string {
 	return "xt_article_inspect_task_keywords"
 }
 
+type InspectionTaskOutboxMessage struct {
+	ID            uint64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	OrgID         uint64     `gorm:"column:orgid;not null;index" json:"orgid"`
+	TaskID        uint64     `gorm:"column:task_id;not null;index" json:"task_id"`
+	MessageType   string     `gorm:"column:message_type;size:64;not null" json:"message_type"`
+	Status        string     `gorm:"column:status;size:32;not null;index" json:"status"`
+	Payload       string     `gorm:"column:payload;type:longtext" json:"payload"`
+	AttemptCount  int64      `gorm:"column:attempt_count;not null;default:0" json:"attempt_count"`
+	LastError     string     `gorm:"column:last_error;type:text" json:"last_error"`
+	LastAttemptAt *time.Time `gorm:"column:last_attempt_at" json:"last_attempt_at"`
+	DispatchedAt  *time.Time `gorm:"column:dispatched_at" json:"dispatched_at"`
+	InspectionTimestamps
+}
+
+func (InspectionTaskOutboxMessage) TableName() string {
+	return "xt_article_inspect_task_outbox"
+}
+
 type InspectionResult struct {
 	ID                 uint64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	OrgID              uint64     `gorm:"column:orgid;not null;index" json:"orgid"`

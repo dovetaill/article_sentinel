@@ -88,13 +88,21 @@ type JWTConfig struct {
 
 // QueueConfig 定义后台队列运行参数。
 type QueueConfig struct {
-	Asynq AsynqConfig `yaml:"asynq"`
+	Asynq  AsynqConfig  `yaml:"asynq"`
+	Outbox OutboxConfig `yaml:"outbox"`
 }
 
 // AsynqConfig 定义 Asynq 执行器配置。
 type AsynqConfig struct {
 	Concurrency int    `yaml:"concurrency" env:"ASYNQ_CONCURRENCY" env-default:"10"`
 	QueueName   string `yaml:"queue_name" env:"ASYNQ_QUEUE_NAME" env-default:"default"`
+}
+
+// OutboxConfig 定义持久化 outbox relay 的最小运行参数。
+type OutboxConfig struct {
+	Enabled   bool   `yaml:"enabled" env:"OUTBOX_ENABLED" env-default:"true"`
+	RelaySpec string `yaml:"relay_spec" env:"OUTBOX_RELAY_SPEC" env-default:"@every 15s"`
+	BatchSize int    `yaml:"batch_size" env:"OUTBOX_BATCH_SIZE" env-default:"20"`
 }
 
 // SchedulerConfig 定义定时任务调度参数。

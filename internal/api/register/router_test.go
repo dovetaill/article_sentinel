@@ -1,6 +1,7 @@
 package register_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/api/register"
@@ -149,6 +151,18 @@ func TestRouterDisablesDocsEndpointsWhenDocsDisabled(t *testing.T) {
 				t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusNotFound)
 			}
 		})
+	}
+}
+
+func TestRouterLogsArticleInspectDispatcherInitFailure(t *testing.T) {
+	var logOutput bytes.Buffer
+	rt := newRouterTestRuntime(true)
+	rt.Logger = slog.New(slog.NewTextHandler(&logOutput, nil))
+
+	_ = register.NewRouter(rt)
+
+	if !strings.Contains(logOutput.String(), "article inspect dispatcher unavailable") {
+		t.Fatalf("router logs = %q, want dispatcher init failure message", logOutput.String())
 	}
 }
 

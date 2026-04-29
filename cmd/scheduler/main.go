@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
+	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
 	"github.com/dovetaill/article-sentinel/internal/scheduler"
 )
@@ -31,12 +32,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("build scheduler client: %v", err)
 	}
+	dispatcher := queueasynq.NewArticleInspectTaskDispatcher(client, rt.Config.Queue.Asynq.QueueName)
+	outboxRelay := articleinspectmodule.NewTaskOutboxRelay(rt.Resources.DB, dispatcher, rt.Logger)
 
 	cronScheduler := scheduler.New()
 	if err := scheduler.RegisterJobs(
 		cronScheduler,
 		rt,
 		scheduler.NewAsynqEnqueuer(client, rt.Config.Queue.Asynq.QueueName),
+		outboxRelay,
 	); err != nil {
 		log.Fatalf("register scheduler jobs: %v", err)
 	}

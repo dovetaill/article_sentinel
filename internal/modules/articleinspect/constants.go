@@ -58,6 +58,15 @@ const (
 )
 
 const (
+	TaskOutboxStatusPending    = "pending"
+	TaskOutboxStatusDispatched = "dispatched"
+)
+
+const (
+	TaskOutboxMessageTypeRunTask = "articleinspect.task.run"
+)
+
+const (
 	ResultDispositionPending     = "pending"
 	ResultDispositionIgnored     = "ignored"
 	ResultDispositionProcessed   = "processed"

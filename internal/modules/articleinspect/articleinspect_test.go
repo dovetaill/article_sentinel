@@ -38,6 +38,7 @@ func TestInspectionModelMetadata(t *testing.T) {
 		{name: "keyword scope table", got: (InspectionKeywordScope{}).TableName(), want: "xt_article_inspect_keyword_scopes"},
 		{name: "task table", got: (InspectionTask{}).TableName(), want: "xt_article_inspect_tasks"},
 		{name: "task keyword table", got: (InspectionTaskKeyword{}).TableName(), want: "xt_article_inspect_task_keywords"},
+		{name: "task outbox table", got: (InspectionTaskOutboxMessage{}).TableName(), want: "xt_article_inspect_task_outbox"},
 		{name: "result table", got: (InspectionResult{}).TableName(), want: "xt_article_inspect_results"},
 		{name: "result hit table", got: (InspectionResultHit{}).TableName(), want: "xt_article_inspect_result_hits"},
 		{name: "action table", got: (InspectionAction{}).TableName(), want: "xt_article_inspect_actions"},
@@ -590,6 +591,200 @@ func TestTaskCreation(t *testing.T) {
 	}
 }
 
+func TestTaskCreationWithOutbox(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	created, outbox, err := taskService.CreateWithOutbox(ctx, CreateInspectionTaskInput{
+		OrgID:          100,
+		KeywordIDs:     []uint64{keyword.ID},
+		IncludeBody:    true,
+		ArticleState:   ArticleStateOnline,
+		PublishTimeEnd: timePointer(mustTime(t, "2026-04-20T13:00:00Z")),
+	})
+	if err != nil {
+		t.Fatalf("CreateWithOutbox() error = %v", err)
+	}
+	if created.ID == 0 {
+		t.Fatal("CreateWithOutbox().Task.ID = 0, want persisted task id")
+	}
+	if outbox.ID == 0 {
+		t.Fatal("CreateWithOutbox().Outbox.ID = 0, want persisted outbox id")
+	}
+	if outbox.Status != TaskOutboxStatusPending {
+		t.Fatalf("CreateWithOutbox().Outbox.Status = %q, want %q", outbox.Status, TaskOutboxStatusPending)
+	}
+	if outbox.MessageType != TaskOutboxMessageTypeRunTask {
+		t.Fatalf("CreateWithOutbox().Outbox.MessageType = %q, want %q", outbox.MessageType, TaskOutboxMessageTypeRunTask)
+	}
+	if !strings.Contains(outbox.Payload, fmt.Sprintf("\"task_id\":%d", created.ID)) {
+		t.Fatalf("CreateWithOutbox().Outbox.Payload = %q, want contains task id %d", outbox.Payload, created.ID)
+	}
+
+	var stored InspectionTaskOutboxMessage
+	if err := db.Where("orgid = ? AND task_id = ?", 100, created.ID).First(&stored).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if stored.Status != TaskOutboxStatusPending {
+		t.Fatalf("stored outbox status = %q, want %q", stored.Status, TaskOutboxStatusPending)
+	}
+}
+
+func TestTaskOutboxRelayDispatchesPendingMessage(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	task, outbox, err := taskService.CreateWithOutbox(ctx, CreateInspectionTaskInput{
+		OrgID:        100,
+		KeywordIDs:   []uint64{keyword.ID},
+		IncludeBody:  true,
+		ArticleState: ArticleStateOnline,
+	})
+	if err != nil {
+		t.Fatalf("CreateWithOutbox() error = %v", err)
+	}
+
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+	if err := relay.DispatchMessage(context.Background(), outbox.ID); err != nil {
+		t.Fatalf("DispatchMessage() error = %v", err)
+	}
+	if len(dispatcher.payloads) != 1 {
+		t.Fatalf("dispatcher payloads len = %d, want %d", len(dispatcher.payloads), 1)
+	}
+	if dispatcher.payloads[0].TaskID != task.ID || dispatcher.payloads[0].OrgID != task.OrgID {
+		t.Fatalf("dispatcher payload = %+v, want task=%d org=%d", dispatcher.payloads[0], task.ID, task.OrgID)
+	}
+
+	var stored InspectionTaskOutboxMessage
+	if err := db.First(&stored, outbox.ID).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if stored.Status != TaskOutboxStatusDispatched {
+		t.Fatalf("outbox status = %q, want %q", stored.Status, TaskOutboxStatusDispatched)
+	}
+	if stored.AttemptCount != 1 {
+		t.Fatalf("outbox attempt_count = %d, want %d", stored.AttemptCount, 1)
+	}
+	if stored.DispatchedAt == nil {
+		t.Fatal("outbox dispatched_at = nil, want timestamp")
+	}
+}
+
+func TestTaskOutboxRelayRetriesPoisonRowWithoutBlockingLaterMessages(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+
+	bad := InspectionTaskOutboxMessage{
+		OrgID:       100,
+		TaskID:      1,
+		MessageType: TaskOutboxMessageTypeRunTask,
+		Status:      TaskOutboxStatusPending,
+		Payload:     "{not-json",
+	}
+	if err := db.Create(&bad).Error; err != nil {
+		t.Fatalf("create bad outbox row: %v", err)
+	}
+
+	goodPayload, err := json.Marshal(queuetasks.ArticleInspectTaskPayload{
+		TaskID:        2,
+		OrgID:         100,
+		TriggerSource: "api",
+	})
+	if err != nil {
+		t.Fatalf("marshal good payload: %v", err)
+	}
+	good := InspectionTaskOutboxMessage{
+		OrgID:       100,
+		TaskID:      2,
+		MessageType: TaskOutboxMessageTypeRunTask,
+		Status:      TaskOutboxStatusPending,
+		Payload:     string(goodPayload),
+	}
+	if err := db.Create(&good).Error; err != nil {
+		t.Fatalf("create good outbox row: %v", err)
+	}
+
+	first, err := relay.DispatchPending(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("DispatchPending(first) error = %v", err)
+	}
+	if first.Scanned != 1 || first.Failed != 1 || first.Dispatched != 0 {
+		t.Fatalf("first DispatchPending() report = %+v, want scanned=1 failed=1 dispatched=0", first)
+	}
+
+	var badStored InspectionTaskOutboxMessage
+	if err := db.First(&badStored, bad.ID).Error; err != nil {
+		t.Fatalf("load bad outbox row: %v", err)
+	}
+	if badStored.AttemptCount != 1 {
+		t.Fatalf("bad outbox attempt_count = %d, want %d", badStored.AttemptCount, 1)
+	}
+	if badStored.LastAttemptAt == nil {
+		t.Fatal("bad outbox last_attempt_at = nil, want timestamp")
+	}
+	if badStored.LastError == "" {
+		t.Fatal("bad outbox last_error = empty, want decode error")
+	}
+
+	second, err := relay.DispatchPending(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("DispatchPending(second) error = %v", err)
+	}
+	if second.Scanned != 1 || second.Dispatched != 1 || second.Failed != 0 {
+		t.Fatalf("second DispatchPending() report = %+v, want scanned=1 dispatched=1 failed=0", second)
+	}
+	if len(dispatcher.payloads) != 1 {
+		t.Fatalf("dispatcher payloads len after second relay = %d, want %d", len(dispatcher.payloads), 1)
+	}
+	if dispatcher.payloads[0].TaskID != 2 {
+		t.Fatalf("dispatcher payload task id = %d, want %d", dispatcher.payloads[0].TaskID, 2)
+	}
+
+	var goodStored InspectionTaskOutboxMessage
+	if err := db.First(&goodStored, good.ID).Error; err != nil {
+		t.Fatalf("load good outbox row: %v", err)
+	}
+	if goodStored.Status != TaskOutboxStatusDispatched {
+		t.Fatalf("good outbox status = %q, want %q", goodStored.Status, TaskOutboxStatusDispatched)
+	}
+}
+
 func TestTaskDelete(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	service := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
@@ -797,6 +992,7 @@ func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 		&InspectionKeywordScope{},
 		&InspectionTask{},
 		&InspectionTaskKeyword{},
+		&InspectionTaskOutboxMessage{},
 		&InspectionResult{},
 		&InspectionResultHit{},
 		&InspectionAction{},
@@ -1837,17 +2033,7 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
-	RegisterRoutes(api, Routes{
-		Categories: NewCategoryService(NewCategoryRepository(db)),
-		Keywords:   NewKeywordService(NewKeywordRepository(db)),
-		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
-		Results:    NewResultService(db),
-		Actions:    NewActionService(db, NewActionRepository(db)),
-		Lifecycle:  NewLifecycleService(db),
-		Logs:       NewLogService(db),
-		Articles:   NewArticleService(NewArticleRepository(db)),
-		Dispatcher: dispatcher,
-	})
+	RegisterRoutes(api, NewRoutes(db, dispatcher))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -1890,6 +2076,207 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 			t.Fatalf("openapi missing path %s", path)
 		}
 	}
+
+	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost, "article-inspect-category-create")
+	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost, "article-inspect-task-create")
+	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet, "article-inspect-keyword-detail")
+
+	if !articleInspectHasResponseStatus(doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost, "201") {
+		t.Fatal("category create must document 201 response")
+	}
+	if !articleInspectHasResponseStatus(doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost, "201") {
+		t.Fatal("task create must document 201 response")
+	}
+
+	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet, "id"); got != "integer" {
+		t.Fatalf("keyword detail path id schema type = %q, want %q", got, "integer")
+	}
+	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodGet, "enabled"); got != "boolean" {
+		t.Fatalf("category list enabled schema type = %q, want %q", got, "boolean")
+	}
+	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet, "orgid"); got != "integer" {
+		t.Fatalf("result list orgid schema type = %q, want %q", got, "integer")
+	}
+}
+
+func TestNewRoutesBuildsModuleDependencies(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	dispatcher := &articleInspectTaskDispatcherStub{}
+
+	routes := NewRoutes(db, dispatcher)
+	if routes.Categories == nil {
+		t.Fatal("NewRoutes().Categories = nil")
+	}
+	if routes.Keywords == nil {
+		t.Fatal("NewRoutes().Keywords = nil")
+	}
+	if routes.Tasks == nil {
+		t.Fatal("NewRoutes().Tasks = nil")
+	}
+	if routes.Results == nil {
+		t.Fatal("NewRoutes().Results = nil")
+	}
+	if routes.Actions == nil {
+		t.Fatal("NewRoutes().Actions = nil")
+	}
+	if routes.Lifecycle == nil {
+		t.Fatal("NewRoutes().Lifecycle = nil")
+	}
+	if routes.Logs == nil {
+		t.Fatal("NewRoutes().Logs = nil")
+	}
+	if routes.Articles == nil {
+		t.Fatal("NewRoutes().Articles = nil")
+	}
+	if routes.Dispatcher != dispatcher {
+		t.Fatalf("NewRoutes().Dispatcher = %#v, want %#v", routes.Dispatcher, dispatcher)
+	}
+}
+
+func TestHandlerInvalidRouteInputsStillUseEnvelopeBadRequest(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	seedArticleCenterFixtures(t, db)
+	handler := newArticleInspectHandler(t, db, &articleInspectTaskDispatcherStub{})
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "invalid category id", path: "/api/v1/article-inspect/categories/not-a-number?orgid=29"},
+		{name: "invalid keyword enabled", path: "/api/v1/article-inspect/keywords?orgid=29&page=1&page_size=20&enabled=not-bool"},
+		{name: "invalid article state", path: "/api/v1/article-inspect/articles?orgid=29&page=1&page_size=20&state=oops"},
+		{name: "invalid log start_at", path: "/api/v1/article-inspect/logs/operations?orgid=29&page=1&page_size=20&start_at=bad-time"},
+		{name: "invalid result orgid", path: "/api/v1/article-inspect/results?orgid=abc&page=1&page_size=20"},
+		{name: "invalid task page", path: "/api/v1/article-inspect/tasks?orgid=100&page=bad&page_size=20"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sendArticleInspectRequest(t, handler, http.MethodGet, tt.path, nil)
+			if result.status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", result.status, http.StatusBadRequest)
+			}
+			if result.envelope.Code != http.StatusBadRequest {
+				t.Fatalf("envelope = %+v, want bad request envelope", result.envelope)
+			}
+		})
+	}
+}
+
+func TestTaskCreateEnqueueFailureLeavesPendingOutbox(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	dispatcher := &articleInspectTaskDispatcherStub{err: errors.New("queue down")}
+	handler := newArticleInspectHandler(t, db, dispatcher)
+
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	createdKeyword, err := keywordService.Create(context.Background(), CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("create keyword fixture: %v", err)
+	}
+
+	result := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{
+		"orgid":         100,
+		"keyword_ids":   []uint64{createdKeyword.ID},
+		"include_body":  true,
+		"article_state": ArticleStateOnline,
+	})
+	if result.status != http.StatusCreated {
+		t.Fatalf("create task status = %d, want %d", result.status, http.StatusCreated)
+	}
+	if result.envelope.Code != 0 {
+		t.Fatalf("create task envelope = %+v, want success code", result.envelope)
+	}
+
+	var taskCount int64
+	if err := db.Model(&InspectionTask{}).Where("orgid = ?", 100).Count(&taskCount).Error; err != nil {
+		t.Fatalf("count tasks: %v", err)
+	}
+	if taskCount != 1 {
+		t.Fatalf("task count after enqueue failure = %d, want %d", taskCount, 1)
+	}
+
+	var taskKeywordCount int64
+	if err := db.Model(&InspectionTaskKeyword{}).Where("orgid = ?", 100).Count(&taskKeywordCount).Error; err != nil {
+		t.Fatalf("count task keywords: %v", err)
+	}
+	if taskKeywordCount != 1 {
+		t.Fatalf("task keyword count after enqueue failure = %d, want %d", taskKeywordCount, 1)
+	}
+
+	var outbox InspectionTaskOutboxMessage
+	if err := db.Where("orgid = ?", 100).First(&outbox).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if outbox.Status != TaskOutboxStatusPending {
+		t.Fatalf("outbox status after enqueue failure = %q, want %q", outbox.Status, TaskOutboxStatusPending)
+	}
+	if outbox.AttemptCount != 1 {
+		t.Fatalf("outbox attempt_count after enqueue failure = %d, want %d", outbox.AttemptCount, 1)
+	}
+	if !strings.Contains(outbox.LastError, "queue down") {
+		t.Fatalf("outbox last_error = %q, want contains %q", outbox.LastError, "queue down")
+	}
+}
+
+func TestTaskCreateWithoutDispatcherStillCreatesPendingOutbox(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	handler := newArticleInspectHandler(t, db, nil)
+
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	createdKeyword, err := keywordService.Create(context.Background(), CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("create keyword fixture: %v", err)
+	}
+
+	result := sendArticleInspectJSONRequest(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{
+		"orgid":         100,
+		"keyword_ids":   []uint64{createdKeyword.ID},
+		"include_body":  true,
+		"article_state": ArticleStateOnline,
+	})
+	if result.status != http.StatusCreated {
+		t.Fatalf("create task status = %d, want %d", result.status, http.StatusCreated)
+	}
+
+	var taskCount int64
+	if err := db.Model(&InspectionTask{}).Where("orgid = ?", 100).Count(&taskCount).Error; err != nil {
+		t.Fatalf("count tasks: %v", err)
+	}
+	if taskCount != 1 {
+		t.Fatalf("task count without dispatcher = %d, want %d", taskCount, 1)
+	}
+
+	var outbox InspectionTaskOutboxMessage
+	if err := db.Where("orgid = ?", 100).First(&outbox).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if outbox.Status != TaskOutboxStatusPending {
+		t.Fatalf("outbox status without dispatcher = %q, want %q", outbox.Status, TaskOutboxStatusPending)
+	}
+	if outbox.AttemptCount != 0 {
+		t.Fatalf("outbox attempt_count without dispatcher = %d, want %d", outbox.AttemptCount, 0)
+	}
 }
 
 func extractArticleIDs(items []CandidateArticle) []uint64 {
@@ -1920,22 +2307,12 @@ func (s *articleInspectTaskDispatcherStub) DispatchArticleInspectTask(ctx contex
 	return s.err
 }
 
-func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher *articleInspectTaskDispatcherStub) http.Handler {
+func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher TaskDispatcher) http.Handler {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("Test API", "1.0.0"))
-	RegisterRoutes(api, Routes{
-		Categories: NewCategoryService(NewCategoryRepository(db)),
-		Keywords:   NewKeywordService(NewKeywordRepository(db)),
-		Tasks:      NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db)),
-		Results:    NewResultService(db),
-		Actions:    NewActionService(db, NewActionRepository(db)),
-		Lifecycle:  NewLifecycleService(db),
-		Logs:       NewLogService(db),
-		Articles:   NewArticleService(NewArticleRepository(db)),
-		Dispatcher: dispatcher,
-	})
+	RegisterRoutes(api, NewRoutes(db, dispatcher))
 	return mux
 }
 
@@ -2050,6 +2427,75 @@ func articleInspectUint64String(t *testing.T, value any) string {
 		t.Fatalf("id type = %T, want numeric", value)
 		return ""
 	}
+}
+
+func assertArticleInspectOperationID(t *testing.T, paths map[string]map[string]any, path, method, want string) {
+	t.Helper()
+	got := articleInspectOperationFieldAsString(t, paths, path, method, "operationId")
+	if got != want {
+		t.Fatalf("%s %s operationId = %q, want %q", method, path, got, want)
+	}
+}
+
+func articleInspectHasResponseStatus(paths map[string]map[string]any, path, method, status string) bool {
+	operation, ok := paths[path][strings.ToLower(method)].(map[string]any)
+	if !ok {
+		return false
+	}
+	responses, ok := operation["responses"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, ok = responses[status]
+	return ok
+}
+
+func articleInspectParameterSchemaType(t *testing.T, paths map[string]map[string]any, path, method, name string) string {
+	t.Helper()
+	operation := articleInspectOperationMap(t, paths, path, method)
+	params, ok := operation["parameters"].([]any)
+	if !ok {
+		t.Fatalf("%s %s parameters type = %T, want []any", method, path, operation["parameters"])
+	}
+	for _, raw := range params {
+		param, ok := raw.(map[string]any)
+		if !ok {
+			t.Fatalf("%s %s parameter item type = %T, want map[string]any", method, path, raw)
+		}
+		if paramName, _ := param["name"].(string); paramName == name {
+			schema, ok := param["schema"].(map[string]any)
+			if !ok {
+				t.Fatalf("%s %s parameter %s schema type = %T, want map[string]any", method, path, name, param["schema"])
+			}
+			schemaType, _ := schema["type"].(string)
+			return schemaType
+		}
+	}
+	t.Fatalf("%s %s missing parameter %q", method, path, name)
+	return ""
+}
+
+func articleInspectOperationFieldAsString(t *testing.T, paths map[string]map[string]any, path, method, field string) string {
+	t.Helper()
+	operation := articleInspectOperationMap(t, paths, path, method)
+	value, ok := operation[field].(string)
+	if !ok {
+		t.Fatalf("%s %s field %q type = %T, want string", method, path, field, operation[field])
+	}
+	return value
+}
+
+func articleInspectOperationMap(t *testing.T, paths map[string]map[string]any, path, method string) map[string]any {
+	t.Helper()
+	item, ok := paths[path]
+	if !ok {
+		t.Fatalf("openapi missing path %s", path)
+	}
+	operation, ok := item[strings.ToLower(method)].(map[string]any)
+	if !ok {
+		t.Fatalf("openapi path %s missing method %s", path, method)
+	}
+	return operation
 }
 
 func seedInspectionTaskForWorker(t *testing.T, db *gorm.DB, rules []KeywordRule) *InspectionTask {

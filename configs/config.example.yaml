@@ -55,6 +55,10 @@ queue:
   asynq:
     concurrency: 10
     queue_name: default
+  outbox:
+    enabled: true
+    relay_spec: "@every 15s"
+    batch_size: 20
 
 scheduler:
   enabled: false
