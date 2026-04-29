@@ -1,6 +1,6 @@
 # 维护开发手册
 
-- 日期：2026-04-27
+- 日期：2026-04-29
 - 执行者：Codex
 - 适用范围：`article-sentinel` 当前一期代码基线
 
@@ -21,19 +21,27 @@
   - `cmd/scheduler/main.go` 只有在 `scheduler.enabled=true` 时才会注册 job。
   - 当前注册的 job 至少包括：
     - `runtime:heartbeat`：验证 `cron -> queue -> worker` 链路
-    - articleinspect task outbox relay：重试 pending outbox message 到现有 Asynq 队列
-  - 也就是说：**scheduler 仍然不是正文扫描这类重业务执行器，但现在已经是 outbox 恢复链路的一部分。**
+    - articleinspect task outbox relay：claim / relay 可投递消息，并对失败消息做 retry / dead-letter 收口
+    - articleinspect task outbox cleanup：清理保留期到期的 `dispatched` / `dead_letter` 消息
+  - 也就是说：**scheduler 仍然不是正文扫描这类重业务执行器，但现在已经是 outbox control-plane 的一部分。**
 
-### 1.2 维护时应该怎么理解这四个入口
+### 1.2 当前 outbox control-plane 的最小语义
+
+- 状态机：`pending -> claimed -> dispatched/dead_letter`
+- `claimed` 代表某个 relay 已拿到 lease；如果 `claim_until` 过期，后续 relay 可以重接管
+- poison message（例如 payload 损坏、message type 不支持）不会无限重试，而会进入 `dead_letter`
+- cleanup 只清理 `retained_until` 已到期的 `dispatched` / `dead_letter`；不应碰 `pending` / `claimed`
+
+### 1.3 维护时应该怎么理解这四个入口
 
 | 入口 | 角色 | 说明 |
 | --- | --- | --- |
 | `cmd/server` | API 服务 | 提供 HTTP 接口，负责同步校验、任务落库与 optimistic relay |
 | `cmd/worker` | 异步消费者 | 消费 Asynq 任务，真正执行重活 |
-| `cmd/scheduler` | 轻量控制面 | 负责 heartbeat 与 outbox retry 这类轻量后台任务，不做正文扫描 |
+| `cmd/scheduler` | 轻量控制面 | 负责 heartbeat、outbox relay / retry / cleanup 这类轻量后台任务，不做正文扫描 |
 | `cmd/migrate` | 数据迁移入口 | 执行 `migrations/*.sql`，再同步已注册业务模型 |
 
-### 1.3 哪些文件是“现状真相”
+### 1.4 哪些文件是“现状真相”
 
 如果文档、设计稿、历史计划和代码说法不一致，请按下面优先级判断：
 
@@ -131,8 +139,26 @@ make dev-admin
 - 先确认 `worker` 是否真的启动
 - 再确认 Redis 是否连通
 - 再检查 `xt_article_inspect_task_outbox` 里是否有 pending message
-- 如果有 pending outbox，确认 `scheduler.enabled` 是否已打开，以及 `internal/scheduler/jobs.go` 的 relay job 是否在跑
+- 如果有 pending outbox，确认 `scheduler.enabled` 是否已打开，以及 `internal/scheduler/jobs.go` 的 relay / cleanup job 是否在跑
 - 最后检查 `internal/queue/asynq/handlers.go` 是否注册了对应 task type
+
+### 3.3 Outbox 排障与人工恢复最短路径
+
+1. 先确认 backlog 属于哪一类：
+   - `pending`：等待 relay 或下一次 `next_attempt_at`
+   - `claimed`：正在被某个 relay 处理，或 lease 已过期
+   - `dead_letter`：需要人工判断是否 requeue
+2. 优先查表：
+   - pending backlog：`status = 'pending'`
+   - 过期 lease：`status = 'claimed' AND claim_until < UTC_TIMESTAMP()`
+   - 死信：`status = 'dead_letter'`
+3. 如果需要人工恢复，不要临场手写 SQL，优先使用：
+   - `scripts/articleinspect_outbox_requeue.sql`
+4. 默认保留 `attempt_count`
+   - 这能保留失败历史，避免人工恢复把问题证据抹掉
+5. cleanup 的边界要记住：
+   - 只应删除 `retained_until` 已过期的 `dispatched` / `dead_letter`
+   - 不应删除仍待处理的 `pending` / `claimed`
 
 ## 4. 目录地图：改什么应该去哪里
 
@@ -457,7 +483,7 @@ make migrate
 
 ## 15. 当前最容易踩的坑
 
-1. **看到 scheduler 进程启动，就误以为 heartbeat / outbox retry 已经生效**
+1. **看到 scheduler 进程启动，就误以为 heartbeat / outbox relay / cleanup 已经生效**
    - 实际还要看 `scheduler.enabled`
 2. **只启动 server，不启动 worker**
    - 结果是任务能创建，但不会被消费
@@ -471,3 +497,5 @@ make migrate
    - 先看源码、router test、本手册，再回看历史设计稿
 7. **以为 `/readyz` 和 `make smoke` 已经代表业务可用**
    - 它们目前还不能证明巡检主链路已跑通
+8. **人工恢复 outbox 时顺手把 `attempt_count` 清零**
+   - 默认不要这么做，先保留失败历史，再判断是否需要更激进修复

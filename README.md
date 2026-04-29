@@ -73,6 +73,13 @@ HTTP 路由总装配仍在 `internal/api/register/router.go`，但这个文件�
 
 如果 server 启动时 queue dispatcher 初始化失败，`internal/api/register/router.go` 现在会明确记录 `article inspect dispatcher unavailable` 日志；任务创建接口仍可先把 task 与 outbox 落库，等待后续 retry。
 
+当前 articleinspect outbox 控制面状态机为：
+
+- `pending`
+- `claimed`
+- `dispatched`
+- `dead_letter`
+
 文稿巡检模块主要包括：
 
 - 关键词管理
@@ -87,19 +94,26 @@ HTTP 路由总装配仍在 `internal/api/register/router.go`，但这个文件�
 
 - `articleinspect:run-task`：真实巡检任务，worker 实际消费执行
 - `runtime:heartbeat`：scheduler 基础连通性任务
-- `articleinspect task outbox relay`：scheduler 启用时，周期性把 pending outbox message 重试投递到现有 Asynq 队列
+- `articleinspect task outbox relay`：scheduler 启用时，周期性 claim / relay 可投递消息，并对失败消息做 retry / dead-letter 收口
+- `articleinspect task outbox cleanup`：scheduler 启用时，按 retention 周期清理已到期的 `dispatched` / `dead_letter` 终态消息
 
 典型流程：
 
 1. `POST /api/v1/article-inspect/tasks` 创建任务
 2. Server 在一个事务里写入 `xt_article_inspect_tasks`、`xt_article_inspect_task_keywords`、`xt_article_inspect_task_outbox`
 3. 请求内会做一次 optimistic relay；如果 Redis / Asynq 不可用，则保留 pending outbox，不再补偿删除任务
-4. scheduler 启用时会继续重试 pending outbox message
+4. scheduler 启用时会基于 claim / lease 继续 relay pending message，并可回收 lease 过期的 claimed message
 5. Worker 拉取 `articleinspect:run-task`，分页读取 `xt_article` 候选文稿
 6. Worker 批量读取 `xt_article_info` 正文
 7. 按规则扫描标题、摘要、关键词、正文等字段
 8. 写入 `xt_article_inspect_results`、`xt_article_inspect_result_hits`
 9. 后续批量下线/整改等动作写入 `xt_article_inspect_actions`、`xt_article_inspect_operation_logs`、`xt_article_inspect_field_change_logs`
+
+当 relay 失败时，当前策略是：
+
+- payload 损坏、message type 不支持这类 poison message 直接进入 `dead_letter`
+- 可恢复失败会回到 `pending`，并带 `next_attempt_at` 等待后续 backoff retry
+- `dispatched` / `dead_letter` 都会带 `retained_until`，交给 cleanup job 按保留期清理
 
 ### 前端主链路
 
@@ -249,7 +263,7 @@ make dev
 补充说明：
 
 - `scheduler` 进程是否真的注册任务，仍取决于 `scheduler.enabled`
-- 默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`；启用后除了 `runtime:heartbeat`，还会负责 articleinspect task outbox 的轻量 relay / retry
+- 默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`；启用后除了 `runtime:heartbeat`，还会负责 articleinspect task outbox 的 relay / retry / cleanup
 - 如果你只想单独启动某个进程，请使用：
 
 ```bash
@@ -283,6 +297,17 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 
 - `runtime:heartbeat`
 - articleinspect task outbox relay / retry job
+- articleinspect task outbox cleanup job
+
+常用 outbox phase 3 配置位在 `queue.outbox` 下：
+
+- `relay_spec`
+- `cleanup_spec`
+- `batch_size`
+- `lease_duration_seconds`
+- `max_attempts`
+- `dispatched_retention_hours`
+- `dead_letter_retention_hours`
 
 ### 7. 单独启动前端后台
 
@@ -532,6 +557,14 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 - OpenAPI：`http://127.0.0.1:8080/openapi.json`
 - 文档页：`http://127.0.0.1:8080/docs`
 - 前端开发页：`http://127.0.0.1:5173`
+
+### 11. Outbox 排障与人工恢复速记
+
+- 看 pending backlog：查 `xt_article_inspect_task_outbox.status = 'pending'`
+- 看卡住的 lease：查 `status = 'claimed' AND claim_until < UTC_TIMESTAMP()`
+- 看死信：查 `status = 'dead_letter'`
+- 手工恢复模板：`scripts/articleinspect_outbox_requeue.sql`
+- cleanup 只应该删除 `retained_until` 已到期的 `dispatched` / `dead_letter` 行，不应该碰 `pending` / `claimed`
 
 ## 前后端如何联调
 

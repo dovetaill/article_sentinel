@@ -1,6 +1,6 @@
 # 文档索引
 
-- 日期：2026-04-27
+- 日期：2026-04-29
 - 执行者：Codex
 
 ## 1. 先看哪里
@@ -18,7 +18,9 @@
 5. `internal/api/register/router_test.go`
    - 看当前路由面回归测试，也是“接口是否真实存在”的快速佐证
 6. `internal/modules/articleinspect/task_outbox.go` / `internal/queue/asynq/handlers.go` / `internal/scheduler/`
-   - 看当前异步投递、outbox retry 与 worker 消费的真实接线方式
+   - 看当前异步投递、claim / lease、dead-letter、cleanup 与 worker 消费的真实接线方式
+7. `scripts/articleinspect_outbox_requeue.sql`
+   - 看当前 outbox 人工恢复模板，不要临场手写危险 SQL
 
 ## 2. 文档分层规则
 
@@ -55,7 +57,8 @@
 
 - `worker` 仍是一期真实业务主链路，会消费 `articleinspect:run-task`
 - task create 已从“直接 enqueue”升级成“task/task_keywords/outbox 同事务落库 + optimistic relay + scheduler retry”
-- `scheduler` 默认仍关闭，但启用后会承担轻量 outbox relay / retry，而不做正文扫描这类重业务
+- articleinspect outbox 当前状态机是 `pending -> claimed -> dispatched/dead_letter`
+- `scheduler` 默认仍关闭，但启用后会承担轻量 outbox relay / retry / cleanup，而不做正文扫描这类重业务
 - `make dev` 当前会同时启动 `api + worker + scheduler + admin`
 - 应用层鉴权中间件代码已存在，但当前 `NewRouter` 还没有真正挂载鉴权链路
 
@@ -64,5 +67,6 @@
 - 判断接口是否存在：先看 `internal/api/register/router.go` 的 wiring，再看 `internal/modules/articleinspect/*_routes.go` 和 `internal/api/register/router_test.go`
 - 判断 malformed numeric path/query 是否走项目 envelope：看 `internal/modules/articleinspect/articleinspect_test.go`
 - 判断任务是否真的会被消费：看 `internal/modules/articleinspect/task_outbox.go`、`internal/queue/asynq/handlers.go`
-- 判断定时任务 / outbox retry 是否真的会执行：看 `scheduler.enabled`、`internal/scheduler/scheduler.go`、`internal/scheduler/jobs.go`
+- 判断定时任务 / outbox relay / cleanup 是否真的会执行：看 `scheduler.enabled`、`internal/scheduler/scheduler.go`、`internal/scheduler/jobs.go`
+- 判断某条 outbox 是否该人工恢复：先看 `xt_article_inspect_task_outbox` 当前状态，再看 `scripts/articleinspect_outbox_requeue.sql`
 - 判断迁移会做什么：看 `internal/app/bootstrap/migrate.go`、`internal/app/bootstrap/schema.go`
