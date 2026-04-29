@@ -8,25 +8,29 @@
 
 ### 1.1 当前 worker / scheduler 到底有没有在用
 
-- `worker`：**有在承载真实业务链路**
-  - `POST /api/v1/article-inspect/tasks` 创建任务后，会在 `internal/api/register/router.go` 里通过 `articleInspectDispatcher` 把 `articleinspect:run-task` 投递到 Redis。
+- `worker`：**仍然在承载真实业务主链路**
+  - `POST /api/v1/article-inspect/tasks` 现在会先把 `task + task_keywords + outbox` 在一个事务里落到 MySQL。
+  - 请求内会做一次 optimistic relay；如果 Redis / Asynq 暂时不可用，任务不会再被补偿删除，而是留下 pending outbox 供后续 retry。
+  - 如果 server 启动时 dispatcher 初始化失败，`internal/api/register/router.go` 现在会直接打可观测日志，而不是静默退化。
   - `cmd/worker/main.go` 启动 Asynq worker。
   - `internal/queue/asynq/handlers.go` 已注册 `articleinspect:run-task` 的消费逻辑。
   - `internal/modules/articleinspect/worker.go` 会真正分页扫描文稿、写入结果、更新任务状态。
 
-- `scheduler`：**入口存在，但当前默认并没有承载真实业务任务**
+- `scheduler`：**入口存在，默认关闭；启用后承载轻量控制面任务**
   - `configs/config.local.yaml` 默认是 `scheduler.enabled: false`。
-  - `cmd/scheduler/main.go` 虽然可以启动进程，但 `internal/scheduler/scheduler.go` 只有在 `scheduler.enabled=true` 时才会注册 job。
-  - 当前唯一注册的 job 是 `internal/scheduler/jobs.go` 里的 `NewRuntimeHeartbeatJob`，它只会 enqueue 一个 `runtime:heartbeat` 骨架任务，用来验证 `cron -> queue -> worker` 链路。
-  - 也就是说：**scheduler 目前更像“可扩展的调度壳”，不是一期业务主链路。**
+  - `cmd/scheduler/main.go` 只有在 `scheduler.enabled=true` 时才会注册 job。
+  - 当前注册的 job 至少包括：
+    - `runtime:heartbeat`：验证 `cron -> queue -> worker` 链路
+    - articleinspect task outbox relay：重试 pending outbox message 到现有 Asynq 队列
+  - 也就是说：**scheduler 仍然不是正文扫描这类重业务执行器，但现在已经是 outbox 恢复链路的一部分。**
 
 ### 1.2 维护时应该怎么理解这四个入口
 
 | 入口 | 角色 | 说明 |
 | --- | --- | --- |
-| `cmd/server` | API 服务 | 提供 HTTP 接口，负责同步校验与异步任务投递 |
+| `cmd/server` | API 服务 | 提供 HTTP 接口，负责同步校验、任务落库与 optimistic relay |
 | `cmd/worker` | 异步消费者 | 消费 Asynq 任务，真正执行重活 |
-| `cmd/scheduler` | 定时触发器 | 只负责按 cron 触发 enqueue，不应该直接做重业务 |
+| `cmd/scheduler` | 轻量控制面 | 负责 heartbeat 与 outbox retry 这类轻量后台任务，不做正文扫描 |
 | `cmd/migrate` | 数据迁移入口 | 执行 `migrations/*.sql`，再同步已注册业务模型 |
 
 ### 1.3 哪些文件是“现状真相”
@@ -103,7 +107,7 @@ make dev
   - worker
   - scheduler 进程
   - 前端 admin dev server
-- 但 **scheduler 进程启动 != scheduler job 生效**，是否真的注册 cron 任务仍然取决于 `scheduler.enabled`
+- 但 **scheduler 进程启动 != scheduler job 生效**，是否真的注册 heartbeat / outbox relay 仍然取决于 `scheduler.enabled`
 - 如果你只想单独调试某个进程，可以用：
 
 ```bash
@@ -126,6 +130,8 @@ make dev-admin
 
 - 先确认 `worker` 是否真的启动
 - 再确认 Redis 是否连通
+- 再检查 `xt_article_inspect_task_outbox` 里是否有 pending message
+- 如果有 pending outbox，确认 `scheduler.enabled` 是否已打开，以及 `internal/scheduler/jobs.go` 的 relay job 是否在跑
 - 最后检查 `internal/queue/asynq/handlers.go` 是否注册了对应 task type
 
 ## 4. 目录地图：改什么应该去哪里
@@ -204,9 +210,9 @@ configs/*.yaml / 环境变量
 1. 先确认是扩展现有模块，还是新增模块
    - 现有模块：直接改 `internal/modules/articleinspect/` 或对应模块
    - 新模块：可先参考 `internal/modules/post/`，或者用 `bash scripts/new-module.sh <module_name>` 起骨架
-2. 在模块的 `handler.go` 增加请求结构、响应结构、`huma.Register(...)`
-3. 把业务逻辑放进 service / repository，不要堆在 handler 里
-4. 在 `internal/api/register/router.go` 里完成依赖 wiring 和 `RegisterRoutes(...)`
+2. 在模块的 `routes_common.go`、`*_routes.go` 里增加请求结构、响应结构、`huma.Register(...)`
+3. 把业务逻辑放进 service / repository，不要堆在 route handler 里
+4. 在 `internal/api/register/router.go` 里完成顶层 wiring，再由模块自己的 `RegisterRoutes(...)` 接管具体路由注册
 5. 如果新增了数据表，记得补：
    - `internal/app/bootstrap/schema.go`
    - `migrations/`
@@ -215,7 +221,8 @@ configs/*.yaml / 环境变量
 ### 当前代码里的参考点
 
 - router 总装配：`internal/api/register/router.go`
-- 巡检模块注册入口：`internal/modules/articleinspect/handler.go`
+- 巡检模块注册入口：`internal/modules/articleinspect/module.go`、`internal/modules/articleinspect/routes.go`
+- 巡检模块 route contract：`internal/modules/articleinspect/routes_common.go`、`internal/modules/articleinspect/*_routes.go`
 - starter 示例模块：`internal/modules/post/`
 - 新模块模板说明：`internal/modules/example/README.md`
 
@@ -230,13 +237,14 @@ configs/*.yaml / 环境变量
 建议始终沿用下面这一层分工：
 
 ```text
-handler -> service -> repository / model
+*_routes.go -> service -> repository / model
 ```
 
 ### 分工约定
 
-- `handler.go`
+- `*_routes.go`
   - 负责 HTTP 入参、出参、状态码、OpenAPI
+  - 对 malformed numeric path/query input 保持项目 envelope `400` 契约，不直接把 Huma `422` 暴露给前端
   - 不写大段业务判断
 - `service.go`
   - 放业务规则、流程编排、事务边界
@@ -269,11 +277,13 @@ go test ./...
 
 1. 在 `internal/queue/tasks/` 定义新的 task type 与 payload
    - 例如参考 `internal/queue/tasks/articleinspect.go`
-2. 在 `internal/queue/asynq/client.go` 增加 enqueue helper
+2. 如果入口需要先持久化，再异步投递
+   - 优先考虑像 articleinspect 一样，先写业务行 + outbox，再由控制面做 relay
+3. 在 `internal/queue/asynq/client.go` 增加 enqueue helper
    - 统一封装队列名与 payload 编码
-3. 在 server 侧找到触发入口并 enqueue
-   - 可以像当前巡检模块一样，通过 router 里的 dispatcher 做一层隔离
-4. 在 `internal/queue/asynq/handlers.go` 注册新的消费 handler
+4. 在 server / scheduler 侧找到触发入口并 dispatch 或 retry
+   - 推荐保留一层 dispatcher seam，避免 route 或 cron 直接散落 Asynq 细节
+5. 在 `internal/queue/asynq/handlers.go` 注册新的消费 handler
 5. 在具体业务模块里实现执行器
    - 推荐放在 `internal/modules/<module>/worker.go`
 6. 补测试
@@ -286,7 +296,8 @@ go test ./...
 
 ```text
 HTTP / 业务入口
-   -> enqueue task
+   -> 业务行 + outbox 同事务落库
+   -> optimistic relay 或 scheduler retry
    -> worker 消费
    -> 业务执行器落库 / 更新状态
 ```
@@ -302,14 +313,15 @@ HTTP / 业务入口
 
 当前 scheduler 的定位必须记住一句话：
 
-> scheduler 只负责“按时间触发 enqueue”，不要把重业务逻辑直接写进 cron 回调。
+> scheduler 只负责轻量控制面工作（例如 heartbeat、outbox retry），不要把正文扫描这类重业务逻辑直接写进 cron 回调。
 
 ### 标准步骤
 
-1. 先定义“要定时触发的是什么 task”
-   - 最好先有对应 worker task
+1. 先判断 cron 要做的是哪种轻量控制面动作
+   - heartbeat / enqueue / outbox retry 都可以
+   - 正文扫描、分页扫库等重业务不要直接放进 scheduler
 2. 在 `internal/scheduler/jobs.go` 增加新的 job 函数
-   - job 内只做 enqueue
+   - 优先保持“轻逻辑 + 明确日志 + 可重试”
 3. 在 `internal/scheduler/scheduler.go` 的 `RegisterJobs(...)` 里注册
 4. 如有必要，在 `pkg/config/config.go` 里增加更细的开关 / spec
 5. 更新 `configs/config.example.yaml`
@@ -329,9 +341,11 @@ SCHEDULER_ENABLED=true go run ./cmd/scheduler -config configs/config.local.yaml
 
 ### 当前阶段的特别提醒
 
-- 当前唯一 scheduler job 是 `runtime:heartbeat`
-- 它不是一期真实业务任务，只是调度链路样板
-- 如果后续要做“每日自动巡检”“定时重扫”“超时任务补偿”，都应该照这个模式扩展
+- 当前 scheduler 至少会承载两类轻量任务：
+  - `runtime:heartbeat`
+  - articleinspect task outbox relay / retry
+- 它们都不是正文扫描执行器；真正的巡检扫描仍然交给 worker
+- 如果后续要做“每日自动巡检”“定时重扫”“超时任务补偿”，应继续保持这种轻控制面边界
 
 ## 10. 数据迁移与结构维护
 
@@ -397,7 +411,7 @@ SCHEDULER_ENABLED=true go run ./cmd/scheduler -config configs/config.local.yaml
   - `model.go`
   - `internal/app/bootstrap/schema.go`
 - 新路由是否同时更新了：
-  - 模块 `handler.go`
+  - 模块 `module.go` / `routes.go` / `routes_common.go` / `*_routes.go`
   - `internal/api/register/router.go`
 - 新异步任务是否同时更新了：
   - `internal/queue/tasks/`
@@ -443,14 +457,14 @@ make migrate
 
 ## 15. 当前最容易踩的坑
 
-1. **看到 scheduler 进程启动，就误以为定时任务已经生效**
+1. **看到 scheduler 进程启动，就误以为 heartbeat / outbox retry 已经生效**
    - 实际还要看 `scheduler.enabled`
 2. **只启动 server，不启动 worker**
    - 结果是任务能创建，但不会被消费
 3. **在 router 里堆业务逻辑**
    - 当前项目约定 router 只做装配
-4. **在 cron job 里直接扫库、跑重业务**
-   - 正确方式是 cron 只 enqueue，真正处理交给 worker
+4. **在 cron job 里直接跑正文扫描、分页扫全量文稿**
+   - 正确方式是 scheduler 只做轻量控制面动作，真正处理交给 worker
 5. **改了配置模型，却忘了同步 example / README**
    - 交接后最容易给维护者留下隐性坑
 6. **把旧设计文档当成现状说明**

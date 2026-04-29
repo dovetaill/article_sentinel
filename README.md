@@ -9,7 +9,7 @@
 一期目标是把“文稿巡检”做成一条可追溯、可批量操作、可复核的业务链路：
 
 1. 运营先配置关键词规则、匹配范围、风险等级、建议动作
-2. 运营或系统发起巡检任务，筛选候选文稿并投递到异步队列
+2. 运营或系统发起巡检任务，先把 task / task_keywords / outbox 落库，再进入异步投递与重试链路
 3. Worker 扫描文稿标题、摘要、关键词、正文等字段，写入命中结果与命中明细
 4. 审核人员在后台查看结果，可批量下线、忽略、处理，或进入整改页修正文稿
 5. 所有动作都会记录操作日志与字段变更日志，便于审计与问题回放
@@ -59,10 +59,19 @@
 - `cmd/scheduler`: 定时任务入口
 - `cmd/migrate`: 启动时同步 GORM schema
 
-HTTP 路由统一在 `internal/api/register/router.go` 装配：
+HTTP 路由总装配仍在 `internal/api/register/router.go`，但这个文件现在只负责顶层 wiring：
 
 - `post` 模块：starter 自带 demo
 - `articleinspect` 模块：一期巡检业务模块
+
+`articleinspect` 的真实 route contract 与参数收口位于：
+
+- `internal/modules/articleinspect/module.go`
+- `internal/modules/articleinspect/routes.go`
+- `internal/modules/articleinspect/routes_common.go`
+- `internal/modules/articleinspect/*_routes.go`
+
+如果 server 启动时 queue dispatcher 初始化失败，`internal/api/register/router.go` 现在会明确记录 `article inspect dispatcher unavailable` 日志；任务创建接口仍可先把 task 与 outbox 落库，等待后续 retry。
 
 文稿巡检模块主要包括：
 
@@ -74,20 +83,23 @@ HTTP 路由统一在 `internal/api/register/router.go` 装配：
 - 生命周期服务
 - 审计/字段变更日志服务
 
-任务异步化通过 Asynq 完成，当前队列任务类型为：
+任务异步化仍通过 Asynq worker 完成，但任务创建链路已经升级成 `task + task_keywords + outbox` 同事务落库。当前控制面任务包括：
 
-- `articleinspect:run-task`：一期真实业务任务，由巡检任务创建接口投递，worker 实际消费执行
-- `runtime:heartbeat`：scheduler 骨架任务，仅用于验证 `cron -> queue -> worker` 链路
+- `articleinspect:run-task`：真实巡检任务，worker 实际消费执行
+- `runtime:heartbeat`：scheduler 基础连通性任务
+- `articleinspect task outbox relay`：scheduler 启用时，周期性把 pending outbox message 重试投递到现有 Asynq 队列
 
 典型流程：
 
 1. `POST /api/v1/article-inspect/tasks` 创建任务
-2. Server 将任务 payload 投递到 Redis 队列
-3. Worker 拉取任务，分页读取 `xt_article` 候选文稿
-4. Worker 批量读取 `xt_article_info` 正文
-5. 按规则扫描标题、摘要、关键词、正文等字段
-6. 写入 `xt_article_inspect_results`、`xt_article_inspect_result_hits`
-7. 后续批量下线/整改等动作写入 `xt_article_inspect_actions`、`xt_article_inspect_operation_logs`、`xt_article_inspect_field_change_logs`
+2. Server 在一个事务里写入 `xt_article_inspect_tasks`、`xt_article_inspect_task_keywords`、`xt_article_inspect_task_outbox`
+3. 请求内会做一次 optimistic relay；如果 Redis / Asynq 不可用，则保留 pending outbox，不再补偿删除任务
+4. scheduler 启用时会继续重试 pending outbox message
+5. Worker 拉取 `articleinspect:run-task`，分页读取 `xt_article` 候选文稿
+6. Worker 批量读取 `xt_article_info` 正文
+7. 按规则扫描标题、摘要、关键词、正文等字段
+8. 写入 `xt_article_inspect_results`、`xt_article_inspect_result_hits`
+9. 后续批量下线/整改等动作写入 `xt_article_inspect_actions`、`xt_article_inspect_operation_logs`、`xt_article_inspect_field_change_logs`
 
 ### 前端主链路
 
@@ -236,8 +248,8 @@ make dev
 
 补充说明：
 
-- `scheduler` 进程是否真的注册定时任务，仍取决于 `scheduler.enabled`
-- 一期默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`，所以即使进程启动，也不会跑真实定时 job
+- `scheduler` 进程是否真的注册任务，仍取决于 `scheduler.enabled`
+- 默认 `configs/config.local.yaml` 中 `scheduler.enabled: false`；启用后除了 `runtime:heartbeat`，还会负责 articleinspect task outbox 的轻量 relay / retry
 - 如果你只想单独启动某个进程，请使用：
 
 ```bash
@@ -257,15 +269,20 @@ go run ./cmd/worker -config configs/config.local.yaml
 
 ### 6. 单独启动 Scheduler
 
-如果你没有使用 `make dev`，且需要单独验证调度入口：
+如果你没有使用 `make dev`，且需要单独验证定时触发与 outbox retry：
 
 ```bash
 go run ./cmd/scheduler -config configs/config.local.yaml
 ```
 
-一期默认 `configs/config.local.yaml` 中：
+默认 `configs/config.local.yaml` 中：
 
 - `scheduler.enabled: false`
+
+启用后，scheduler 会注册：
+
+- `runtime:heartbeat`
+- articleinspect task outbox relay / retry job
 
 ### 7. 单独启动前端后台
 
@@ -463,7 +480,7 @@ make dev
 - 默认访问：
   - 后端 API：`http://127.0.0.1:8080`
   - 前端后台：`http://127.0.0.1:5173`
-- 一期默认 `scheduler.enabled: false`，所以 scheduler 进程启动后通常仍是空闲的
+- 默认 `scheduler.enabled: false`，所以本地不显式打开时 scheduler 不会执行 outbox relay / retry
 - 如果只想单独调试某个进程，请使用：
   - `make dev-api`
   - `make dev-worker`

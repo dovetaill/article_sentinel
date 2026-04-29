@@ -53,17 +53,15 @@
 - `GET /api/v1/article-inspect/tasks`
 - `POST /api/v1/article-inspect/tasks`
 - `GET /api/v1/article-inspect/tasks/{id}`
-- `GET /api/v1/article-inspect/tasks/{id}/results`
+- `DELETE /api/v1/article-inspect/tasks/{id}`
 
 ### 3.3 命中结果与处置
 
 - `GET /api/v1/article-inspect/results`
 - `GET /api/v1/article-inspect/results/{id}`
-- `POST /api/v1/article-inspect/results/export`
 - `POST /api/v1/article-inspect/actions/batch-offline`
 - `POST /api/v1/article-inspect/actions/batch-ignore`
 - `POST /api/v1/article-inspect/actions/batch-process`
-- `POST /api/v1/article-inspect/actions/batch-whitelist`
 
 ### 3.4 文章整改与生命周期
 
@@ -77,7 +75,6 @@
 
 - `GET /api/v1/article-inspect/logs/operations`
 - `GET /api/v1/article-inspect/logs/field-changes`
-- `GET /api/v1/article-inspect/logs/task-events`
 
 ## 4. 关键请求示例
 
@@ -128,6 +125,11 @@ Content-Type: application/json
   }
 }
 ```
+
+说明：
+
+- `201 Created` 代表任务主记录、任务关键词关联、outbox message 已经成功持久化。
+- 请求内会尝试做一次 optimistic relay 到 Asynq；如果队列暂时不可用，pending outbox 会保留下来，等待后续 relay / retry。
 
 ### 4.3 查询命中结果
 

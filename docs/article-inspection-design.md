@@ -69,19 +69,20 @@
 
 - `internal/modules/articleinspect`
 
-推荐文件结构：
+当前代码已经按能力拆成多个文件；如果只看今天的落地结构，建议把这里理解成下面这组更接近现状的文件职责：
 
 - `model.go`：巡检领域模型与 GORM 模型
 - `constants.go`：状态、风险级别、动作、字段范围等常量
-- `dto.go`：请求 / 响应 DTO
-- `validator.go`：参数校验与规范化
-- `repository.go`：巡检表读写、候选文稿读取、日志查询
-- `service.go`：关键词、任务、结果、日志的应用服务
+- `dto_*.go`：服务层输入输出 DTO
+- `validator_keywords.go`：关键词输入校验与规范化
+- `repository_*.go`：巡检表读写、候选文稿读取、日志查询
+- `service_*.go`：关键词、任务、结果、日志的应用服务
 - `scanner.go`：扫描器接口与一期关键词扫描实现
 - `lifecycle_service.go`：统一文稿生命周期服务
 - `action_service.go`：批量下线 / 忽略 / 已处理 / 导出等编排
 - `diff.go`：字段变更 diff helper
-- `handler.go`：Huma 路由与 OpenAPI 注释
+- `module.go` / `routes.go` / `routes_common.go` / `*_routes.go`：Huma 路由装配、参数收口与 OpenAPI 注释
+- `task_outbox.go`：task enqueue 的 outbox relay / retry 协调层
 - `worker.go`：巡检任务执行器
 - `articleinspect_test.go`：基础模块测试
 
@@ -212,9 +213,13 @@
    - 可选文章 ID / 标题筛选
 2. 后端校验参数
 3. 加载关键词规则并生成快照
-4. 创建任务主记录与任务-关键词关联
-5. 将异步任务投递到 queue
-6. API 立即返回任务创建成功
+4. 在一个事务里创建：
+   - 任务主记录
+   - 任务-关键词关联
+   - task outbox message
+5. 请求内尝试做一次 optimistic relay 到现有 queue
+6. 如果 queue 暂时不可用，保留 pending outbox，交给后续 retry
+7. API 返回“任务已创建并进入异步投递流程”
 
 ## 3.3 巡检执行流
 
@@ -579,34 +584,28 @@ scope 取值：
 - `GET /api/v1/article-inspect/tasks`
 - `POST /api/v1/article-inspect/tasks`
 - `GET /api/v1/article-inspect/tasks/{id}`
-- `GET /api/v1/article-inspect/tasks/{id}/results`
+- `DELETE /api/v1/article-inspect/tasks/{id}`
 
 查询支持：
 
 - `orgid`
 - `status`
 - `task_no`
-- `creator_id`
-- 时间范围
 - 分页
 
 ## 5.3 命中结果 API
 
 - `GET /api/v1/article-inspect/results`
 - `GET /api/v1/article-inspect/results/{id}`
-- `POST /api/v1/article-inspect/results/export`
 
 筛选支持：
 
 - `orgid`
 - `task_id`
-- `keyword_id` / `keyword_text`
 - `risk_level`
 - `disposition_status`
-- `field_name`
 - `article_id`
 - `title`
-- 时间范围
 - 分页
 
 ## 5.4 批量处置 API
@@ -614,18 +613,11 @@ scope 取值：
 - `POST /api/v1/article-inspect/actions/batch-offline`
 - `POST /api/v1/article-inspect/actions/batch-ignore`
 - `POST /api/v1/article-inspect/actions/batch-process`
-- `POST /api/v1/article-inspect/actions/batch-whitelist`
-
-一期说明：
-
-- `batch-whitelist` 先预留接口，默认返回“未启用”或空实现占位
 
 批量动作请求支持两种目标表达：
 
 1. `result_ids`
-2. `filter_snapshot`
-
-这样可支持“当前页多选”和“对筛选结果全部处理”。
+2. `task_id + result_ids`
 
 ## 5.5 单篇整改与生命周期 API
 
@@ -639,11 +631,6 @@ scope 取值：
 
 - `GET /api/v1/article-inspect/logs/operations`
 - `GET /api/v1/article-inspect/logs/field-changes`
-- `GET /api/v1/article-inspect/logs/task-events`
-
-说明：
-
-- 一期如不单建 task event 表，可用任务状态流转记录与 operation log 聚合实现 `task-events` 输出
 
 ## 6. 前端页面设计
 
@@ -950,10 +937,10 @@ type Scanner interface {
 
 ## 10.3 定时巡检
 
-一期只保留结构：
+当前阶段 scheduler 仍不直接做正文扫描，但已经不只是占位：
 
-- scheduler 注册点
-- 任务投递服务
+- 会注册 `runtime:heartbeat`
+- 在 `queue.outbox.enabled=true` 时，会注册 articleinspect task outbox relay / retry
 
 后续可新增：
 
