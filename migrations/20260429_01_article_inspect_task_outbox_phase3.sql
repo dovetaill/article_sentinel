@@ -9,7 +9,7 @@ SET @has_outbox_claimed_by_column := (
 SET @add_outbox_claimed_by_column := IF(
   @has_outbox_claimed_by_column > 0,
   'SELECT 1',
-  'ALTER TABLE `xt_article_inspect_task_outbox` ADD COLUMN `claimed_by` VARCHAR(64) NOT NULL DEFAULT '''''' AFTER `attempt_count`'
+  'ALTER TABLE `xt_article_inspect_task_outbox` ADD COLUMN `claimed_by` VARCHAR(64) NOT NULL DEFAULT '''' AFTER `attempt_count`'
 );
 
 PREPARE article_inspect_add_outbox_claimed_by_column FROM @add_outbox_claimed_by_column;
@@ -81,7 +81,7 @@ SET @has_outbox_last_error_code_column := (
 SET @add_outbox_last_error_code_column := IF(
   @has_outbox_last_error_code_column > 0,
   'SELECT 1',
-  'ALTER TABLE `xt_article_inspect_task_outbox` ADD COLUMN `last_error_code` VARCHAR(64) NOT NULL DEFAULT '''''' AFTER `last_error`'
+  'ALTER TABLE `xt_article_inspect_task_outbox` ADD COLUMN `last_error_code` VARCHAR(64) NOT NULL DEFAULT '''' AFTER `last_error`'
 );
 
 PREPARE article_inspect_add_outbox_last_error_code_column FROM @add_outbox_last_error_code_column;
