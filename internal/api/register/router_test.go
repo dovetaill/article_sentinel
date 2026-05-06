@@ -199,16 +199,13 @@ func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 			Docs: config.DocsConfig{Enabled: docsEnabled, OpenAPIPath: "/openapi.json", UIPath: "/docs"},
 			HTTP: config.HTTPConfig{RequestTimeoutSeconds: 15, ReadTimeoutSeconds: 15},
 			Auth: config.AuthConfig{
-				JWT: config.JWTConfig{
-					Secret:     "test-secret",
-					Issuer:     "article-sentinel-test",
-					TTLMinutes: 120,
-				},
 				Session: config.SessionConfig{
 					LegacySecret: "legacy-secret",
 					Secret:       "session-secret",
 					Issuer:       "article-sentinel-admin",
 					TTLHours:     24,
+					LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
+					RedirectURL:  "http://127.0.0.1:5173/",
 				},
 			},
 		},

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/dovetaill/article-sentinel/internal/identity"
 	"github.com/dovetaill/article-sentinel/pkg/config"
 )
 
@@ -19,6 +20,7 @@ func TestStarterConfigTypeShape(t *testing.T) {
 		{name: "config keeps database field", typ: reflect.TypeOf(config.Config{}), field: "Database", wantPresent: true},
 		{name: "config drops legacy top level mysql field", typ: reflect.TypeOf(config.Config{}), field: "MySQL", wantPresent: false},
 		{name: "auth drops seed admin field", typ: reflect.TypeOf(config.AuthConfig{}), field: "SeedAdmin", wantPresent: false},
+		{name: "auth drops unused jwt field", typ: reflect.TypeOf(config.AuthConfig{}), field: "JWT", wantPresent: false},
 		{name: "session drops configurable cookie name field", typ: reflect.TypeOf(config.SessionConfig{}), field: "CookieName", wantPresent: false},
 		{name: "http exposes request timeout field", typ: reflect.TypeOf(config.HTTPConfig{}), field: "RequestTimeoutSeconds", wantPresent: true},
 	}
@@ -168,6 +170,86 @@ log:
 	}
 	if cfg.Docs.UIPath != "/reference" {
 		t.Fatalf("Docs.UIPath = %q, want %q", cfg.Docs.UIPath, "/reference")
+	}
+}
+
+func TestLoadPreservesExplicitFalseSessionSecureCookie(t *testing.T) {
+	clearLegacyDatabaseEnv(t)
+
+	path := writeConfigFile(t, `
+app:
+  name: article-sentinel
+database:
+  driver: mysql
+  mysql:
+    host: 127.0.0.1
+    user: root
+    password: root
+    dbname: article_sentinel
+redis:
+  addr: 127.0.0.1:6379
+auth:
+  session:
+    legacy_secret: legacy-secret
+    secret: session-secret
+    secure_cookie: false
+    login_url: https://example.com/login
+    redirect_url: http://127.0.0.1:5173/
+docs:
+  enabled: false
+log:
+  level: info
+`)
+
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Auth.Session.SecureCookie {
+		t.Fatal("Auth.Session.SecureCookie = true, want false")
+	}
+	if cfg.Auth.Session.LoginURL != "https://example.com/login" {
+		t.Fatalf("Auth.Session.LoginURL = %q", cfg.Auth.Session.LoginURL)
+	}
+	if cfg.Auth.Session.RedirectURL != "http://127.0.0.1:5173/" {
+		t.Fatalf("Auth.Session.RedirectURL = %q", cfg.Auth.Session.RedirectURL)
+	}
+}
+
+func TestLoadIgnoresLegacySessionCookieNameOverride(t *testing.T) {
+	clearLegacyDatabaseEnv(t)
+
+	path := writeConfigFile(t, `
+app:
+  name: article-sentinel
+database:
+  driver: mysql
+  mysql:
+    host: 127.0.0.1
+    user: root
+    password: root
+    dbname: article_sentinel
+redis:
+  addr: 127.0.0.1:6379
+auth:
+  session:
+    legacy_secret: legacy-secret
+    secret: session-secret
+    cookie_name: legacy_cookie
+docs:
+  enabled: false
+log:
+  level: info
+`)
+
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	manager := identity.NewAdminSessionManager(cfg.Auth.Session)
+	if got := manager.CookieName(); got != "as_admin_session" {
+		t.Fatalf("CookieName() = %q, want %q", got, "as_admin_session")
 	}
 }
 

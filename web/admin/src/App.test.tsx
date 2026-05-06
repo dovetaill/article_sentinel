@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
 import { appRoutes } from './routes';
+import type { AuthSession } from './services/auth';
 
 const { mockedGetSession, mockedLogout } = vi.hoisted(() => ({
   mockedGetSession: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock('./routes', async () => {
   };
 });
 
-const FIXED_LOGIN_URL = 'https://appadmin.cq.qiludev.com/cq-admin/index.html';
+const LOGIN_ENTRY_PATH = '/auth/login';
 const originalLocation = window.location;
 
 describe('App shell', () => {
@@ -75,7 +76,7 @@ describe('App shell', () => {
 
   it('loads the auth session before rendering the admin shell', async () => {
     let resolveSession:
-      | ((value: Awaited<ReturnType<typeof getSession>>) => void)
+      | ((value: AuthSession) => void)
       | undefined;
     mockedGetSession.mockImplementationOnce(
       () =>
@@ -111,7 +112,7 @@ describe('App shell', () => {
     expect(screen.getByTestId('mock-route-outlet')).toBeInTheDocument();
   });
 
-  it('redirects to the fixed login page instead of rendering the app when session bootstrap fails', async () => {
+  it('redirects to the auth login entry instead of rendering the app when session bootstrap fails', async () => {
     const assignSpy = vi.fn();
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -129,13 +130,13 @@ describe('App shell', () => {
     );
 
     await waitFor(() => {
-      expect(assignSpy).toHaveBeenCalledWith(FIXED_LOGIN_URL);
+      expect(assignSpy).toHaveBeenCalledWith(LOGIN_ENTRY_PATH);
     });
     expect(screen.queryByRole('navigation', { name: /主导航/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('mock-route-outlet')).not.toBeInTheDocument();
   });
 
-  it('logs out through the auth service and redirects to the fixed login page', async () => {
+  it('logs out through the auth service and redirects to the auth login entry', async () => {
     const user = userEvent.setup();
     const assignSpy = vi.fn();
     Object.defineProperty(window, 'location', {
@@ -158,7 +159,7 @@ describe('App shell', () => {
     await waitFor(() => {
       expect(mockedLogout).toHaveBeenCalledTimes(1);
     });
-    expect(assignSpy).toHaveBeenCalledWith(FIXED_LOGIN_URL);
+    expect(assignSpy).toHaveBeenCalledWith(LOGIN_ENTRY_PATH);
   });
 
   it('treats /articles as the article center rather than the aggregated inspect-results view', () => {

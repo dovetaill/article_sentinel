@@ -46,16 +46,20 @@ database:
     conn_max_lifetime_minutes: 60
 
 auth:
-  jwt:
-    secret: change-me-in-production
-    issuer: article-sentinel
-    ttl_minutes: 120
   session:
+    # legacy_secret 用于校验第三方跳转传入的旧 JWT。
     legacy_secret: set-via-env-or-local-secret
+    # secret 用于签发我们自己的 as_admin_session cookie session。
     secret: set-via-env-or-local-secret
     issuer: article-sentinel-admin
+    # 跳转登录 session 固定有效期 24 小时。
     ttl_hours: 24
+    # 生产 HTTPS 环境保持 true；本地 HTTP 联调请改成 false。
     secure_cookie: true
+    # 校验失败或 cookie 失效后回到的登录页。
+    login_url: https://appadmin.cq.qiludev.com/cq-admin/index.html
+    # 第三方跳转登录成功后落到的管理台地址。
+    redirect_url: http://127.0.0.1:5173/
 
 queue:
   asynq:

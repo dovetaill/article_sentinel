@@ -17,6 +17,7 @@ Commands:
   worker           Run the async worker
   scheduler        Run the scheduler
   admin            Run the admin Vite dev server
+  print-endpoints  Print backend/admin dev URLs for the current config
   stop             Stop the current make dev stack
   print-plan       Print the expected make dev process layout
   assert-make-dev  Verify that `make -n dev` includes all four processes
@@ -30,6 +31,108 @@ USAGE
 
 ensure_state_dir() {
   mkdir -p "$DEV_STATE_DIR"
+}
+
+read_config_scalar() {
+  local section="$1"
+  local key="$2"
+  local default_value="${3:-}"
+
+  local value
+  value="$(
+    awk -v target_section="$section" -v target_key="$key" '
+      BEGIN {
+        in_section = 0
+      }
+      /^[[:space:]]*#/ || /^[[:space:]]*$/ {
+        next
+      }
+      {
+        if ($0 ~ ("^" target_section ":[[:space:]]*$")) {
+          in_section = 1
+          next
+        }
+        if (in_section && $0 ~ /^[^[:space:]]/) {
+          in_section = 0
+        }
+        if (!in_section) {
+          next
+        }
+        pattern = "^[[:space:]]+" target_key ":[[:space:]]*"
+        if ($0 ~ pattern) {
+          line = $0
+          sub(pattern, "", line)
+          gsub(/^[\"\047]|[\"\047]$/, "", line)
+          print line
+          exit
+        }
+      }
+    ' "$CONFIG_PATH" 2>/dev/null
+  )"
+
+  if [[ -n "$value" ]]; then
+    printf '%s\n' "$value"
+    return
+  fi
+
+  printf '%s\n' "$default_value"
+}
+
+backend_port() {
+  printf '%s\n' "${APP_PORT:-$(read_config_scalar app port 8080)}"
+}
+
+backend_bind_host() {
+  printf '%s\n' "${APP_HOST:-$(read_config_scalar app host 0.0.0.0)}"
+}
+
+backend_display_host() {
+  local host
+  host="$(backend_bind_host)"
+  case "$host" in
+    ""|"0.0.0.0"|"::")
+      printf '%s\n' "127.0.0.1"
+      ;;
+    *)
+      printf '%s\n' "$host"
+      ;;
+  esac
+}
+
+backend_network_host() {
+  local bind_host
+  bind_host="$(backend_bind_host)"
+  case "$bind_host" in
+    ""|"0.0.0.0"|"::")
+      hostname -I 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i !~ /^127\./) {print $i; exit}}'
+      ;;
+    *)
+      printf '%s\n' "$bind_host"
+      ;;
+  esac
+}
+
+print_endpoints() {
+  local port backend_host backend_base admin_base admin_jump_login network_host
+  port="$(backend_port)"
+  backend_host="$(backend_display_host)"
+  backend_base="http://${backend_host}:${port}"
+  admin_base="http://127.0.0.1:5173"
+  admin_jump_login="${admin_base}/auth/login?jwt=<legacy-jwt>"
+
+  echo "Admin UI: ${admin_base}"
+  echo "Admin jump login: ${admin_jump_login}"
+  echo "Backend API: ${backend_base}"
+  echo "Session API: ${backend_base}/api/v1/auth/session"
+  echo "Jump login: ${backend_base}/auth/login?jwt=<legacy-jwt>"
+
+  network_host="$(backend_network_host)"
+  if [[ -n "$network_host" && "$network_host" != "$backend_host" ]]; then
+    echo "Admin UI (network): http://${network_host}:5173"
+    echo "Admin jump login (network): http://${network_host}:5173/auth/login?jwt=<legacy-jwt>"
+    echo "Backend API (network): http://${network_host}:${port}"
+    echo "Jump login (network): http://${network_host}:${port}/auth/login?jwt=<legacy-jwt>"
+  fi
 }
 
 session_pid_file() {
@@ -195,6 +298,7 @@ print_plan() {
   cat <<PLAN
 make dev must start:
 - stop the previous dev stack first: bash scripts/dev.sh stop
+- print backend/admin endpoints first: bash scripts/dev.sh print-endpoints
 - backend server: bash scripts/dev.sh api
 - worker: bash scripts/dev.sh worker
 - scheduler: bash scripts/dev.sh scheduler
@@ -210,6 +314,7 @@ assert_make_dev() {
   local expected
   for expected in \
     "scripts/dev.sh stop" \
+    "scripts/dev.sh print-endpoints" \
     "scripts/dev.sh api" \
     "scripts/dev.sh worker" \
     "scripts/dev.sh scheduler" \
@@ -266,6 +371,9 @@ case "$command" in
     ;;
   stop)
     stop_current_session
+    ;;
+  print-endpoints)
+    print_endpoints
     ;;
   print-plan)
     print_plan

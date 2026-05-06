@@ -4,11 +4,11 @@ export interface ApiEnvelope<T> {
   data?: T;
 }
 
-export const FIXED_LOGIN_URL = 'https://appadmin.cq.qiludev.com/cq-admin/index.html';
+export const LOGIN_ENTRY_PATH = '/auth/login';
 
 export function redirectToFixedLogin() {
   if (typeof window !== 'undefined' && typeof window.location?.assign === 'function') {
-    window.location.assign(FIXED_LOGIN_URL);
+    window.location.assign(LOGIN_ENTRY_PATH);
   }
 }
 

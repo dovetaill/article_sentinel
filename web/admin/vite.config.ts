@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 5173,
       proxy: {
+        '/auth': {
+          target: adminApiBaseUrl,
+          changeOrigin: true
+        },
         '/api': {
           target: adminApiBaseUrl,
           changeOrigin: true

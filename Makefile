@@ -17,6 +17,7 @@ stop:
 
 dev:
 	$(DEV_SCRIPT) stop; \
+	$(DEV_SCRIPT) print-endpoints; \
 	session_id="$$($(DEV_SCRIPT) start-session)"; \
 	trap '$(DEV_SCRIPT) stop-session "$$session_id"' INT TERM EXIT; \
 	$(DEV_GO_ENV) setsid $(DEV_SCRIPT) api & \

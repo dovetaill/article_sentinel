@@ -24,6 +24,39 @@ test_make_dev_stops_previous_stack_first() {
   assert_contains "$output" "scripts/dev.sh stop"
 }
 
+test_make_dev_prints_backend_endpoints() {
+  local output
+  output="$(cd "$ROOT_DIR" && make -n dev)"
+
+  assert_contains "$output" "scripts/dev.sh print-endpoints"
+}
+
+test_print_endpoints_reports_backend_and_jump_login_urls() {
+  local temp_config
+  temp_config="$(mktemp)"
+  cat >"$temp_config" <<'YAML'
+app:
+  host: 0.0.0.0
+  port: 18080
+YAML
+
+  local output
+  output="$(CONFIG="$temp_config" "$DEV_SCRIPT" print-endpoints)"
+
+  assert_contains "$output" "Admin jump login: http://127.0.0.1:5173/auth/login?jwt=<legacy-jwt>"
+  assert_contains "$output" "Backend API: http://127.0.0.1:18080"
+  assert_contains "$output" "Jump login: http://127.0.0.1:18080/auth/login?jwt=<legacy-jwt>"
+
+  rm -f "$temp_config"
+}
+
+test_admin_vite_dev_server_proxies_auth_routes() {
+  local content
+  content="$(cat "$ROOT_DIR/web/admin/vite.config.ts")"
+
+  assert_contains "$content" "'/auth':"
+}
+
 test_stop_kills_registered_processes() {
   "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
 
@@ -124,5 +157,8 @@ test_stop_kills_registered_processes
 test_stop_kills_stale_server_process_without_session_file
 test_stop_kills_stale_go_run_temp_server_without_session_file
 test_stop_kills_stale_go_run_cache_server_without_session_file
+test_make_dev_prints_backend_endpoints
+test_print_endpoints_reports_backend_and_jump_login_urls
+test_admin_vite_dev_server_proxies_auth_routes
 
 echo "dev script tests passed"

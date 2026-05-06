@@ -36,15 +36,15 @@ func TestAuthLoginBridgesLegacyJWTIntoSessionCookie(t *testing.T) {
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusFound)
 	}
-	if got := rec.Header().Get("Location"); got != "/" {
-		t.Fatalf("Location = %q, want %q", got, "/")
+	if got := rec.Header().Get("Location"); got != "http://127.0.0.1:5173/" {
+		t.Fatalf("Location = %q, want %q", got, "http://127.0.0.1:5173/")
 	}
 	if got := rec.Header().Get("Set-Cookie"); !strings.Contains(got, mgr.CookieName()+"=") {
 		t.Fatalf("Set-Cookie = %q", got)
 	}
 }
 
-func TestAuthLoginClearsCookieAndRedirectsToFixedLoginOnInvalidJWT(t *testing.T) {
+func TestAuthLoginClearsCookieAndRedirectsToConfiguredLoginOnInvalidJWT(t *testing.T) {
 	handler, mgr := newAuthHandlerForTest(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/login?jwt=bad-token", nil)
@@ -54,8 +54,8 @@ func TestAuthLoginClearsCookieAndRedirectsToFixedLoginOnInvalidJWT(t *testing.T)
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusFound)
 	}
-	if got := rec.Header().Get("Location"); got != handlers.FixedAdminLoginURL {
-		t.Fatalf("Location = %q, want %q", got, handlers.FixedAdminLoginURL)
+	if got := rec.Header().Get("Location"); got != "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home" {
+		t.Fatalf("Location = %q, want %q", got, "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home")
 	}
 	if got := rec.Header().Get("Set-Cookie"); !strings.Contains(got, mgr.CookieName()+"=") || !strings.Contains(got, "Max-Age=0") {
 		t.Fatalf("Set-Cookie = %q", got)
@@ -139,8 +139,13 @@ func newAuthHandlerForTest(t *testing.T) (http.Handler, *identity.AdminSessionMa
 		Secret:       "session-secret",
 		Issuer:       "article-sentinel-admin",
 		TTLHours:     24,
+		LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
+		RedirectURL:  "http://127.0.0.1:5173/",
 	})
-	handlers.RegisterAuthRoutes(mux, manager)
+	handlers.RegisterAuthRoutes(mux, manager, config.SessionConfig{
+		LoginURL:    "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
+		RedirectURL: "http://127.0.0.1:5173/",
+	})
 	return middleware.Chain(mux, middleware.SessionContext(manager)), manager
 }
 

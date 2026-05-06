@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiRequest } from './request';
 
-const FIXED_LOGIN_URL = 'https://appadmin.cq.qiludev.com/cq-admin/index.html';
+const LOGIN_ENTRY_PATH = '/auth/login';
 const originalLocation = window.location;
 
 describe('apiRequest', () => {
@@ -68,7 +68,7 @@ describe('apiRequest', () => {
     await expect(apiRequest('/api/v1/article-inspect/keywords')).rejects.toThrow('invalid keyword input');
   });
 
-  it('redirects to the fixed login page when the API returns 401', async () => {
+  it('redirects to the auth login entry when the API returns 401', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -83,6 +83,6 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/api/v1/auth/session')).rejects.toThrow('unauthorized');
 
-    expect(assignSpy).toHaveBeenCalledWith(FIXED_LOGIN_URL);
+    expect(assignSpy).toHaveBeenCalledWith(LOGIN_ENTRY_PATH);
   });
 });

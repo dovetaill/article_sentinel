@@ -15,13 +15,14 @@ import (
 	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
+	"github.com/dovetaill/article-sentinel/pkg/config"
 )
 
 // NewRouter 构建基于 Huma 的 HTTP 路由。
 func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	apiMux := http.NewServeMux()
 	adminSessionManager := newAdminSessionManager(rt)
-	handlers.RegisterAuthRoutes(apiMux, adminSessionManager)
+	handlers.RegisterAuthRoutes(apiMux, adminSessionManager, sessionConfig(rt))
 	cfg := huma.DefaultConfig("article-sentinel API", "0.1.0")
 	if rt != nil && rt.Config != nil {
 		if rt.Config.App.Name != "" {
@@ -126,4 +127,11 @@ func newAdminSessionManager(rt *bootstrap.Runtime) *identity.AdminSessionManager
 		return nil
 	}
 	return identity.NewAdminSessionManager(rt.Config.Auth.Session)
+}
+
+func sessionConfig(rt *bootstrap.Runtime) config.SessionConfig {
+	if rt == nil || rt.Config == nil {
+		return config.SessionConfig{}
+	}
+	return rt.Config.Auth.Session
 }

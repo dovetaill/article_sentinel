@@ -8,20 +8,30 @@ import (
 
 	"github.com/dovetaill/article-sentinel/internal/api/response"
 	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/article-sentinel/pkg/config"
 )
 
-const FixedAdminLoginURL = "https://appadmin.cq.qiludev.com/cq-admin/index.html"
+const (
+	DefaultAdminLoginURL    = "https://appadmin.cq.qiludev.com/cq-admin/index.html"
+	DefaultAdminRedirectURL = "/"
+)
 
 type AuthHandler struct {
-	manager *identity.AdminSessionManager
+	manager       *identity.AdminSessionManager
+	loginURL      string
+	redirectURL   string
 }
 
-func RegisterAuthRoutes(mux *http.ServeMux, manager *identity.AdminSessionManager) {
+func RegisterAuthRoutes(mux *http.ServeMux, manager *identity.AdminSessionManager, sessionCfg config.SessionConfig) {
 	if mux == nil {
 		return
 	}
 
-	handler := &AuthHandler{manager: manager}
+	handler := &AuthHandler{
+		manager:     manager,
+		loginURL:    normalizeRedirectTarget(sessionCfg.LoginURL, DefaultAdminLoginURL),
+		redirectURL: normalizeRedirectTarget(sessionCfg.RedirectURL, DefaultAdminRedirectURL),
+	}
 	mux.Handle("/auth/login", http.HandlerFunc(handler.Login))
 	mux.Handle("/api/v1/auth/session", http.HandlerFunc(handler.Session))
 	mux.Handle("/api/v1/auth/logout", http.HandlerFunc(handler.Logout))
@@ -34,21 +44,21 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	if h == nil || h.manager == nil {
 		clearAdminSessionCookie(w, nil)
-		http.Redirect(w, r, FixedAdminLoginURL, http.StatusFound)
+		http.Redirect(w, r, h.loginRedirectURL(), http.StatusFound)
 		return
 	}
 
 	legacyJWT := strings.TrimSpace(r.URL.Query().Get("jwt"))
 	if legacyJWT == "" {
 		clearAdminSessionCookie(w, h.manager)
-		http.Redirect(w, r, FixedAdminLoginURL, http.StatusFound)
+		http.Redirect(w, r, h.loginRedirectURL(), http.StatusFound)
 		return
 	}
 
 	sessionJWT, _, expiresAt, err := h.manager.ExchangeLegacyJWT(legacyJWT)
 	if err != nil {
 		clearAdminSessionCookie(w, h.manager)
-		http.Redirect(w, r, FixedAdminLoginURL, http.StatusFound)
+		http.Redirect(w, r, h.loginRedirectURL(), http.StatusFound)
 		return
 	}
 
@@ -62,7 +72,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(h.manager.TTL().Seconds()),
 		Expires:  expiresAt,
 	})
-	http.Redirect(w, r, "/", http.StatusFound)
+	http.Redirect(w, r, h.successRedirectURL(), http.StatusFound)
 }
 
 func (h *AuthHandler) Session(w http.ResponseWriter, r *http.Request) {
@@ -134,4 +144,26 @@ func clearAdminSessionCookie(w http.ResponseWriter, manager *identity.AdminSessi
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
 	})
+}
+
+func (h *AuthHandler) loginRedirectURL() string {
+	if h == nil {
+		return DefaultAdminLoginURL
+	}
+	return normalizeRedirectTarget(h.loginURL, DefaultAdminLoginURL)
+}
+
+func (h *AuthHandler) successRedirectURL() string {
+	if h == nil {
+		return DefaultAdminRedirectURL
+	}
+	return normalizeRedirectTarget(h.redirectURL, DefaultAdminRedirectURL)
+}
+
+func normalizeRedirectTarget(value string, fallback string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fallback
+	}
+	return trimmed
 }

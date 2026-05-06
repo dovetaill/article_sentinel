@@ -20,7 +20,12 @@ func Load(path string) (*Config, error) {
 			MySQL: MySQLConfig{ParseTime: true},
 		},
 		Docs: DocsConfig{Enabled: true},
-		Log:  LogConfig{RotateDaily: true},
+		Auth: AuthConfig{
+			Session: SessionConfig{
+				SecureCookie: true,
+			},
+		},
+		Log: LogConfig{RotateDaily: true},
 	}
 	if err := cleanenv.ReadConfig(path, cfg); err != nil {
 		return nil, fmt.Errorf("read config %q: %w", path, err)
