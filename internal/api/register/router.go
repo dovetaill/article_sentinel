@@ -40,6 +40,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	publicRoutes := huma.NewGroup(api)
 	handlers.RegisterHealth(publicRoutes)
 	handlers.RegisterReady(publicRoutes, rt)
+	handlers.RegisterDemoRoutes(publicRoutes)
 
 	timeout := 15 * time.Second
 	if rt != nil && rt.Config != nil && rt.Config.HTTP.RequestTimeoutSeconds > 0 {

@@ -29,6 +29,7 @@ func TestRouterRegistersStarterOpenAPIPaths(t *testing.T) {
 	doc := fetchOpenAPIDocument(t, handler, signedRouterSessionCookie(t, rt))
 
 	wantPaths := []string{
+		"/api/v1/demo/me",
 		"/healthz",
 		"/readyz",
 	}
@@ -37,6 +38,7 @@ func TestRouterRegistersStarterOpenAPIPaths(t *testing.T) {
 		t.Fatalf("openapi paths = %v, want %v", gotPaths, wantPaths)
 	}
 
+	assertOperation(t, doc.Paths, "/api/v1/demo/me", http.MethodGet)
 	assertOperation(t, doc.Paths, "/healthz", http.MethodGet)
 	assertOperation(t, doc.Paths, "/readyz", http.MethodGet)
 	assertPathAbsent(t, doc.Paths, "/api/v1/article-inspect/orgs")
