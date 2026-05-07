@@ -47,7 +47,7 @@ func TestAuthenticateStoresGenericActor(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -69,7 +69,7 @@ func TestRequireRoleAllowsMatchingActor(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -91,7 +91,7 @@ func TestRequireAdminRejectsNonAdminActor(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -106,7 +106,7 @@ func TestRequireAuthenticatedRejectsAnonymous(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -136,7 +136,7 @@ func TestTrustedHeaderAuthStoresActorWhenSourceMatches(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set("X-Auth-Source", "gateway")
 	req.Header.Set("X-Operator-ID", "42")
 	req.Header.Set("X-Operator-Name", "gateway-user")
@@ -179,7 +179,7 @@ func TestTrustedHeaderAuthFallsBackToDevHeader(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set("X-Auth-Mode", "dev")
 	req.Header.Set("X-Dev-User-ID", "7")
 	req.Header.Set("X-Dev-Username", "dev-user")

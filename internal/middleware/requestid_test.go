@@ -17,7 +17,7 @@ func TestRequestIDGeneratesAndPropagatesContextValue(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -47,7 +47,7 @@ func TestRequestIDPreservesInboundValue(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.Header.Set(requestIDHeader, inboundRequestID)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

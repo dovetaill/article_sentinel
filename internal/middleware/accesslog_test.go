@@ -44,7 +44,7 @@ func TestAccessLogCapturesStatusAndRequestID(t *testing.T) {
 		AccessLog(logger),
 	)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/posts", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/me", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -62,8 +62,8 @@ func TestAccessLogCapturesStatusAndRequestID(t *testing.T) {
 	if record["method"] != http.MethodPost {
 		t.Fatalf("method = %v, want %q", record["method"], http.MethodPost)
 	}
-	if record["path"] != "/api/v1/posts" {
-		t.Fatalf("path = %v, want %q", record["path"], "/api/v1/posts")
+	if record["path"] != "/api/v1/demo/me" {
+		t.Fatalf("path = %v, want %q", record["path"], "/api/v1/demo/me")
 	}
 	if got, ok := record["status_code"].(int64); !ok || got != http.StatusCreated {
 		t.Fatalf("status_code = %v, want %d", record["status_code"], http.StatusCreated)

@@ -35,7 +35,7 @@ func TestSessionContextStoresAdminSessionFromCookie(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/article-inspect/tasks", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
 	req.AddCookie(&http.Cookie{Name: mgr.CookieName(), Value: token})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
