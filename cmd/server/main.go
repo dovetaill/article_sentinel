@@ -19,7 +19,7 @@ func main() {
 	configPath := flag.String("config", envOrDefault("CONFIG_PATH", "configs/config.yaml"), "config file path")
 	flag.Parse()
 
-	// server 只负责 HTTP 入口与资源装配，异步重任务统一交给 worker。
+	// server 负责加载配置、初始化日志并装配 HTTP 运行时。
 	rt, err := bootstrap.BuildServerRuntime(*configPath)
 	if err != nil {
 		log.Fatalf("build server runtime: %v", err)
