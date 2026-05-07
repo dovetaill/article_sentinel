@@ -13,37 +13,17 @@ type readyOutput struct {
 	Body response.Envelope
 }
 
-type dependencyState struct {
-	Configured bool `json:"configured"`
-	Healthy    bool `json:"healthy"`
-}
-
 // RegisterReady 注册 /readyz。
-func RegisterReady(api huma.API, rt *bootstrap.Runtime) {
+func RegisterReady(api huma.API, _ *bootstrap.Runtime) {
 	huma.Register(api, huma.Operation{
 		OperationID: "readyz",
 		Method:      http.MethodGet,
 		Path:        "/readyz",
 		Summary:     "readiness check",
 	}, func(ctx context.Context, input *struct{}) (*readyOutput, error) {
-		// 当前 readyz 只检查运行时依赖是否已装配，不做数据库/Redis 深度探活。
-		databaseConfigured := rt != nil && rt.Resources != nil && rt.Resources.DB != nil
-		redisConfigured := rt != nil && rt.Resources != nil && rt.Resources.Redis != nil
-
-		deps := map[string]dependencyState{
-			"database": {
-				Configured: databaseConfigured,
-				Healthy:    databaseConfigured,
-			},
-			"redis": {
-				Configured: redisConfigured,
-				Healthy:    redisConfigured,
-			},
-		}
-
 		return &readyOutput{
 			Body: response.OK("ready", map[string]any{
-				"dependencies": deps,
+				"status": "ready",
 			}),
 		}, nil
 	})

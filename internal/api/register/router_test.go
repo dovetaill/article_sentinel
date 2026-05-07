@@ -1,7 +1,6 @@
 package register_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -9,50 +8,25 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/api/register"
+	"github.com/dovetaill/article-sentinel/internal/api/response"
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
+	"github.com/dovetaill/article-sentinel/internal/identity"
 	"github.com/dovetaill/article-sentinel/pkg/config"
-	"github.com/dovetaill/article-sentinel/pkg/database"
-	"gorm.io/gorm"
 )
 
 type openAPIDocument struct {
 	Paths map[string]map[string]any `json:"paths"`
 }
 
-func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
-	handler := register.NewRouter(newRouterTestRuntime(true))
-	doc := fetchOpenAPIDocument(t, handler)
+func TestRouterRegistersStarterOpenAPIPaths(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	handler := register.NewRouter(rt)
+	doc := fetchOpenAPIDocument(t, handler, signedRouterSessionCookie(t, rt))
 
 	wantPaths := []string{
-		"/api/v1/article-inspect/actions/batch-ignore",
-		"/api/v1/article-inspect/actions/batch-offline",
-		"/api/v1/article-inspect/actions/batch-process",
-		"/api/v1/article-inspect/articles",
-		"/api/v1/article-inspect/articles/{article_id}",
-		"/api/v1/article-inspect/articles/{article_id}/change-logs",
-		"/api/v1/article-inspect/articles/{article_id}/offline",
-		"/api/v1/article-inspect/articles/{article_id}/operation-logs",
-		"/api/v1/article-inspect/articles/{article_id}/rectify",
-		"/api/v1/article-inspect/articles/{article_id}/republish",
-		"/api/v1/article-inspect/categories",
-		"/api/v1/article-inspect/categories/{id}",
-		"/api/v1/article-inspect/categories/{id}/status",
-		"/api/v1/article-inspect/keywords",
-		"/api/v1/article-inspect/keywords/{id}",
-		"/api/v1/article-inspect/keywords/{id}/status",
-		"/api/v1/article-inspect/logs/field-changes",
-		"/api/v1/article-inspect/logs/operations",
-		"/api/v1/article-inspect/orgs",
-		"/api/v1/article-inspect/results",
-		"/api/v1/article-inspect/results/{id}",
-		"/api/v1/article-inspect/tasks",
-		"/api/v1/article-inspect/tasks/{id}",
-		"/api/v1/posts",
-		"/api/v1/posts/{id}",
 		"/healthz",
 		"/readyz",
 	}
@@ -63,60 +37,24 @@ func TestRouterRegistersArticleInspectRoutes(t *testing.T) {
 
 	assertOperation(t, doc.Paths, "/healthz", http.MethodGet)
 	assertOperation(t, doc.Paths, "/readyz", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/orgs", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodPut)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}", http.MethodDelete)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/categories/{id}/status", http.MethodPatch)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodPut)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodDelete)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}/status", http.MethodPatch)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks/{id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/tasks/{id}", http.MethodDelete)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/results/{id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-offline", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-ignore", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/actions/batch-process", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/offline", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/rectify", http.MethodPut)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/articles/{article_id}/republish", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/logs/operations", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/article-inspect/logs/field-changes", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/posts", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/posts", http.MethodPost)
-	assertOperation(t, doc.Paths, "/api/v1/posts/{id}", http.MethodGet)
-	assertOperation(t, doc.Paths, "/api/v1/posts/{id}", http.MethodPatch)
-	assertOperation(t, doc.Paths, "/api/v1/posts/{id}", http.MethodDelete)
-
+	assertPathAbsent(t, doc.Paths, "/api/v1/article-inspect/orgs")
+	assertPathAbsent(t, doc.Paths, "/api/v1/posts")
 	assertPathAbsent(t, doc.Paths, "/api/v1/auth/login")
 	assertPathAbsent(t, doc.Paths, "/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/member/auth/login")
 	assertPathAbsent(t, doc.Paths, "/api/v1/admin/users")
 }
 
-func TestRouterServesStarterHealthAndDocsEndpoints(t *testing.T) {
+func TestRouterServesStarterHealthAndReadyEndpoints(t *testing.T) {
 	handler := register.NewRouter(newRouterTestRuntime(true))
 
 	tests := []struct {
 		name       string
 		path       string
 		wantStatus int
-		allow3xx   bool
 	}{
 		{name: "healthz", path: "/healthz", wantStatus: http.StatusOK},
 		{name: "readyz", path: "/readyz", wantStatus: http.StatusOK},
-		{name: "openapi", path: "/openapi.json", wantStatus: http.StatusOK},
-		{name: "docs", path: "/docs", wantStatus: http.StatusOK, allow3xx: true},
 	}
 
 	for _, tt := range tests {
@@ -125,17 +63,63 @@ func TestRouterServesStarterHealthAndDocsEndpoints(t *testing.T) {
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 
-			if tt.allow3xx {
-				if rec.Code >= http.StatusBadRequest {
-					t.Fatalf("%s status = %d, want < %d", tt.path, rec.Code, http.StatusBadRequest)
-				}
-				return
-			}
-
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("%s status = %d, want %d", tt.path, rec.Code, tt.wantStatus)
 			}
 		})
+	}
+}
+
+func TestRouterProtectsDocumentationEndpointsWhenDocsEnabled(t *testing.T) {
+	handler := register.NewRouter(newRouterTestRuntime(true))
+	protectedPaths := []string{
+		"/docs",
+		"/openapi.json",
+		"/openapi.yaml",
+		"/openapi-3.0.json",
+		"/openapi-3.0.yaml",
+		"/schemas/ErrorModel.json",
+	}
+
+	for _, path := range protectedPaths {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusUnauthorized)
+			}
+			var got response.Envelope
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if got.Code != http.StatusUnauthorized || got.Message != "unauthorized" {
+				t.Fatalf("body = %+v, want unauthorized auth envelope", got)
+			}
+		})
+	}
+}
+
+func TestRouterServesOpenAPIWhenDocumentationRequestHasSession(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	handler := register.NewRouter(rt)
+
+	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	req.AddCookie(signedRouterSessionCookie(t, rt))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/openapi.json status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var doc openAPIDocument
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("decode openapi: %v", err)
+	}
+	if _, ok := doc.Paths["/healthz"]; !ok {
+		t.Fatal("openapi document missing /healthz path")
 	}
 }
 
@@ -167,7 +151,7 @@ func TestRouterServesAuthBridgeAndSessionRoutesAtRuntime(t *testing.T) {
 func TestRouterDisablesDocsEndpointsWhenDocsDisabled(t *testing.T) {
 	handler := register.NewRouter(newRouterTestRuntime(false))
 
-	for _, path := range []string{"/openapi.json", "/docs"} {
+	for _, path := range []string{"/docs", "/openapi.json", "/openapi.yaml", "/openapi-3.0.json", "/openapi-3.0.yaml", "/schemas/ErrorModel.json"} {
 		t.Run(path, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, path, nil)
 			rec := httptest.NewRecorder()
@@ -177,18 +161,6 @@ func TestRouterDisablesDocsEndpointsWhenDocsDisabled(t *testing.T) {
 				t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusNotFound)
 			}
 		})
-	}
-}
-
-func TestRouterLogsArticleInspectDispatcherInitFailure(t *testing.T) {
-	var logOutput bytes.Buffer
-	rt := newRouterTestRuntime(true)
-	rt.Logger = slog.New(slog.NewTextHandler(&logOutput, nil))
-
-	_ = register.NewRouter(rt)
-
-	if !strings.Contains(logOutput.String(), "article inspect dispatcher unavailable") {
-		t.Fatalf("router logs = %q, want dispatcher init failure message", logOutput.String())
 	}
 }
 
@@ -209,15 +181,17 @@ func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 				},
 			},
 		},
-		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Resources: &database.Resources{DB: &gorm.DB{}},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 }
 
-func fetchOpenAPIDocument(t *testing.T, handler http.Handler) openAPIDocument {
+func fetchOpenAPIDocument(t *testing.T, handler http.Handler, cookie *http.Cookie) openAPIDocument {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -231,6 +205,25 @@ func fetchOpenAPIDocument(t *testing.T, handler http.Handler) openAPIDocument {
 	}
 
 	return doc
+}
+
+func signedRouterSessionCookie(t *testing.T, rt *bootstrap.Runtime) *http.Cookie {
+	t.Helper()
+
+	manager := identity.NewAdminSessionManager(rt.Config.Auth.Session)
+	token, _, err := manager.SignSessionJWT(identity.AdminSession{
+		UserID:   1,
+		OrgID:    10,
+		OrgName:  "Test Org",
+		Priv:     "admin",
+		Nickname: "Admin",
+		Status:   "active",
+	})
+	if err != nil {
+		t.Fatalf("SignSessionJWT() error = %v", err)
+	}
+
+	return &http.Cookie{Name: manager.CookieName(), Value: token}
 }
 
 func sortedPathKeys(paths map[string]map[string]any) []string {
