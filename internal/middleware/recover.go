@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/dovetaill/article-sentinel/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
 )
 
 // Recover 捕获 panic，避免服务崩溃。

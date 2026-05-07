@@ -7,11 +7,11 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/dovetaill/article-sentinel/internal/api/handlers"
-	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/internal/middleware"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/api/handlers"
+	"github.com/dovetaill/go-auth-demo/internal/app/bootstrap"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/middleware"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 // NewRouter 构建基于 Huma 的 HTTP 路由。
@@ -19,7 +19,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	apiMux := http.NewServeMux()
 	adminSessionManager := newAdminSessionManager(rt)
 	handlers.RegisterAuthRoutes(apiMux, adminSessionManager, sessionConfig(rt))
-	cfg := huma.DefaultConfig("article-sentinel API", "0.1.0")
+	cfg := huma.DefaultConfig("go-auth-demo API", "0.1.0")
 	if rt != nil && rt.Config != nil {
 		if rt.Config.App.Name != "" {
 			cfg.Info.Title = rt.Config.App.Name

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/api/handlers"
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/internal/middleware"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/api/handlers"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/middleware"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
@@ -137,7 +137,7 @@ func newAuthHandlerForTest(t *testing.T) (http.Handler, *identity.AdminSessionMa
 	manager := identity.NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		Issuer:       "article-sentinel-admin",
+		Issuer:       "go-auth-demo",
 		TTLHours:     24,
 		LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
 		RedirectURL:  "http://127.0.0.1:5173/",

@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
 )
 
 const requestIDHeader = "X-Request-ID"

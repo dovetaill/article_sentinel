@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 func TestNewReturnsJSONLogger(t *testing.T) {

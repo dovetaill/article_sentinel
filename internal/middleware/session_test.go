@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 func TestSessionContextStoresAdminSessionFromCookie(t *testing.T) {
@@ -86,7 +86,7 @@ func newTestAdminSessionManager() *identity.AdminSessionManager {
 	return identity.NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		Issuer:       "article-sentinel-admin",
+		Issuer:       "go-auth-demo",
 		TTLHours:     24,
 	})
 }

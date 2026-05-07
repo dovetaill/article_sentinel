@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 func TestStarterConfigTypeShape(t *testing.T) {
@@ -138,7 +138,7 @@ func TestLoadReadsExplicitDocsAndRequestTimeoutConfig(t *testing.T) {
 
 	path := writeConfigFile(t, `
 app:
-  name: article-sentinel
+  name: go-auth-demo
 http:
   request_timeout_seconds: 27
 auth:
@@ -229,7 +229,7 @@ func TestLoadPreservesExplicitFalseSessionSecureCookie(t *testing.T) {
 
 	path := writeConfigFile(t, `
 app:
-  name: article-sentinel
+  name: go-auth-demo
 auth:
   session:
     legacy_secret: legacy-secret
@@ -263,7 +263,7 @@ func TestLoadIgnoresLegacySessionCookieNameOverride(t *testing.T) {
 
 	path := writeConfigFile(t, `
 app:
-  name: article-sentinel
+  name: go-auth-demo
 auth:
   session:
     legacy_secret: legacy-secret

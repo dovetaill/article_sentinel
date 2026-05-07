@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/app/bootstrap"
 )
 
 type readyOutput struct {

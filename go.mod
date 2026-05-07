@@ -1,4 +1,4 @@
-module github.com/dovetaill/article-sentinel
+module github.com/dovetaill/go-auth-demo
 
 go 1.25.6
 

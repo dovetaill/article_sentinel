@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/api/register"
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/api/register"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/app/bootstrap"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 func TestHealthzReturnsAlive(t *testing.T) {
@@ -68,7 +68,7 @@ func TestReadyzReturnsReadyPayload(t *testing.T) {
 }
 
 func TestResponseHelpersReturnStandardShape(t *testing.T) {
-	ok := response.OK("ok", map[string]any{"name": "article-sentinel"})
+	ok := response.OK("ok", map[string]any{"name": "go-auth-demo"})
 	if ok.Code != 0 {
 		t.Fatalf("OK code = %d, want %d", ok.Code, 0)
 	}
@@ -91,7 +91,7 @@ func TestResponseHelpersReturnStandardShape(t *testing.T) {
 func newHandlerTestRuntime() *bootstrap.Runtime {
 	return &bootstrap.Runtime{
 		Config: &config.Config{
-			App:  config.AppConfig{Name: "article-sentinel"},
+			App:  config.AppConfig{Name: "go-auth-demo"},
 			Docs: config.DocsConfig{Enabled: true, OpenAPIPath: "/openapi.json", UIPath: "/docs"},
 			HTTP: config.HTTPConfig{ReadTimeoutSeconds: 15},
 		},

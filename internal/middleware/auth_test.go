@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
 )
 
 type stubAuthenticator struct {

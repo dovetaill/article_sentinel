@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/internal/api/register"
-	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
+	"github.com/dovetaill/go-auth-demo/internal/api/register"
+	"github.com/dovetaill/go-auth-demo/internal/app/bootstrap"
 )
 
 func main() {

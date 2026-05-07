@@ -12,11 +12,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/api/register"
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/api/register"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/app/bootstrap"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 type openAPIDocument struct {
@@ -357,14 +357,14 @@ func TestRouterDisablesDocsEndpointsWhenDocsDisabled(t *testing.T) {
 func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 	return &bootstrap.Runtime{
 		Config: &config.Config{
-			App:  config.AppConfig{Name: "article-sentinel"},
+			App:  config.AppConfig{Name: "go-auth-demo"},
 			Docs: config.DocsConfig{Enabled: docsEnabled, OpenAPIPath: "/openapi.json", UIPath: "/docs"},
 			HTTP: config.HTTPConfig{RequestTimeoutSeconds: 15, ReadTimeoutSeconds: 15},
 			Auth: config.AuthConfig{
 				Session: config.SessionConfig{
 					LegacySecret: "legacy-secret",
 					Secret:       "session-secret",
-					Issuer:       "article-sentinel-admin",
+					Issuer:       "go-auth-demo",
 					TTLHours:     24,
 					LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
 					RedirectURL:  "http://127.0.0.1:5173/",

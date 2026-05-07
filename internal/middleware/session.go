@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
 )
 
 func SessionContext(manager *identity.AdminSessionManager) Middleware {

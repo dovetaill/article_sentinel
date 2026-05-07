@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
@@ -13,7 +13,7 @@ func TestAdminSessionManagerExchangesLegacyJWT(t *testing.T) {
 	mgr := NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		Issuer:       "article-sentinel-admin",
+		Issuer:       "go-auth-demo",
 		TTLHours:     24,
 	})
 	mgr.now = func() time.Time { return now }
@@ -66,7 +66,7 @@ func TestAdminSessionManagerRejectsExpiredOrInvalidLegacyJWT(t *testing.T) {
 	mgr := NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		Issuer:       "article-sentinel-admin",
+		Issuer:       "go-auth-demo",
 		TTLHours:     24,
 	})
 	mgr.now = func() time.Time { return now }
@@ -100,7 +100,7 @@ func TestAdminSessionManagerAlwaysUsesFixedCookieName(t *testing.T) {
 	mgr := NewAdminSessionManager(config.SessionConfig{
 		LegacySecret: "legacy-secret",
 		Secret:       "session-secret",
-		Issuer:       "article-sentinel-admin",
+		Issuer:       "go-auth-demo",
 		TTLHours:     24,
 	})
 

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
 )
 
 type DocumentationPaths struct {

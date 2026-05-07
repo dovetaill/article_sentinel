@@ -34,7 +34,7 @@ type AuthConfig struct {
 type SessionConfig struct {
 	LegacySecret string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
 	Secret       string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
-	Issuer       string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
+	Issuer       string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"go-auth-demo"`
 	TTLHours     int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
 	SecureCookie bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
 	LoginURL     string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`

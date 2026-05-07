@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/app/lifecycle"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/app/lifecycle"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 func TestBuildServerRuntimeReturnsConfigAndLoggerOnly(t *testing.T) {
@@ -18,7 +18,7 @@ func TestBuildServerRuntimeReturnsConfigAndLoggerOnly(t *testing.T) {
 		newLoggerFn = origNewLogger
 	})
 
-	wantConfig := &config.Config{App: config.AppConfig{Name: "article-sentinel"}}
+	wantConfig := &config.Config{App: config.AppConfig{Name: "go-auth-demo"}}
 	wantLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	loggerClosed := false
 

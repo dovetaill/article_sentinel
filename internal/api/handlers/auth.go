@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-	"github.com/dovetaill/article-sentinel/internal/identity"
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 )
 
 const (
@@ -17,9 +17,9 @@ const (
 )
 
 type AuthHandler struct {
-	manager       *identity.AdminSessionManager
-	loginURL      string
-	redirectURL   string
+	manager     *identity.AdminSessionManager
+	loginURL    string
+	redirectURL string
 }
 
 func RegisterAuthRoutes(mux *http.ServeMux, manager *identity.AdminSessionManager, sessionCfg config.SessionConfig) {

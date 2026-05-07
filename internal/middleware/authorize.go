@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/go-auth-demo/internal/identity"
 )
 
 func RequireAuthenticated() Middleware {

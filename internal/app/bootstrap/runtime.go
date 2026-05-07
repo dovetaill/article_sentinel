@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/dovetaill/article-sentinel/internal/app/lifecycle"
-	"github.com/dovetaill/article-sentinel/pkg/config"
-	"github.com/dovetaill/article-sentinel/pkg/logger"
+	"github.com/dovetaill/go-auth-demo/internal/app/lifecycle"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
+	"github.com/dovetaill/go-auth-demo/pkg/logger"
 )
 
 var (

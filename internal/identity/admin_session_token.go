@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dovetaill/article-sentinel/pkg/config"
+	"github.com/dovetaill/go-auth-demo/pkg/config"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
@@ -46,7 +46,7 @@ func NewAdminSessionManager(cfg config.SessionConfig) *AdminSessionManager {
 
 	issuer := strings.TrimSpace(cfg.Issuer)
 	if issuer == "" {
-		issuer = "article-sentinel-admin"
+		issuer = "go-auth-demo"
 	}
 
 	manager := &AdminSessionManager{
@@ -82,7 +82,7 @@ func (m *AdminSessionManager) TTL() time.Duration {
 
 func (m *AdminSessionManager) Issuer() string {
 	if m == nil {
-		return "article-sentinel-admin"
+		return "go-auth-demo"
 	}
 	return m.issuer
 }

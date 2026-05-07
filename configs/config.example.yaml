@@ -1,86 +1,26 @@
 app:
-  name: article-sentinel
+  name: go-auth-demo
   env: local
   host: 0.0.0.0
   port: 8080
 
 http:
-  # Application-level timeout used by the request middleware.
   request_timeout_seconds: 15
   read_timeout_seconds: 15
   write_timeout_seconds: 15
   idle_timeout_seconds: 60
 
-redis:
-  addr: 127.0.0.1:6380
-  password: article_sentinel_redis
-  db: 0
-  pool_size: 10
-  min_idle_conns: 2
-
-database:
-  # Starter 默认只使用这一份主数据库配置。
-  driver: mysql
-  mysql:
-    host: 127.0.0.1
-    port: 3307
-    user: article_sentinel
-    password: article_sentinel
-    dbname: article_sentinel
-    charset: utf8mb4
-    parse_time: true
-    loc: Local
-    max_open_conns: 20
-    max_idle_conns: 10
-    conn_max_lifetime_minutes: 60
-  postgres:
-    host: 127.0.0.1
-    port: 5432
-    user: postgres
-    password: postgres
-    dbname: article_sentinel
-    ssl_mode: disable
-    time_zone: Asia/Shanghai
-    max_open_conns: 20
-    max_idle_conns: 10
-    conn_max_lifetime_minutes: 60
-
 auth:
   session:
-    # legacy_secret 用于校验第三方跳转传入的旧 JWT。
-    legacy_secret: set-via-env-or-local-secret
-    # secret 用于签发我们自己的 as_admin_session cookie session。
-    secret: set-via-env-or-local-secret
-    issuer: article-sentinel-admin
-    # 跳转登录 session 固定有效期 24 小时。
+    legacy_secret: change-me-legacy-secret
+    secret: change-me-session-secret
+    issuer: go-auth-demo
     ttl_hours: 24
-    # 生产 HTTPS 环境保持 true；本地 HTTP 联调请改成 false。
-    secure_cookie: true
-    # 校验失败或 cookie 失效后回到的登录页。
-    login_url: https://appadmin.cq.qiludev.com/cq-admin/index.html
-    # 第三方跳转登录成功后落到的管理台地址。
-    redirect_url: http://127.0.0.1:5173/
-
-queue:
-  asynq:
-    concurrency: 10
-    queue_name: default
-  outbox:
-    enabled: true
-    relay_spec: "@every 15s"
-    cleanup_spec: "@every 1h"
-    batch_size: 20
-    lease_duration_seconds: 30
-    max_attempts: 10
-    dispatched_retention_hours: 168
-    dead_letter_retention_hours: 720
-
-scheduler:
-  enabled: false
-  spec: "@every 1m"
+    secure_cookie: false
+    login_url: /auth/login
+    redirect_url: /docs
 
 docs:
-  # Set to false to disable both /openapi.json and /docs.
   enabled: true
   openapi_path: /openapi.json
   ui_path: /docs
@@ -88,7 +28,7 @@ docs:
 log:
   level: info
   format: json
-  output: both
+  output: stdout
   dir: logs
   filename: app.log
   max_size_mb: 100

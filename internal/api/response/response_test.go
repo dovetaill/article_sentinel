@@ -3,7 +3,7 @@ package response_test
 import (
 	"testing"
 
-	"github.com/dovetaill/article-sentinel/internal/api/response"
+	"github.com/dovetaill/go-auth-demo/internal/api/response"
 )
 
 func TestPagedReturnsStandardShape(t *testing.T) {
