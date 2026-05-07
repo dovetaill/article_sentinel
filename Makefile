@@ -12,4 +12,5 @@ verify:
 	go test ./...
 
 build:
-	go build ./cmd/server
+	mkdir -p bin
+	go build -o bin/server ./cmd/server
