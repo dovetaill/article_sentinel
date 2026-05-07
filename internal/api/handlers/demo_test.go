@@ -23,6 +23,17 @@ func TestDemoMeRequiresAuthenticatedActor(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
+
+	var got response.Envelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Code != http.StatusUnauthorized {
+		t.Fatalf("code = %d, want %d", got.Code, http.StatusUnauthorized)
+	}
+	if got.Message != "unauthorized" {
+		t.Fatalf("message = %q, want %q", got.Message, "unauthorized")
+	}
 }
 
 func TestDemoMeReturnsCurrentActorFromContext(t *testing.T) {
@@ -58,6 +69,12 @@ func TestDemoMeReturnsCurrentActorFromContext(t *testing.T) {
 	}
 	if got := data["username"]; got != "demo" {
 		t.Fatalf("data.username = %v, want %q", got, "demo")
+	}
+	if got := data["role"]; got != "admin" {
+		t.Fatalf("data.role = %v, want %q", got, "admin")
+	}
+	if got := data["status"]; got != "active" {
+		t.Fatalf("data.status = %v, want %q", got, "active")
 	}
 }
 

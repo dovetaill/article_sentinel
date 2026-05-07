@@ -74,6 +74,62 @@ func TestRouterServesStarterHealthAndReadyEndpoints(t *testing.T) {
 	}
 }
 
+func TestRouterDemoMeRequiresSessionEnvelope(t *testing.T) {
+	handler := register.NewRouter(newRouterTestRuntime(true))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("/api/v1/demo/me status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	got := decodeRouterEnvelope(t, rec)
+	if got.Code != http.StatusUnauthorized {
+		t.Fatalf("code = %d, want %d", got.Code, http.StatusUnauthorized)
+	}
+	if got.Message != "unauthorized" {
+		t.Fatalf("message = %q, want %q", got.Message, "unauthorized")
+	}
+}
+
+func TestRouterDemoMeReturnsActorFromSignedSessionCookie(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	handler := register.NewRouter(rt)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/me", nil)
+	req.AddCookie(signedRouterSessionCookie(t, rt))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/api/v1/demo/me status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	got := decodeRouterEnvelope(t, rec)
+	if got.Code != 0 {
+		t.Fatalf("code = %d, want %d", got.Code, 0)
+	}
+	if got.Message != "me" {
+		t.Fatalf("message = %q, want %q", got.Message, "me")
+	}
+	data, ok := got.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("data type = %T, want map[string]any", got.Data)
+	}
+	if got := data["id"]; got != float64(1) {
+		t.Fatalf("data.id = %v, want %d", got, 1)
+	}
+	if got := data["username"]; got != "Admin" {
+		t.Fatalf("data.username = %v, want %q", got, "Admin")
+	}
+	if got := data["role"]; got != "admin" {
+		t.Fatalf("data.role = %v, want %q", got, "admin")
+	}
+	if got := data["status"]; got != "active" {
+		t.Fatalf("data.status = %v, want %q", got, "active")
+	}
+}
+
 func TestRouterProtectsDocumentationEndpointsWhenDocsEnabled(t *testing.T) {
 	handler := register.NewRouter(newRouterTestRuntime(true))
 	protectedPaths := []string{
@@ -358,6 +414,16 @@ func signedRouterSessionCookie(t *testing.T, rt *bootstrap.Runtime) *http.Cookie
 	}
 
 	return &http.Cookie{Name: manager.CookieName(), Value: token}
+}
+
+func decodeRouterEnvelope(t *testing.T, rec *httptest.ResponseRecorder) response.Envelope {
+	t.Helper()
+
+	var got response.Envelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return got
 }
 
 type memorySlogHandler struct {

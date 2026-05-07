@@ -10,7 +10,15 @@ import (
 )
 
 type demoMeOutput struct {
-	Body response.Envelope
+	Status int `status:"200"`
+	Body   response.Envelope
+}
+
+type demoActor struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	Status   string `json:"status"`
 }
 
 // RegisterDemoRoutes registers minimal protected demo endpoints.
@@ -23,9 +31,20 @@ func RegisterDemoRoutes(api huma.API) {
 	}, func(ctx context.Context, input *struct{}) (*demoMeOutput, error) {
 		actor, ok := identity.ActorFromContext(ctx)
 		if !ok {
-			return nil, huma.Error401Unauthorized("unauthorized")
+			return &demoMeOutput{
+				Status: http.StatusUnauthorized,
+				Body:   response.Fail(http.StatusUnauthorized, "unauthorized"),
+			}, nil
 		}
 
-		return &demoMeOutput{Body: response.OK("me", actor)}, nil
+		return &demoMeOutput{
+			Status: http.StatusOK,
+			Body: response.OK("me", demoActor{
+				ID:       actor.ID,
+				Username: actor.Username,
+				Role:     actor.Role,
+				Status:   actor.Status,
+			}),
+		}, nil
 	})
 }
