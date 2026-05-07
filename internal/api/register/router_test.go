@@ -1,6 +1,7 @@
 package register_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/api/register"
@@ -101,6 +103,58 @@ func TestRouterProtectsDocumentationEndpointsWhenDocsEnabled(t *testing.T) {
 	}
 }
 
+func TestRouterProtectsConfiguredDocumentationEndpointsWhenDocsEnabled(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	rt.Config.Docs.OpenAPIPath = "/schema.json"
+	rt.Config.Docs.UIPath = "/reference"
+
+	handler := register.NewRouter(rt)
+	protectedPaths := []string{
+		"/reference",
+		"/reference/",
+		"/reference/index.html",
+		"/schema.json",
+		"/schema.yaml",
+		"/schema-3.0.json",
+		"/schema-3.0.yaml",
+		"/schemas/ErrorModel.json",
+	}
+
+	for _, path := range protectedPaths {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestRouterAllowsConfiguredDocumentationEndpointsWithSession(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	rt.Config.Docs.OpenAPIPath = "/schema.json"
+	rt.Config.Docs.UIPath = "/reference"
+
+	handler := register.NewRouter(rt)
+	cookie := signedRouterSessionCookie(t, rt)
+
+	for _, path := range []string{"/schema.json", "/reference"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s status = %d, want %d, body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestRouterServesOpenAPIWhenDocumentationRequestHasSession(t *testing.T) {
 	rt := newRouterTestRuntime(true)
 	handler := register.NewRouter(rt)
@@ -120,6 +174,38 @@ func TestRouterServesOpenAPIWhenDocumentationRequestHasSession(t *testing.T) {
 	}
 	if _, ok := doc.Paths["/healthz"]; !ok {
 		t.Fatal("openapi document missing /healthz path")
+	}
+}
+
+func TestRouterLogsRejectedDocumentationRequests(t *testing.T) {
+	memory := &memorySlogHandler{}
+	rt := newRouterTestRuntime(true)
+	rt.Logger = slog.New(memory)
+
+	handler := register.NewRouter(rt)
+	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if len(memory.records) != 1 {
+		t.Fatalf("record count = %d, want %d", len(memory.records), 1)
+	}
+
+	record := memory.records[0]
+	if record["msg"] != "http_access" {
+		t.Fatalf("msg = %v, want %q", record["msg"], "http_access")
+	}
+	if record["path"] != "/openapi.json" {
+		t.Fatalf("path = %v, want %q", record["path"], "/openapi.json")
+	}
+	if got, ok := record["status_code"].(int64); !ok || got != http.StatusUnauthorized {
+		t.Fatalf("status_code = %v, want %d", record["status_code"], http.StatusUnauthorized)
+	}
+	if _, ok := record["request_id"].(string); !ok {
+		t.Fatalf("request_id type = %T, want string", record["request_id"])
 	}
 }
 
@@ -225,6 +311,29 @@ func signedRouterSessionCookie(t *testing.T, rt *bootstrap.Runtime) *http.Cookie
 
 	return &http.Cookie{Name: manager.CookieName(), Value: token}
 }
+
+type memorySlogHandler struct {
+	mu      sync.Mutex
+	records []map[string]any
+}
+
+func (h *memorySlogHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (h *memorySlogHandler) Handle(_ context.Context, record slog.Record) error {
+	entry := map[string]any{"msg": record.Message}
+	record.Attrs(func(attr slog.Attr) bool {
+		entry[attr.Key] = attr.Value.Any()
+		return true
+	})
+
+	h.mu.Lock()
+	h.records = append(h.records, entry)
+	h.mu.Unlock()
+	return nil
+}
+
+func (h *memorySlogHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *memorySlogHandler) WithGroup(_ string) slog.Handler      { return h }
 
 func sortedPathKeys(paths map[string]map[string]any) []string {
 	keys := make([]string, 0, len(paths))

@@ -51,10 +51,10 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 		apiMux,
 		middleware.RequestID(),
 		middleware.SessionContext(adminSessionManager),
-		middleware.ProtectDocumentation(docsEnabled(rt)),
+		middleware.AccessLog(nilLogger(rt)),
+		middleware.ProtectDocumentation(docsEnabled(rt), middleware.WithDocumentationPaths(documentationProtectionPaths(rt))),
 		middleware.Recover(),
 		middleware.Timeout(timeout),
-		middleware.AccessLog(nilLogger(rt)),
 	)
 }
 
@@ -95,4 +95,21 @@ func docsEnabled(rt *bootstrap.Runtime) bool {
 		return true
 	}
 	return rt.Config.Docs.Enabled
+}
+
+func documentationProtectionPaths(rt *bootstrap.Runtime) middleware.DocumentationPaths {
+	paths := middleware.DocumentationPaths{
+		OpenAPIPath: "/openapi",
+		DocsPath:    "/docs",
+		SchemasPath: "/schemas",
+	}
+	if rt == nil || rt.Config == nil {
+		return paths
+	}
+
+	paths.OpenAPIPath = normalizeOpenAPIPath(rt.Config.Docs.OpenAPIPath)
+	if rt.Config.Docs.UIPath != "" {
+		paths.DocsPath = rt.Config.Docs.UIPath
+	}
+	return paths
 }
