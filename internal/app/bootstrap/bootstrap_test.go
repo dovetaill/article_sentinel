@@ -3,35 +3,33 @@ package bootstrap
 import (
 	"io"
 	"log/slog"
+	"reflect"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/app/lifecycle"
 	"github.com/dovetaill/article-sentinel/pkg/config"
-	"github.com/dovetaill/article-sentinel/pkg/database"
 )
 
-func TestBuildServerRuntimeReturnsSharedResources(t *testing.T) {
+func TestBuildServerRuntimeReturnsConfigAndLoggerOnly(t *testing.T) {
 	origLoadConfig := loadConfigFn
 	origNewLogger := newLoggerFn
-	origBootstrapDatabase := bootstrapDatabaseFn
 	t.Cleanup(func() {
 		loadConfigFn = origLoadConfig
 		newLoggerFn = origNewLogger
-		bootstrapDatabaseFn = origBootstrapDatabase
 	})
 
 	wantConfig := &config.Config{App: config.AppConfig{Name: "article-sentinel"}}
 	wantLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	wantResources := &database.Resources{}
+	loggerClosed := false
 
 	loadConfigFn = func(path string) (*config.Config, error) {
 		return wantConfig, nil
 	}
 	newLoggerFn = func(cfg config.LogConfig) (*slog.Logger, func() error, error) {
-		return wantLogger, func() error { return nil }, nil
-	}
-	bootstrapDatabaseFn = func(cfg *config.Config) (*database.Resources, error) {
-		return wantResources, nil
+		return wantLogger, func() error {
+			loggerClosed = true
+			return nil
+		}, nil
 	}
 
 	rt, err := BuildServerRuntime("configs/config.yaml")
@@ -45,48 +43,14 @@ func TestBuildServerRuntimeReturnsSharedResources(t *testing.T) {
 	if rt.Logger != wantLogger {
 		t.Fatal("runtime.Logger does not match created logger")
 	}
-	if rt.Resources != wantResources {
-		t.Fatal("runtime.Resources does not match bootstrapped resources")
+	if _, ok := reflect.TypeOf(Runtime{}).FieldByName("Resources"); ok {
+		t.Fatal("Runtime.Resources is present, want reduced runtime without resources")
 	}
-}
-
-func TestBuildWorkerRuntimeReturnsSharedResources(t *testing.T) {
-	origLoadConfig := loadConfigFn
-	origNewLogger := newLoggerFn
-	origBootstrapDatabase := bootstrapDatabaseFn
-	t.Cleanup(func() {
-		loadConfigFn = origLoadConfig
-		newLoggerFn = origNewLogger
-		bootstrapDatabaseFn = origBootstrapDatabase
-	})
-
-	wantConfig := &config.Config{App: config.AppConfig{Name: "article-sentinel"}}
-	wantLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	wantResources := &database.Resources{}
-
-	loadConfigFn = func(path string) (*config.Config, error) {
-		return wantConfig, nil
+	if err := rt.Shutdown(); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
 	}
-	newLoggerFn = func(cfg config.LogConfig) (*slog.Logger, func() error, error) {
-		return wantLogger, func() error { return nil }, nil
-	}
-	bootstrapDatabaseFn = func(cfg *config.Config) (*database.Resources, error) {
-		return wantResources, nil
-	}
-
-	rt, err := BuildWorkerRuntime("configs/config.yaml")
-	if err != nil {
-		t.Fatalf("BuildWorkerRuntime() error = %v", err)
-	}
-
-	if rt.Config != wantConfig {
-		t.Fatal("runtime.Config does not match loaded config")
-	}
-	if rt.Logger != wantLogger {
-		t.Fatal("runtime.Logger does not match created logger")
-	}
-	if rt.Resources != wantResources {
-		t.Fatal("runtime.Resources does not match bootstrapped resources")
+	if !loggerClosed {
+		t.Fatal("logger closer was not registered")
 	}
 }
 

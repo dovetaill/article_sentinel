@@ -17,8 +17,15 @@ func TestStarterConfigTypeShape(t *testing.T) {
 		field       string
 		wantPresent bool
 	}{
-		{name: "config keeps database field", typ: reflect.TypeOf(config.Config{}), field: "Database", wantPresent: true},
-		{name: "config drops legacy top level mysql field", typ: reflect.TypeOf(config.Config{}), field: "MySQL", wantPresent: false},
+		{name: "config keeps app field", typ: reflect.TypeOf(config.Config{}), field: "App", wantPresent: true},
+		{name: "config keeps http field", typ: reflect.TypeOf(config.Config{}), field: "HTTP", wantPresent: true},
+		{name: "config keeps auth field", typ: reflect.TypeOf(config.Config{}), field: "Auth", wantPresent: true},
+		{name: "config keeps docs field", typ: reflect.TypeOf(config.Config{}), field: "Docs", wantPresent: true},
+		{name: "config keeps log field", typ: reflect.TypeOf(config.Config{}), field: "Log", wantPresent: true},
+		{name: "config drops database field", typ: reflect.TypeOf(config.Config{}), field: "Database", wantPresent: false},
+		{name: "config drops redis field", typ: reflect.TypeOf(config.Config{}), field: "Redis", wantPresent: false},
+		{name: "config drops queue field", typ: reflect.TypeOf(config.Config{}), field: "Queue", wantPresent: false},
+		{name: "config drops scheduler field", typ: reflect.TypeOf(config.Config{}), field: "Scheduler", wantPresent: false},
 		{name: "auth drops seed admin field", typ: reflect.TypeOf(config.AuthConfig{}), field: "SeedAdmin", wantPresent: false},
 		{name: "auth drops unused jwt field", typ: reflect.TypeOf(config.AuthConfig{}), field: "JWT", wantPresent: false},
 		{name: "session drops configurable cookie name field", typ: reflect.TypeOf(config.SessionConfig{}), field: "CookieName", wantPresent: false},
@@ -86,30 +93,25 @@ func TestAuthConfigExposesSessionFields(t *testing.T) {
 	}
 }
 
-func TestLoadReadsStarterPrimaryDatabaseConfig(t *testing.T) {
-	clearLegacyDatabaseEnv(t)
+func TestLoadReadsAuthDemoConfigWithoutDatabase(t *testing.T) {
+	clearEnv(t)
 
 	path := writeConfigFile(t, `
 app:
-  name: article-sentinel
-database:
-  driver: mysql
-  mysql:
-    host: 127.0.0.1
-    port: 3306
-    user: root
-    password: root
-    dbname: article_sentinel
-    charset: utf8mb4
-    parse_time: true
-    loc: Local
-    max_open_conns: 20
-    max_idle_conns: 10
-    conn_max_lifetime_minutes: 60
-redis:
-  addr: 127.0.0.1:6379
+  name: go-auth-demo
+http:
+  request_timeout_seconds: 27
+auth:
+  session:
+    legacy_secret: legacy-secret
+    secret: session-secret
+    secure_cookie: false
+    login_url: https://example.com/login
+    redirect_url: /docs
 docs:
-  enabled: false
+  enabled: true
+  openapi_path: /openapi.json
+  ui_path: /docs
 log:
   level: info
 `)
@@ -119,34 +121,25 @@ log:
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.Database.Driver != "mysql" {
-		t.Fatalf("Database.Driver = %q, want %q", cfg.Database.Driver, "mysql")
+	if cfg.App.Name != "go-auth-demo" {
+		t.Fatalf("App.Name = %q, want %q", cfg.App.Name, "go-auth-demo")
 	}
-	if cfg.Database.MySQL.DBName != "article_sentinel" {
-		t.Fatalf("Database.MySQL.DBName = %q, want %q", cfg.Database.MySQL.DBName, "article_sentinel")
+	if cfg.Auth.Session.Secret != "session-secret" {
+		t.Fatalf("Auth.Session.Secret = %q, want %q", cfg.Auth.Session.Secret, "session-secret")
 	}
-	if cfg.Docs.Enabled {
-		t.Fatal("Docs.Enabled = true, want false")
+	if cfg.HTTP.RequestTimeoutSeconds != 27 {
+		t.Fatalf("HTTP.RequestTimeoutSeconds = %d, want %d", cfg.HTTP.RequestTimeoutSeconds, 27)
 	}
 }
 
 func TestLoadReadsExplicitDocsAndRequestTimeoutConfig(t *testing.T) {
-	clearLegacyDatabaseEnv(t)
+	clearEnv(t)
 
 	path := writeConfigFile(t, `
 app:
   name: article-sentinel
 http:
   request_timeout_seconds: 27
-database:
-  driver: mysql
-  mysql:
-    host: 127.0.0.1
-    user: root
-    password: root
-    dbname: article_sentinel
-redis:
-  addr: 127.0.0.1:6379
 docs:
   enabled: false
   openapi_path: /schema.json
@@ -174,20 +167,11 @@ log:
 }
 
 func TestLoadPreservesExplicitFalseSessionSecureCookie(t *testing.T) {
-	clearLegacyDatabaseEnv(t)
+	clearEnv(t)
 
 	path := writeConfigFile(t, `
 app:
   name: article-sentinel
-database:
-  driver: mysql
-  mysql:
-    host: 127.0.0.1
-    user: root
-    password: root
-    dbname: article_sentinel
-redis:
-  addr: 127.0.0.1:6379
 auth:
   session:
     legacy_secret: legacy-secret
@@ -217,20 +201,11 @@ log:
 }
 
 func TestLoadIgnoresLegacySessionCookieNameOverride(t *testing.T) {
-	clearLegacyDatabaseEnv(t)
+	clearEnv(t)
 
 	path := writeConfigFile(t, `
 app:
   name: article-sentinel
-database:
-  driver: mysql
-  mysql:
-    host: 127.0.0.1
-    user: root
-    password: root
-    dbname: article_sentinel
-redis:
-  addr: 127.0.0.1:6379
 auth:
   session:
     legacy_secret: legacy-secret
@@ -253,10 +228,38 @@ log:
 	}
 }
 
-func clearLegacyDatabaseEnv(t *testing.T) {
+func clearEnv(t *testing.T) {
 	t.Helper()
 
 	for _, key := range []string{
+		"APP_NAME",
+		"APP_ENV",
+		"APP_HOST",
+		"APP_PORT",
+		"HTTP_REQUEST_TIMEOUT_SECONDS",
+		"HTTP_READ_TIMEOUT_SECONDS",
+		"HTTP_WRITE_TIMEOUT_SECONDS",
+		"HTTP_IDLE_TIMEOUT_SECONDS",
+		"AUTH_SESSION_LEGACY_SECRET",
+		"AUTH_SESSION_SECRET",
+		"AUTH_SESSION_ISSUER",
+		"AUTH_SESSION_TTL_HOURS",
+		"AUTH_SESSION_SECURE_COOKIE",
+		"AUTH_SESSION_LOGIN_URL",
+		"AUTH_SESSION_REDIRECT_URL",
+		"DOCS_ENABLED",
+		"DOCS_OPENAPI_PATH",
+		"DOCS_UI_PATH",
+		"LOG_LEVEL",
+		"LOG_FORMAT",
+		"LOG_OUTPUT",
+		"LOG_DIR",
+		"LOG_FILENAME",
+		"LOG_MAX_SIZE_MB",
+		"LOG_MAX_BACKUPS",
+		"LOG_MAX_AGE_DAYS",
+		"LOG_COMPRESS",
+		"LOG_ROTATE_DAILY",
 		"MYSQL_HOST",
 		"MYSQL_PORT",
 		"MYSQL_USER",
@@ -279,10 +282,33 @@ func clearLegacyDatabaseEnv(t *testing.T) {
 		"DB_MYSQL_MAX_OPEN_CONNS",
 		"DB_MYSQL_MAX_IDLE_CONNS",
 		"DB_MYSQL_CONN_MAX_LIFETIME_MINUTES",
-		"HTTP_REQUEST_TIMEOUT_SECONDS",
-		"DOCS_ENABLED",
-		"DOCS_OPENAPI_PATH",
-		"DOCS_UI_PATH",
+		"DB_POSTGRES_HOST",
+		"DB_POSTGRES_PORT",
+		"DB_POSTGRES_USER",
+		"DB_POSTGRES_PASSWORD",
+		"DB_POSTGRES_DBNAME",
+		"DB_POSTGRES_SSL_MODE",
+		"DB_POSTGRES_TIME_ZONE",
+		"DB_POSTGRES_MAX_OPEN_CONNS",
+		"DB_POSTGRES_MAX_IDLE_CONNS",
+		"DB_POSTGRES_CONN_MAX_LIFETIME_MINUTES",
+		"REDIS_ADDR",
+		"REDIS_PASSWORD",
+		"REDIS_DB",
+		"REDIS_POOL_SIZE",
+		"REDIS_MIN_IDLE_CONNS",
+		"ASYNQ_CONCURRENCY",
+		"ASYNQ_QUEUE_NAME",
+		"OUTBOX_ENABLED",
+		"OUTBOX_RELAY_SPEC",
+		"OUTBOX_CLEANUP_SPEC",
+		"OUTBOX_BATCH_SIZE",
+		"OUTBOX_LEASE_DURATION_SECONDS",
+		"OUTBOX_MAX_ATTEMPTS",
+		"OUTBOX_DISPATCHED_RETENTION_HOURS",
+		"OUTBOX_DEAD_LETTER_RETENTION_HOURS",
+		"SCHEDULER_ENABLED",
+		"SCHEDULER_SPEC",
 	} {
 		value, ok := os.LookupEnv(key)
 		if err := os.Unsetenv(key); err != nil {

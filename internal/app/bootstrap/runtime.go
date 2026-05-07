@@ -6,25 +6,19 @@ import (
 
 	"github.com/dovetaill/article-sentinel/internal/app/lifecycle"
 	"github.com/dovetaill/article-sentinel/pkg/config"
-	"github.com/dovetaill/article-sentinel/pkg/database"
 	"github.com/dovetaill/article-sentinel/pkg/logger"
 )
 
 var (
-	loadConfigFn                = config.Load
-	newLoggerFn                 = logger.New
-	bootstrapDatabaseFn         = database.Bootstrap
-	businessModels              []any
-	applySQLMigrationsFn        = ApplySQLMigrations
-	autoMigrateBusinessTablesFn = AutoMigrateBusinessTables
+	loadConfigFn = config.Load
+	newLoggerFn  = logger.New
 )
 
-// Runtime 承载 server/worker/scheduler 共享资源。
+// Runtime 承载 server 入口共享的配置与日志。
 type Runtime struct {
-	Config    *config.Config
-	Logger    *slog.Logger
-	Resources *database.Resources
-	closers   []lifecycle.Closer
+	Config  *config.Config
+	Logger  *slog.Logger
+	closers []lifecycle.Closer
 }
 
 // RegisterCloser 追加一个需要在退出时执行的关闭动作。
@@ -49,32 +43,20 @@ func buildRuntime(configPath string) (*Runtime, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	// 启动顺序保持固定：先配置，再日志，再数据库/Redis 等共享资源。
+	// 启动顺序保持固定：先配置，再日志。
 	log, logCloser, err := newLoggerFn(cfg.Log)
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap logger: %w", err)
 	}
 
-	resources, err := bootstrapDatabaseFn(cfg)
-	if err != nil {
-		if logCloser != nil {
-			_ = logCloser()
-		}
-		return nil, fmt.Errorf("bootstrap database resources: %w", err)
-	}
-
 	rt := &Runtime{
-		Config:    cfg,
-		Logger:    log,
-		Resources: resources,
+		Config: cfg,
+		Logger: log,
 	}
 
-	// 统一在 Runtime 中登记关闭动作，server/worker/scheduler 退出时走同一套收口。
+	// 统一在 Runtime 中登记关闭动作，server 退出时走同一套收口。
 	if logCloser != nil {
 		rt.RegisterCloser(logCloser)
-	}
-	if resources != nil {
-		rt.RegisterCloser(resources.Close)
 	}
 
 	return rt, nil
