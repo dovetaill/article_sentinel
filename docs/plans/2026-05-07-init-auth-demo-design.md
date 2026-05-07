@@ -15,6 +15,7 @@ Keep a runnable HTTP service with:
 - session parsing middleware
 - current-session and logout APIs
 - health/readiness endpoints
+- protected API documentation endpoints
 - tests for the retained auth and HTTP behavior
 
 Remove:
@@ -40,7 +41,7 @@ The HTTP surface is intentionally small:
 - `POST /api/v1/auth/logout`: clears the session cookie
 - optional `GET /api/v1/demo/me`: protected example endpoint that returns the current actor/session
 
-The router should no longer import business modules or queue dispatchers. It should only wire public utility routes and authentication routes, then wrap the mux with the retained middleware chain.
+The router should no longer import business modules or queue dispatchers. It should only wire public utility routes and authentication routes, then wrap the mux with the retained middleware chain. Documentation endpoints must be protected by session authentication, including `/docs`, `/openapi.json`, `/openapi.yaml`, `/openapi-3.0.json`, `/openapi-3.0.yaml`, and `/schemas/*`.
 
 ## Configuration
 
@@ -80,6 +81,7 @@ Session flow:
 ## Error Handling
 
 - Invalid or missing login JWT clears the session cookie and redirects to `auth.session.login_url`.
+- Anonymous requests to documentation endpoints return `401` JSON instead of exposing OpenAPI schemas publicly.
 - Missing or invalid session cookie returns `401` on protected/session endpoints.
 - Unsupported HTTP methods return `405` JSON envelopes.
 - Middleware keeps request metadata and source IP available for downstream code.
@@ -94,6 +96,7 @@ Retain or rewrite tests for:
 - session middleware context population and bad-cookie cleanup
 - auth login/session/logout handlers
 - router route presence and removed business route absence
+- docs/OpenAPI/schema endpoints requiring a valid session cookie
 - config loading with the reduced schema
 - server-independent health/readiness behavior
 
