@@ -27,6 +27,28 @@ func Load(path string) (*Config, error) {
 	if err := cleanenv.ReadConfig(path, cfg); err != nil {
 		return nil, fmt.Errorf("read config %q: %w", path, err)
 	}
+	if err := validateAuthSessionConfig(cfg); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
+}
+
+func validateAuthSessionConfig(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is required")
+	}
+
+	missing := make([]string, 0, 2)
+	if strings.TrimSpace(cfg.Auth.Session.LegacySecret) == "" {
+		missing = append(missing, "auth.session.legacy_secret")
+	}
+	if strings.TrimSpace(cfg.Auth.Session.Secret) == "" {
+		missing = append(missing, "auth.session.secret")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required auth session config: %s", strings.Join(missing, ", "))
+	}
+
+	return nil
 }

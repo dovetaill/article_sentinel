@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/identity"
@@ -140,6 +141,10 @@ app:
   name: article-sentinel
 http:
   request_timeout_seconds: 27
+auth:
+  session:
+    legacy_secret: legacy-secret
+    secret: session-secret
 docs:
   enabled: false
   openapi_path: /schema.json
@@ -163,6 +168,59 @@ log:
 	}
 	if cfg.Docs.UIPath != "/reference" {
 		t.Fatalf("Docs.UIPath = %q, want %q", cfg.Docs.UIPath, "/reference")
+	}
+}
+
+func TestLoadRejectsMissingAuthSessionSecrets(t *testing.T) {
+	tests := []struct {
+		name        string
+		sessionYAML string
+		wantFields  []string
+	}{
+		{
+			name: "missing legacy secret",
+			sessionYAML: `
+    secret: session-secret`,
+			wantFields: []string{"auth.session.legacy_secret"},
+		},
+		{
+			name: "missing session secret",
+			sessionYAML: `
+    legacy_secret: legacy-secret`,
+			wantFields: []string{"auth.session.secret"},
+		},
+		{
+			name:        "missing both secrets",
+			sessionYAML: "",
+			wantFields:  []string{"auth.session.legacy_secret", "auth.session.secret"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearEnv(t)
+
+			path := writeConfigFile(t, `
+app:
+  name: go-auth-demo
+auth:
+  session:`+tt.sessionYAML+`
+docs:
+  enabled: true
+log:
+  level: info
+`)
+
+			_, err := config.Load(path)
+			if err == nil {
+				t.Fatal("Load() error = nil, want missing auth session secret error")
+			}
+			for _, field := range tt.wantFields {
+				if !strings.Contains(err.Error(), field) {
+					t.Fatalf("Load() error = %v, want contains %q", err, field)
+				}
+			}
+		})
 	}
 }
 
