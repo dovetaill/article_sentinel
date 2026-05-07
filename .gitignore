@@ -71,9 +71,3 @@ $RECYCLE.BIN/
 # =========================
 node_modules/
 dist/
-
-# =========================
-# 本地 SQL 草稿 / 导出
-# =========================
-/scripts/xt_article.sql
-/scripts/xt_article_info.sql

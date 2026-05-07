@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DefaultAdminLoginURL    = "https://appadmin.cq.qiludev.com/cq-admin/index.html"
+	DefaultAdminLoginURL    = "/login"
 	DefaultAdminRedirectURL = "/"
 )
 

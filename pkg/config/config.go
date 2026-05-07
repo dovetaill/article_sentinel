@@ -37,7 +37,7 @@ type SessionConfig struct {
 	Issuer       string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"go-auth-demo"`
 	TTLHours     int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
 	SecureCookie bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
-	LoginURL     string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`
+	LoginURL     string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"/login"`
 	RedirectURL  string `yaml:"redirect_url" env:"AUTH_SESSION_REDIRECT_URL" env-default:"/"`
 }
 

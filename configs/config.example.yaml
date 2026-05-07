@@ -17,7 +17,7 @@ auth:
     issuer: go-auth-demo
     ttl_hours: 24
     secure_cookie: false
-    login_url: /auth/login
+    login_url: /login
     redirect_url: /docs
 
 docs:

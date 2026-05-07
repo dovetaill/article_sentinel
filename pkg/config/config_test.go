@@ -171,6 +171,46 @@ log:
 	}
 }
 
+func TestLoadAppliesGenericAuthSessionLoginDefault(t *testing.T) {
+	clearEnv(t)
+
+	path := writeConfigFile(t, `
+app:
+  name: go-auth-demo
+auth:
+  session:
+    legacy_secret: legacy-secret
+    secret: session-secret
+docs:
+  enabled: false
+log:
+  level: info
+`)
+
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Auth.Session.LoginURL != "/login" {
+		t.Fatalf("Auth.Session.LoginURL = %q, want %q", cfg.Auth.Session.LoginURL, "/login")
+	}
+}
+
+func TestExampleConfigUsesNonCallbackLoginURL(t *testing.T) {
+	clearEnv(t)
+
+	cfg, err := config.Load(filepath.Join("..", "..", "configs", "config.example.yaml"))
+	if err != nil {
+		t.Fatalf("Load(config.example.yaml) error = %v", err)
+	}
+	if cfg.Auth.Session.LoginURL != "/login" {
+		t.Fatalf("example login_url = %q, want %q", cfg.Auth.Session.LoginURL, "/login")
+	}
+	if cfg.Auth.Session.LoginURL == "/auth/login" {
+		t.Fatal("example login_url points at the auth callback route")
+	}
+}
+
 func TestLoadRejectsMissingAuthSessionSecrets(t *testing.T) {
 	tests := []struct {
 		name        string

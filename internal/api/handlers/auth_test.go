@@ -54,8 +54,8 @@ func TestAuthLoginClearsCookieAndRedirectsToConfiguredLoginOnInvalidJWT(t *testi
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusFound)
 	}
-	if got := rec.Header().Get("Location"); got != "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home" {
-		t.Fatalf("Location = %q, want %q", got, "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home")
+	if got := rec.Header().Get("Location"); got != "/login" {
+		t.Fatalf("Location = %q, want %q", got, "/login")
 	}
 	if got := rec.Header().Get("Set-Cookie"); !strings.Contains(got, mgr.CookieName()+"=") || !strings.Contains(got, "Max-Age=0") {
 		t.Fatalf("Set-Cookie = %q", got)
@@ -139,11 +139,9 @@ func newAuthHandlerForTest(t *testing.T) (http.Handler, *identity.AdminSessionMa
 		Secret:       "session-secret",
 		Issuer:       "go-auth-demo",
 		TTLHours:     24,
-		LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
 		RedirectURL:  "http://127.0.0.1:5173/",
 	})
 	handlers.RegisterAuthRoutes(mux, manager, config.SessionConfig{
-		LoginURL:    "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
 		RedirectURL: "http://127.0.0.1:5173/",
 	})
 	return middleware.Chain(mux, middleware.SessionContext(manager)), manager

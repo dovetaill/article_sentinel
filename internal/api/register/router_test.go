@@ -41,7 +41,6 @@ func TestRouterRegistersStarterOpenAPIPaths(t *testing.T) {
 	assertOperation(t, doc.Paths, "/api/v1/demo/me", http.MethodGet)
 	assertOperation(t, doc.Paths, "/healthz", http.MethodGet)
 	assertOperation(t, doc.Paths, "/readyz", http.MethodGet)
-	assertPathAbsent(t, doc.Paths, "/api/v1/article-inspect/orgs")
 	assertPathAbsent(t, doc.Paths, "/api/v1/posts")
 	assertPathAbsent(t, doc.Paths, "/api/v1/auth/login")
 	assertPathAbsent(t, doc.Paths, "/auth/login")
@@ -366,7 +365,7 @@ func newRouterTestRuntime(docsEnabled bool) *bootstrap.Runtime {
 					Secret:       "session-secret",
 					Issuer:       "go-auth-demo",
 					TTLHours:     24,
-					LoginURL:     "https://appadmin.cq.qiludev.com/cq-admin/index.html#/home",
+					LoginURL:     "/login",
 					RedirectURL:  "http://127.0.0.1:5173/",
 				},
 			},
