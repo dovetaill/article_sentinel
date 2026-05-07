@@ -62,7 +62,7 @@ func (c *documentationProtectionConfig) apply(paths DocumentationPaths) {
 	if c == nil {
 		return
 	}
-	if openAPIBase := normalizeDocumentationBasePath(paths.OpenAPIPath); openAPIBase != "" {
+	if openAPIBase := NormalizeOpenAPIPath(paths.OpenAPIPath); openAPIBase != "" {
 		c.openAPIBase = openAPIBase
 	}
 	if docsPath := normalizeDocumentationPath(paths.DocsPath); docsPath != "" {
@@ -100,10 +100,12 @@ func (c documentationProtectionConfig) contains(path string) bool {
 	return false
 }
 
-func normalizeDocumentationBasePath(path string) string {
+// NormalizeOpenAPIPath converts a configured OpenAPI path to the base path
+// Huma should use before appending .json/.yaml variants.
+func NormalizeOpenAPIPath(path string) string {
 	path = normalizeDocumentationPath(path)
 	if path == "" {
-		return ""
+		return "/openapi"
 	}
 	for _, suffix := range []string{".json", ".yaml"} {
 		if strings.HasSuffix(path, suffix) {

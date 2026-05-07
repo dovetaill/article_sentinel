@@ -3,7 +3,6 @@ package register
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -26,7 +25,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 			cfg.Info.Title = rt.Config.App.Name
 		}
 		if rt.Config.Docs.Enabled {
-			cfg.OpenAPIPath = normalizeOpenAPIPath(rt.Config.Docs.OpenAPIPath)
+			cfg.OpenAPIPath = middleware.NormalizeOpenAPIPath(rt.Config.Docs.OpenAPIPath)
 			if rt.Config.Docs.UIPath != "" {
 				cfg.DocsPath = rt.Config.Docs.UIPath
 			}
@@ -58,17 +57,6 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	)
 }
 
-func normalizeOpenAPIPath(path string) string {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return "/openapi"
-	}
-	if strings.HasSuffix(path, ".json") {
-		return strings.TrimSuffix(path, ".json")
-	}
-	return path
-}
-
 func nilLogger(rt *bootstrap.Runtime) *slog.Logger {
 	if rt == nil {
 		return nil
@@ -98,18 +86,12 @@ func docsEnabled(rt *bootstrap.Runtime) bool {
 }
 
 func documentationProtectionPaths(rt *bootstrap.Runtime) middleware.DocumentationPaths {
-	paths := middleware.DocumentationPaths{
-		OpenAPIPath: "/openapi",
-		DocsPath:    "/docs",
-		SchemasPath: "/schemas",
-	}
 	if rt == nil || rt.Config == nil {
-		return paths
+		return middleware.DocumentationPaths{}
 	}
 
-	paths.OpenAPIPath = normalizeOpenAPIPath(rt.Config.Docs.OpenAPIPath)
-	if rt.Config.Docs.UIPath != "" {
-		paths.DocsPath = rt.Config.Docs.UIPath
+	return middleware.DocumentationPaths{
+		OpenAPIPath: rt.Config.Docs.OpenAPIPath,
+		DocsPath:    rt.Config.Docs.UIPath,
 	}
-	return paths
 }

@@ -155,6 +155,52 @@ func TestRouterAllowsConfiguredDocumentationEndpointsWithSession(t *testing.T) {
 	}
 }
 
+func TestRouterNormalizesYAMLOpenAPIPathBeforeRegisteringAndProtectingDocs(t *testing.T) {
+	rt := newRouterTestRuntime(true)
+	rt.Config.Docs.OpenAPIPath = "/schema.yaml"
+
+	handler := register.NewRouter(rt)
+	openAPIPaths := []string{
+		"/schema.json",
+		"/schema.yaml",
+		"/schema-3.0.json",
+		"/schema-3.0.yaml",
+	}
+
+	for _, path := range openAPIPaths {
+		t.Run("anonymous "+path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+
+	cookie := signedRouterSessionCookie(t, rt)
+	for _, path := range openAPIPaths {
+		t.Run("authenticated "+path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s status = %d, want %d, body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+			}
+		})
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/schema.yaml.json", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("/schema.yaml.json status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
 func TestRouterServesOpenAPIWhenDocumentationRequestHasSession(t *testing.T) {
 	rt := newRouterTestRuntime(true)
 	handler := register.NewRouter(rt)
