@@ -57,6 +57,71 @@ test_admin_vite_dev_server_proxies_auth_routes() {
   assert_contains "$content" "'/auth':"
 }
 
+test_admin_bootstraps_dependencies_when_vite_is_missing() {
+  local admin_node_modules="$ROOT_DIR/web/admin/node_modules"
+  local backup_dir=""
+  if [[ -d "$admin_node_modules" ]]; then
+    backup_dir="$(mktemp -d)"
+    mv "$admin_node_modules" "$backup_dir/node_modules"
+  fi
+
+  local fake_bin
+  fake_bin="$(mktemp -d)"
+  local npm_log
+  npm_log="$(mktemp)"
+  cat >"$fake_bin/npm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >>"$NPM_LOG"
+
+if [[ "${1:-}" == "ci" ]]; then
+  mkdir -p node_modules/.bin
+  cat >node_modules/.bin/vite <<'INNER'
+#!/usr/bin/env bash
+exit 0
+INNER
+  chmod +x node_modules/.bin/vite
+  exit 0
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "dev" ]]; then
+  exit 0
+fi
+
+echo "unexpected npm invocation: $*" >&2
+exit 1
+EOF
+  chmod +x "$fake_bin/npm"
+
+  cleanup() {
+    rm -rf "$admin_node_modules" "$fake_bin"
+    rm -f "$npm_log"
+    if [[ -n "$backup_dir" && -d "$backup_dir/node_modules" ]]; then
+      mv "$backup_dir/node_modules" "$admin_node_modules"
+      rmdir "$backup_dir"
+    fi
+  }
+  trap cleanup EXIT
+
+  PATH="$fake_bin:$PATH" NPM_LOG="$npm_log" "$DEV_SCRIPT" admin >/dev/null 2>&1
+
+  local log
+  log="$(cat "$npm_log")"
+  assert_contains "$log" "ci"
+  assert_contains "$log" "run dev -- --host 0.0.0.0"
+
+  trap - EXIT
+  cleanup
+}
+
+test_config_example_uses_insecure_cookie_for_http_local_dev() {
+  local content
+  content="$(cat "$ROOT_DIR/configs/config.example.yaml")"
+
+  assert_contains "$content" "secure_cookie: false"
+}
+
 test_stop_kills_registered_processes() {
   "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
 
@@ -160,5 +225,7 @@ test_stop_kills_stale_go_run_cache_server_without_session_file
 test_make_dev_prints_backend_endpoints
 test_print_endpoints_reports_backend_and_jump_login_urls
 test_admin_vite_dev_server_proxies_auth_routes
+test_admin_bootstraps_dependencies_when_vite_is_missing
+test_config_example_uses_insecure_cookie_for_http_local_dev
 
 echo "dev script tests passed"

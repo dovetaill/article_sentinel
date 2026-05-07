@@ -350,8 +350,18 @@ run_scheduler() {
   exec go run ./cmd/scheduler -config "$CONFIG_PATH"
 }
 
+ensure_admin_deps() {
+  if [[ -x "$ADMIN_DIR/node_modules/.bin/vite" ]]; then
+    return 0
+  fi
+
+  echo "[dev] admin dependencies missing, running npm ci..." >&2
+  npm ci
+}
+
 run_admin() {
   cd "$ADMIN_DIR"
+  ensure_admin_deps
   exec npm run dev -- --host 0.0.0.0
 }
 

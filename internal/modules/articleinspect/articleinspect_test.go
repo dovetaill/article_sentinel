@@ -1999,6 +1999,66 @@ func TestArticleInspectRoutesPreferSessionOrgIDOverRequestOrgID(t *testing.T) {
 	}
 }
 
+func TestArticleInspectRoutesAcceptSessionScopedMutationBodiesWithoutOrgID(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	seedQueryFixtures(t, db)
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	handler := newArticleInspectHandler(t, db, dispatcher)
+
+	session100 := articleInspectRequestOptions{
+		Session: &identity.AdminSession{
+			UserID:   7,
+			OrgID:    100,
+			OrgName:  "测试组织A",
+			Nickname: "alice",
+			Priv:     "admin",
+			Status:   "active",
+		},
+	}
+
+	createdKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{
+		"name":           "session-keyword-without-orgid",
+		"category_id":    1001,
+		"match_type":     MatchTypeContains,
+		"risk_level":     RiskLevelHigh,
+		"suggest_action": SuggestActionOffline,
+		"enabled":        true,
+		"scopes":         []string{KeywordScopeTitle},
+	}, session100)
+	if createdKeyword.status != http.StatusCreated {
+		t.Fatalf("create keyword status = %d, want %d", createdKeyword.status, http.StatusCreated)
+	}
+	createdKeywordData := articleInspectDataMap(t, createdKeyword.envelope.Data)
+	keywordID := articleInspectUint64Field(t, createdKeywordData, "id")
+
+	createdTask := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{
+		"keyword_ids":   []uint64{keywordID},
+		"include_body":  true,
+		"article_state": ArticleStateOnline,
+	}, session100)
+	if createdTask.status != http.StatusCreated {
+		t.Fatalf("create task status = %d, want %d", createdTask.status, http.StatusCreated)
+	}
+	if len(dispatcher.payloads) != 1 || dispatcher.payloads[0].OrgID != 100 {
+		t.Fatalf("dispatcher payloads = %+v, want session org 100", dispatcher.payloads)
+	}
+
+	patchedCategory := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPatch, "/api/v1/article-inspect/categories/1001/status", map[string]any{
+		"enabled": false,
+	}, session100)
+	if patchedCategory.status != http.StatusOK {
+		t.Fatalf("patch category status = %d, want %d", patchedCategory.status, http.StatusOK)
+	}
+
+	patchedKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPatch, "/api/v1/article-inspect/keywords/"+strconv.FormatUint(keywordID, 10)+"/status", map[string]any{
+		"enabled": false,
+	}, session100)
+	if patchedKeyword.status != http.StatusOK {
+		t.Fatalf("patch keyword status = %d, want %d", patchedKeyword.status, http.StatusOK)
+	}
+}
+
 func TestHandlerActionAndLifecycleResponsesUseSnakeCase(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	seedLifecycleArticles(t, db)

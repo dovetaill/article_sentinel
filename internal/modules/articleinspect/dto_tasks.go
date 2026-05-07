@@ -29,7 +29,7 @@ type TaskListResult struct {
 }
 
 type CreateInspectionTaskInput struct {
-	OrgID            uint64     `json:"orgid"`
+	OrgID            uint64     `json:"orgid,omitempty"`
 	KeywordIDs       []uint64   `json:"keyword_ids"`
 	PublishTimeStart *time.Time `json:"publish_time_start,omitempty"`
 	PublishTimeEnd   *time.Time `json:"publish_time_end,omitempty"`

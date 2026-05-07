@@ -43,7 +43,7 @@ type keywordUpdateRequest struct {
 }
 
 type keywordPatchStatusBody struct {
-	OrgID   uint64 `json:"orgid"`
+	OrgID   uint64 `json:"orgid,omitempty"`
 	Enabled bool   `json:"enabled"`
 }
 
