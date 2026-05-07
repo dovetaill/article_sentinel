@@ -28,7 +28,7 @@ Use this repository as a reusable backend seed when you want:
 ```text
 go-auth-demo/
 ├── cmd/server/                 # server entrypoint
-├── configs/                    # example and local YAML config
+├── configs/                    # shared example YAML config
 ├── internal/
 │   ├── api/                    # route registration, handlers, response envelope
 │   ├── app/                    # runtime bootstrap and shutdown helpers
@@ -58,7 +58,12 @@ curl http://127.0.0.1:8080/readyz
 
 ## Configuration
 
-The server reads YAML from `-config` or from `CONFIG_PATH` when the flag is omitted. `configs/config.example.yaml` is the canonical starter config; `configs/config.local.yaml` is a local copy you can adjust.
+The server reads YAML from `-config` or from `CONFIG_PATH` when the flag is omitted. `configs/config.example.yaml` is the canonical starter config. If you want private local settings, create your own ignored copy, for example:
+
+```bash
+cp configs/config.example.yaml configs/config.local.yaml
+go run ./cmd/server -config configs/config.local.yaml
+```
 
 Important sections:
 
@@ -74,6 +79,8 @@ Useful environment overrides include `APP_PORT`, `AUTH_SESSION_LEGACY_SECRET`, `
 
 For real deployments, replace both sample secrets and prefer environment injection over committed config values.
 
+`auth.session.login_url` is the failed-login redirect target. It is not the callback route. This demo hard-codes the callback route as `/auth/login`, so do not set `login_url` to `/auth/login` or failed login attempts can redirect back into the callback endpoint.
+
 ## Auth Flow
 
 1. A trusted upstream app signs an HS256 legacy JWT with `auth.session.legacy_secret`.
@@ -83,6 +90,8 @@ For real deployments, replace both sample secrets and prefer environment injecti
 5. The server signs a new session JWT with `auth.session.secret` and sets `as_admin_session` as `HttpOnly`, `SameSite=Lax`, and `Secure` according to config.
 6. The browser is redirected to `auth.session.redirect_url`.
 7. Protected endpoints read the cookie on each request and return `401` when the session is missing or invalid.
+
+Security note: this demo uses a query-string JWT callback because many legacy systems integrate that way, but callback URLs can leak through proxy/application logs, browser history, analytics, and `Referer` headers. Use HTTPS in production, set `auth.session.secure_cookie: true`, keep legacy JWTs very short-lived and ideally one-time, and avoid sharing callback URLs. The current demo validates `exp` when the claim is present, but it does not require an expiration claim; integrators should require and issue expiring legacy tokens in the upstream flow, or adapt the token exchange code to reject tokens without `exp`.
 
 ## Sign A Local Legacy JWT
 
@@ -168,7 +177,7 @@ curl -b /tmp/go-auth-demo.cookies http://127.0.0.1:8080/docs
 | GET | `/openapi-3.0.yaml` | Cookie | OpenAPI 3.0 YAML |
 | GET | `/schemas/{schema}` | Cookie | JSON schema browser |
 
-All JSON responses use this envelope shape:
+JSON application endpoints such as `/healthz`, `/readyz`, `/api/v1/auth/session`, `/api/v1/auth/logout`, and `/api/v1/demo/me` use this envelope shape:
 
 ```json
 {
@@ -178,7 +187,7 @@ All JSON responses use this envelope shape:
 }
 ```
 
-Failures use the same shape with an HTTP status code in `code`, for example `401` and `"unauthorized"`.
+Failures from JSON application endpoints use the same shape with an HTTP status code in `code`, for example `401` and `"unauthorized"`. `/auth/login` returns redirects, while docs/OpenAPI/schema endpoints return HTML, OpenAPI documents, or schema content.
 
 ## Protected Docs Endpoints
 
