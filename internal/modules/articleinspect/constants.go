@@ -1,157 +1,118 @@
 package articleinspect
 
+import domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+
 const (
-	ArticleStateDeleted      int8 = 0
-	ArticleStateAuditPending int8 = 1
-	ArticleStateAuditBack    int8 = 2
-	ArticleStateDraft        int8 = 3
-	ArticleStateStep         int8 = 5
-	ArticleStateOfflineSync  int8 = 7
-	ArticleStateOffline      int8 = 8
-	ArticleStateOnline       int8 = 9
+	ArticleStateDeleted      = domainpkg.ArticleStateDeleted
+	ArticleStateAuditPending = domainpkg.ArticleStateAuditPending
+	ArticleStateAuditBack    = domainpkg.ArticleStateAuditBack
+	ArticleStateDraft        = domainpkg.ArticleStateDraft
+	ArticleStateStep         = domainpkg.ArticleStateStep
+	ArticleStateOfflineSync  = domainpkg.ArticleStateOfflineSync
+	ArticleStateOffline      = domainpkg.ArticleStateOffline
+	ArticleStateOnline       = domainpkg.ArticleStateOnline
 )
 
-var ArticleLifecycleStates = map[int8]string{
-	ArticleStateDeleted:      "del",
-	ArticleStateAuditPending: "audit",
-	ArticleStateAuditBack:    "back",
-	ArticleStateDraft:        "draft",
-	ArticleStateStep:         "step",
-	ArticleStateOfflineSync:  "offline_sync",
-	ArticleStateOffline:      "offline",
-	ArticleStateOnline:       "online",
-}
+var ArticleLifecycleStates = domainpkg.ArticleLifecycleStates
 
 const (
-	MatchTypeContains = "contains"
-	MatchTypeExact    = "exact"
-	MatchTypeRegex    = "regex"
+	MatchTypeContains = domainpkg.MatchTypeContains
+	MatchTypeExact    = domainpkg.MatchTypeExact
+	MatchTypeRegex    = domainpkg.MatchTypeRegex
 )
 
 const (
-	RiskLevelLow    = "low"
-	RiskLevelMedium = "medium"
-	RiskLevelHigh   = "high"
+	RiskLevelLow    = domainpkg.RiskLevelLow
+	RiskLevelMedium = domainpkg.RiskLevelMedium
+	RiskLevelHigh   = domainpkg.RiskLevelHigh
 )
 
 const (
-	SuggestActionIgnore  = "ignore"
-	SuggestActionProcess = "process"
-	SuggestActionOffline = "offline"
+	SuggestActionIgnore  = domainpkg.SuggestActionIgnore
+	SuggestActionProcess = domainpkg.SuggestActionProcess
+	SuggestActionOffline = domainpkg.SuggestActionOffline
 )
 
 const (
-	KeywordScopeTitle      = "title"
-	KeywordScopeShortTitle = "short_title"
-	KeywordScopeRichTitle  = "rich_title"
-	KeywordScopeKeyword    = "keyword"
-	KeywordScopeDesc       = "desc"
-	KeywordScopeBody       = "body"
+	KeywordScopeTitle      = domainpkg.KeywordScopeTitle
+	KeywordScopeShortTitle = domainpkg.KeywordScopeShortTitle
+	KeywordScopeRichTitle  = domainpkg.KeywordScopeRichTitle
+	KeywordScopeKeyword    = domainpkg.KeywordScopeKeyword
+	KeywordScopeDesc       = domainpkg.KeywordScopeDesc
+	KeywordScopeBody       = domainpkg.KeywordScopeBody
 )
 
 const (
-	TaskStatusPending        = "pending"
-	TaskStatusRunning        = "running"
-	TaskStatusSuccess        = "success"
-	TaskStatusFailed         = "failed"
-	TaskStatusPartialSuccess = "partial_success"
+	TaskStatusPending        = domainpkg.TaskStatusPending
+	TaskStatusRunning        = domainpkg.TaskStatusRunning
+	TaskStatusSuccess        = domainpkg.TaskStatusSuccess
+	TaskStatusFailed         = domainpkg.TaskStatusFailed
+	TaskStatusPartialSuccess = domainpkg.TaskStatusPartialSuccess
 )
 
 const (
-	TaskOutboxStatusPending    = "pending"
-	TaskOutboxStatusClaimed    = "claimed"
-	TaskOutboxStatusDispatched = "dispatched"
-	TaskOutboxStatusDeadLetter = "dead_letter"
+	TaskOutboxStatusPending    = domainpkg.TaskOutboxStatusPending
+	TaskOutboxStatusClaimed    = domainpkg.TaskOutboxStatusClaimed
+	TaskOutboxStatusDispatched = domainpkg.TaskOutboxStatusDispatched
+	TaskOutboxStatusDeadLetter = domainpkg.TaskOutboxStatusDeadLetter
 )
 
 const (
-	TaskOutboxMessageTypeRunTask = "articleinspect.task.run"
+	TaskOutboxMessageTypeRunTask = domainpkg.TaskOutboxMessageTypeRunTask
 )
 
 const (
-	TaskOutboxErrorDispatch              = "dispatch_error"
-	TaskOutboxErrorDispatcherUnavailable = "dispatcher_unavailable"
-	TaskOutboxErrorPayloadDecode         = "payload_decode_error"
-	TaskOutboxErrorUnsupportedMessage    = "unsupported_message_type"
-	TaskOutboxErrorDBUpdate              = "db_update_error"
+	TaskOutboxErrorDispatch              = domainpkg.TaskOutboxErrorDispatch
+	TaskOutboxErrorDispatcherUnavailable = domainpkg.TaskOutboxErrorDispatcherUnavailable
+	TaskOutboxErrorPayloadDecode         = domainpkg.TaskOutboxErrorPayloadDecode
+	TaskOutboxErrorUnsupportedMessage    = domainpkg.TaskOutboxErrorUnsupportedMessage
+	TaskOutboxErrorDBUpdate              = domainpkg.TaskOutboxErrorDBUpdate
 )
 
 const (
-	ResultDispositionPending     = "pending"
-	ResultDispositionIgnored     = "ignored"
-	ResultDispositionProcessed   = "processed"
-	ResultDispositionOfflined    = "offlined"
-	ResultDispositionRepublished = "republished"
-	ResultDispositionFailed      = "failed"
+	ResultDispositionPending     = domainpkg.ResultDispositionPending
+	ResultDispositionIgnored     = domainpkg.ResultDispositionIgnored
+	ResultDispositionProcessed   = domainpkg.ResultDispositionProcessed
+	ResultDispositionOfflined    = domainpkg.ResultDispositionOfflined
+	ResultDispositionRepublished = domainpkg.ResultDispositionRepublished
+	ResultDispositionFailed      = domainpkg.ResultDispositionFailed
 )
 
 func InspectionTaskStatuses() []string {
-	return []string{
-		TaskStatusPending,
-		TaskStatusRunning,
-		TaskStatusSuccess,
-		TaskStatusFailed,
-		TaskStatusPartialSuccess,
-	}
+	return domainpkg.InspectionTaskStatuses()
 }
 
 func InspectionResultDispositionStatuses() []string {
-	return []string{
-		ResultDispositionPending,
-		ResultDispositionIgnored,
-		ResultDispositionProcessed,
-		ResultDispositionOfflined,
-		ResultDispositionRepublished,
-		ResultDispositionFailed,
-	}
+	return domainpkg.InspectionResultDispositionStatuses()
 }
 
 const (
-	ActionStatusRunning = "running"
-	ActionStatusSuccess = "success"
-	ActionStatusSkipped = "skipped"
-	ActionStatusFailed  = "failed"
+	ActionStatusRunning = domainpkg.ActionStatusRunning
+	ActionStatusSuccess = domainpkg.ActionStatusSuccess
+	ActionStatusSkipped = domainpkg.ActionStatusSkipped
+	ActionStatusFailed  = domainpkg.ActionStatusFailed
 )
 
 const (
-	ActionTypeBatchIgnore  = "batch_ignore"
-	ActionTypeBatchProcess = "batch_process"
-	ActionTypeOffline      = "offline"
-	ActionTypeRectify      = "rectify"
-	ActionTypeRepublish    = "republish"
+	ActionTypeBatchIgnore  = domainpkg.ActionTypeBatchIgnore
+	ActionTypeBatchProcess = domainpkg.ActionTypeBatchProcess
+	ActionTypeOffline      = domainpkg.ActionTypeOffline
+	ActionTypeRectify      = domainpkg.ActionTypeRectify
+	ActionTypeRepublish    = domainpkg.ActionTypeRepublish
 )
 
 func InspectionKeywordScopes() []string {
-	return []string{
-		KeywordScopeTitle,
-		KeywordScopeShortTitle,
-		KeywordScopeRichTitle,
-		KeywordScopeKeyword,
-		KeywordScopeDesc,
-		KeywordScopeBody,
-	}
+	return domainpkg.InspectionKeywordScopes()
 }
 
 func InspectionMatchTypes() []string {
-	return []string{
-		MatchTypeContains,
-		MatchTypeExact,
-		MatchTypeRegex,
-	}
+	return domainpkg.InspectionMatchTypes()
 }
 
 func InspectionRiskLevels() []string {
-	return []string{
-		RiskLevelLow,
-		RiskLevelMedium,
-		RiskLevelHigh,
-	}
+	return domainpkg.InspectionRiskLevels()
 }
 
 func InspectionSuggestActions() []string {
-	return []string{
-		SuggestActionIgnore,
-		SuggestActionProcess,
-		SuggestActionOffline,
-	}
+	return domainpkg.InspectionSuggestActions()
 }

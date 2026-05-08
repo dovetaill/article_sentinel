@@ -1,14 +1,7 @@
 package articleinspect
 
+import sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
+
 func normalizePage(page, pageSize int) (int, int) {
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	return page, pageSize
+	return sharedpkg.NormalizePage(page, pageSize)
 }

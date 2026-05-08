@@ -1,27 +1,17 @@
 package articleinspect
 
-import (
-	"net/http"
+import sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
 
-	"github.com/dovetaill/article-sentinel/internal/api/response"
-)
+type okEnvelopeOutput = sharedpkg.OKEnvelopeOutput
 
-type okEnvelopeOutput struct {
-	Status int `status:"200"`
-	Body   response.Envelope
-}
-
-type createdEnvelopeOutput struct {
-	Status int `status:"201"`
-	Body   response.Envelope
-}
+type createdEnvelopeOutput = sharedpkg.CreatedEnvelopeOutput
 
 func successOKEnvelope(status int, message string, data any) *okEnvelopeOutput {
-	return &okEnvelopeOutput{Status: status, Body: response.OK(message, data)}
+	return sharedpkg.SuccessOKEnvelope(status, message, data)
 }
 
 func successCreatedEnvelope(message string, data any) *createdEnvelopeOutput {
-	return &createdEnvelopeOutput{Status: http.StatusCreated, Body: response.OK(message, data)}
+	return sharedpkg.SuccessCreatedEnvelope(message, data)
 }
 
 func failureOKFromError(err error) (*okEnvelopeOutput, error) {
@@ -35,9 +25,9 @@ func failureCreatedFromError(err error) (*createdEnvelopeOutput, error) {
 }
 
 func failureOKEnvelope(status int, message string) *okEnvelopeOutput {
-	return &okEnvelopeOutput{Status: status, Body: response.Fail(status, message)}
+	return sharedpkg.FailureOKEnvelope(status, message)
 }
 
 func failureCreatedEnvelope(status int, message string) *createdEnvelopeOutput {
-	return &createdEnvelopeOutput{Status: status, Body: response.Fail(status, message)}
+	return sharedpkg.FailureCreatedEnvelope(status, message)
 }
