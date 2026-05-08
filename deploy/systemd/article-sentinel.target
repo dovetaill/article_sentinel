@@ -1,0 +1,7 @@
+[Unit]
+Description=article-sentinel application stack
+Wants=article-sentinel-server.service article-sentinel-worker.service article-sentinel-scheduler.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,28 @@
+[Unit]
+Description=article-sentinel scheduler
+After=network-online.target
+Wants=network-online.target
+PartOf=article-sentinel.target
+
+[Service]
+Type=exec
+User=article-sentinel
+Group=article-sentinel
+WorkingDirectory=/srv/article-sentinel/current
+EnvironmentFile=-/etc/article-sentinel/article-sentinel.env
+Environment=LOG_OUTPUT=stdout
+Environment=SCHEDULER_ENABLED=true
+ExecStart=/srv/article-sentinel/current/bin/article-sentinel-scheduler -config /etc/article-sentinel/config.yaml
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=article-sentinel.target
