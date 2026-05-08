@@ -307,7 +307,6 @@ This is the recommended end-state shape, not the first-step structure.
 internal/modules/articleinspect/
 ├── module.go
 ├── routes.go
-├── ports.go
 ├── doc.go
 ├── domain/
 ├── shared/
@@ -395,7 +394,7 @@ Do this only after the task creation seam is made explicit.
 Required preparation:
 
 - remove `TaskService` direct dependency on concrete `*TaskOutboxRelay`
-- move immediate post-create relay orchestration to route/module composition or to a tiny relay interface in `ports.go`
+- move immediate post-create relay orchestration to route/module composition or to a tiny consumer-local relay interface near task creation
 - keep delete-graph behavior low-level and DB-centric, not service-fanout-centric
 
 ### Phase 5: Extract actions, lifecycle, and worker
@@ -417,9 +416,13 @@ The root directory should eventually keep only:
 
 - `module.go` for dependency assembly
 - `routes.go` for top-level Huma registration
-- `ports.go` for cross-package seams like `TaskDispatcher`
 - optional `doc.go`
 - temporary compatibility aliases/facades during migration
+
+Cross-package seams should prefer:
+
+- consumer-local interfaces near the code that consumes them
+- or dedicated leaf packages created only when dependency direction is already clear
 
 ### `domain`
 
@@ -528,6 +531,7 @@ Keep unchanged:
 
 Special caution:
 
+- `ChuangqiOrg` is also an upstream source table, like `Article` and `ArticleInfo`
 - `Article` and `ArticleInfo` are upstream source tables, not articleinspect-owned tables
 - future package extraction must not accidentally widen auto-migration scope in `internal/app/bootstrap/schema.go`
 
@@ -546,6 +550,7 @@ Keep unchanged:
 
 Current admin client paths are hard-coded in:
 
+- `web/admin/src/services/orgs.ts`
 - `web/admin/src/services/categories.ts`
 - `web/admin/src/services/keywords.ts`
 - `web/admin/src/services/tasks.ts`
@@ -566,19 +571,24 @@ Baseline verification completed on 2026-05-08:
 
 These provide the current green baseline before any refactor work starts.
 
-## Recommended First Implementation Slice
+## Post-Review Execution Update
 
-The first code-change slice should be intentionally boring:
+After implementation-plan review on 2026-05-08, the safer first execution slice changed.
 
-1. create a dedicated worktree under `.worktrees`
-2. split tests into multiple files in the same package
-3. split `model.go` into multiple same-package files
-4. split `routes_common.go` into multiple same-package files
-5. split `task_outbox.go` into multiple same-package files
-6. split `worker.go` into multiple same-package files
-7. run `gofmt`, `go test ./...`, and `go vet ./...`
+Approved first slice:
 
-Only after that baseline lands should package extraction begin.
+1. create and verify the dedicated worktree under `.worktrees`
+2. split `articleinspect_test.go` into focused same-package test files
+3. re-evaluate the next slice with the new test guardrails in place
+4. repair high-risk task ordering and verification gaps before touching task/outbox/worker seams
+
+This is intentionally narrower than the original recommendation.
+
+Why the first slice changed:
+
+- test splitting is the cheapest way to increase refactor feedback quality without touching runtime semantics
+- `routes_common.go`, `task_outbox.go`, `worker.go`, and task-create seam changes all have larger contract or workflow risk than they first appear
+- the implementation plan needed corrections around upstream model classification, outbox/task-create semantics, and missing verification coverage
 
 ## References
 

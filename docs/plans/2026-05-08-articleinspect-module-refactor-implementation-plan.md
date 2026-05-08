@@ -8,6 +8,23 @@
 
 **Tech Stack:** Go, Huma v2, GORM, Asynq, SQLite-backed Go tests, OpenAPI contract tests
 
+## Review-Approved Execution Update (2026-05-08)
+
+Critical review before execution found several plan issues that must be honored during implementation:
+
+- do not execute `Task 1-3` as a single first batch; the approved first code batch is `Task 2` only
+- `Task 3` must treat `ChuangqiOrg` as an upstream source model, not an articleinspect-owned model
+- `Task 4` is removed from batch 1 and should execute later as its own contract-sensitive same-package split
+- `Task 8` must be rewritten to avoid a root-level `ports.go` seam and to preserve current task-create plus pending-outbox semantics
+- `Task 5` and `Task 6` must use stronger regression commands than the original draft
+
+Additional verification rule for every task that may affect route contracts or frontend clients:
+
+```bash
+go test ./internal/api/register -run TestRouterRegistersArticleInspectRoutes -v
+cd web/admin && npm test
+```
+
 ---
 
 ### Task 1: Establish refactor guardrails and worktree baseline
@@ -107,6 +124,8 @@ Run:
 
 ```bash
 go test ./...
+go test ./internal/api/register -run TestRouterRegistersArticleInspectRoutes -v
+cd web/admin && npm test
 ```
 
 Expected: PASS
@@ -131,7 +150,6 @@ git commit -m "refactor(articleinspect): split module tests by concern"
 Move these unchanged:
 
 - `InspectionTimestamps`
-- `ChuangqiOrg`
 - `InspectionCategory`
 - `InspectionKeyword`
 - `InspectionKeywordScope`
@@ -144,10 +162,11 @@ Move these unchanged:
 - `InspectionOperationLog`
 - `InspectionFieldChangeLog`
 
-**Step 2: Move upstream source article tables into `model_article_source.go`**
+**Step 2: Move upstream source tables into `model_article_source.go`**
 
 Move unchanged:
 
+- `ChuangqiOrg`
 - `Article`
 - `ArticleInfo`
 
@@ -183,6 +202,8 @@ git commit -m "refactor(articleinspect): split inspection and source models"
 ```
 
 ### Task 4: Split shared transport helpers without changing package boundary
+
+Do not include this task in batch 1. Execute it only after the test split and model split have already landed cleanly.
 
 **Files:**
 - Modify: `internal/modules/articleinspect/routes_common.go`
@@ -223,6 +244,8 @@ Run:
 
 ```bash
 go test ./internal/modules/articleinspect -run 'TestRouteRegistrationRegistersArticleInspectPaths|TestHandlerKeywordTaskAndResultsRoutes|TestHandlerOrgCategoryAndArticleCenterContracts' -v
+go test ./internal/api/register -run TestRouterRegistersArticleInspectRoutes -v
+cd web/admin && npm test
 ```
 
 Expected: PASS
@@ -286,7 +309,7 @@ Move unchanged:
 Run:
 
 ```bash
-go test ./internal/modules/articleinspect -run 'TestTaskCreationWithOutbox|TestTaskOutboxRelayDispatchesPendingMessage|TestTaskOutboxRelayReclaimsExpiredLease|TestTaskOutboxRelayRetryableFailureSchedulesNextAttempt|TestTaskOutboxRelayMovesPoisonMessageToDeadLetter|TestTaskOutboxCleanup' -v
+go test ./internal/modules/articleinspect -run 'TestTaskCreationWithOutbox|TestTaskOutboxRelayDispatchesPendingMessage|TestTaskOutboxRelayReclaimsExpiredLease|TestTaskOutboxRelayRetryableFailureSchedulesNextAttempt|TestTaskOutboxRelayMovesPoisonMessageToDeadLetter|TestTaskOutboxRelayImplementsCleanerContract|TestTaskOutboxRelayDeadLettersPoisonRowWithoutBlockingLaterMessages|TestTaskCreateEnqueueFailureLeavesPendingOutbox|TestTaskCreateWithoutDispatcherStillCreatesPendingOutbox' -v
 ```
 
 Expected: PASS
@@ -341,7 +364,7 @@ Move unchanged:
 Run:
 
 ```bash
-go test ./internal/modules/articleinspect -run 'TestWorker' -v
+go test ./internal/modules/articleinspect -run 'TestArticleInspectWorker|TestDecodeTaskRulesFromKeywordDTOJSON' -v
 ```
 
 Expected: PASS
@@ -420,18 +443,26 @@ git add internal/modules/articleinspect/repository_*.go
 git commit -m "refactor(articleinspect): split mixed article and result repositories"
 ```
 
-### Task 8: Introduce `ports.go` and remove direct concrete relay coupling from task service
+### Task 8: Introduce a consumer-local immediate relay seam and remove direct concrete relay coupling from task service
 
 **Files:**
-- Create: `internal/modules/articleinspect/ports.go`
 - Modify: `internal/modules/articleinspect/service_tasks.go`
 - Modify: `internal/modules/articleinspect/task_routes.go`
 - Modify: `internal/modules/articleinspect/routes.go`
 - Modify: `internal/modules/articleinspect/module.go`
 
-**Step 1: Add a minimal relay seam in `ports.go`**
+This task must preserve current task-create runtime semantics:
 
-Add a tiny interface used by task creation, for example:
+- task row and outbox row are still written in one DB transaction
+- immediate dispatch remains best-effort and out-of-transaction
+- when immediate dispatch fails, HTTP create still succeeds and the outbox row remains `pending`
+- `dispatcher == nil` and dispatcher failure paths must keep their current `attempt_count` behavior
+
+Do not introduce a root-level `ports.go` seam for this task.
+
+**Step 1: Add a minimal consumer-local relay seam**
+
+Add the smallest interface needed by task creation near the consuming code, for example inside `service_tasks.go`:
 
 ```go
 type TaskOutboxImmediateRelay interface {
@@ -439,22 +470,21 @@ type TaskOutboxImmediateRelay interface {
 }
 ```
 
-Keep `TaskDispatcher` here as well so cross-package seams are centralized.
-
 **Step 2: Change `TaskService.CreateAndEnqueue` to depend on the seam, not `*TaskOutboxRelay`**
 
 Update the signature only as much as needed.
 
 **Step 3: Keep orchestration in route/module layer**
 
-Let `task_routes.go` keep constructing the concrete relay and pass it through the seam.
+Let route/module composition continue constructing the concrete relay and pass it through the seam without changing the runtime behavior above.
 
 **Step 4: Run focused task tests**
 
 Run:
 
 ```bash
-go test ./internal/modules/articleinspect -run 'TestTaskCreation|TestTaskCreationWithOutbox|TestHandlerKeywordTaskAndResultsRoutes' -v
+go test ./internal/modules/articleinspect -run 'TestTaskCreation|TestTaskCreationWithOutbox|TestTaskCreateEnqueueFailureLeavesPendingOutbox|TestTaskCreateWithoutDispatcherStillCreatesPendingOutbox|TestHandlerKeywordTaskAndResultsRoutes' -v
+go test ./internal/api/register -run TestRouterRegistersArticleInspectRoutes -v
 ```
 
 Expected: PASS
@@ -462,10 +492,10 @@ Expected: PASS
 **Step 5: Run full verification and commit**
 
 ```bash
-gofmt -w internal/modules/articleinspect/ports.go internal/modules/articleinspect/service_tasks.go internal/modules/articleinspect/task_routes.go internal/modules/articleinspect/routes.go internal/modules/articleinspect/module.go
+gofmt -w internal/modules/articleinspect/service_tasks.go internal/modules/articleinspect/task_routes.go internal/modules/articleinspect/routes.go internal/modules/articleinspect/module.go
 go test ./...
 go vet ./...
-git add internal/modules/articleinspect/ports.go internal/modules/articleinspect/service_tasks.go internal/modules/articleinspect/task_routes.go internal/modules/articleinspect/routes.go internal/modules/articleinspect/module.go
+git add internal/modules/articleinspect/service_tasks.go internal/modules/articleinspect/task_routes.go internal/modules/articleinspect/routes.go internal/modules/articleinspect/module.go
 git commit -m "refactor(articleinspect): decouple task service from concrete outbox relay"
 ```
 
@@ -582,7 +612,7 @@ git add internal/modules/articleinspect
 git commit -m "refactor(articleinspect): extract rules package"
 ```
 
-### Task 11: Extract `articles`, `results`, and `audit` from the read side
+### Task 11: Extract `articles`, `results`, and audit read-side concerns
 
 **Files:**
 - Create dir/package: `internal/modules/articleinspect/articles`
@@ -598,14 +628,15 @@ Move article DTOs, service, routes, and article-center repository code.
 
 Move result DTOs, service, routes, and result query repository code.
 
-**Step 3: Move audit/log concerns into `audit`**
+**Step 3: Move audit/log read concerns into `audit`**
 
 Move:
 
 - log routes
 - log service
-- audit helpers
 - audit query repository code
+
+Keep audit write helpers in the root package for now if they are still used by action/lifecycle write flows. Move those only after the audit-writer seam in Task 13 exists.
 
 **Step 4: Preserve result detail assembly semantics**
 
@@ -671,7 +702,7 @@ External files must keep working with minimal changes:
 Run:
 
 ```bash
-go test ./internal/modules/articleinspect -run 'TestTaskCreation|TestTaskCreationWithOutbox|TestTaskOutboxRelayDispatchesPendingMessage|TestTaskOutboxRelayReclaimsExpiredLease|TestTaskOutboxRelayRetryableFailureSchedulesNextAttempt|TestTaskOutboxRelayMovesPoisonMessageToDeadLetter' -v
+go test ./internal/modules/articleinspect -run 'TestTaskCreation|TestTaskCreationWithOutbox|TestTaskOutboxRelayDispatchesPendingMessage|TestTaskOutboxRelayReclaimsExpiredLease|TestTaskOutboxRelayRetryableFailureSchedulesNextAttempt|TestTaskOutboxRelayMovesPoisonMessageToDeadLetter|TestTaskCreateEnqueueFailureLeavesPendingOutbox|TestTaskCreateWithoutDispatcherStillCreatesPendingOutbox|TestTaskOutboxRelayDeadLettersPoisonRowWithoutBlockingLaterMessages' -v
 ```
 
 Expected: PASS
@@ -701,6 +732,13 @@ git commit -m "refactor(articleinspect): extract task and outbox packages"
 
 Move operation-log and field-change-log writes behind a small interface or dedicated audit writer so lifecycle no longer depends directly on `ActionRepository`.
 
+The seam must be transaction-aware. Acceptable shapes:
+
+- inject a lifecycle factory that binds to the current `*gorm.DB` transaction
+- or define seam methods that explicitly accept the current `*gorm.DB`
+
+Do not break the existing transaction boundary by moving lifecycle work outside the action transaction.
+
 **Step 2: Remove direct `NewLifecycleService(tx)` coupling from action service**
 
 Make `BatchOffline` depend on a lifecycle seam instead of constructing lifecycle directly.
@@ -729,7 +767,7 @@ Keep unchanged:
 Run:
 
 ```bash
-go test ./internal/modules/articleinspect -run 'TestWorker|TestHandlerKeywordTaskAndResultsRoutes|TestHandlerOrgCategoryAndArticleCenterContracts' -v
+go test ./internal/modules/articleinspect -run 'TestArticleInspectWorker|TestHandlerKeywordTaskAndResultsRoutes|TestHandlerOrgCategoryAndArticleCenterContracts' -v
 go test ./internal/queue/asynq -v
 go test ./internal/scheduler -v
 ```
