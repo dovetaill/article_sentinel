@@ -2,10 +2,7 @@ package articleinspect
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -130,57 +127,6 @@ func (w *Worker) startTask(ctx context.Context, payload queuetasks.ArticleInspec
 	return &task, nil
 }
 
-// persistArticleResult 先清旧结果再写新结果，保证任务重跑时结果是幂等覆盖的。
-func (w *Worker) persistArticleResult(ctx context.Context, orgID, taskID uint64, article CandidateArticle, hits []Hit) error {
-	result := InspectionResult{
-		OrgID:             orgID,
-		TaskID:            taskID,
-		ArticleID:         article.ID,
-		ArticleTitle:      article.Title,
-		ArticleState:      article.State,
-		PublishAtTime:     article.PublishAtTime,
-		RiskLevel:         hits[0].RiskLevel,
-		SuggestAction:     hits[0].SuggestAction,
-		HitFieldsCount:    int64(uniqueFieldCount(hits)),
-		HitKeywordsCount:  int64(uniqueKeywordCount(hits)),
-		HitCount:          int64(len(hits)),
-		DispositionStatus: ResultDispositionPending,
-	}
-
-	return w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("orgid = ? AND task_id = ? AND article_id = ?", orgID, taskID, article.ID).Delete(&InspectionResultHit{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("orgid = ? AND task_id = ? AND article_id = ?", orgID, taskID, article.ID).Delete(&InspectionResult{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Create(&result).Error; err != nil {
-			return err
-		}
-		resultHits := make([]InspectionResultHit, 0, len(hits))
-		for _, hit := range hits {
-			resultHits = append(resultHits, InspectionResultHit{
-				OrgID:         orgID,
-				TaskID:        taskID,
-				ResultID:      result.ID,
-				ArticleID:     article.ID,
-				KeywordID:     hit.KeywordID,
-				KeywordText:   hit.KeywordText,
-				Category:      hit.Category,
-				FieldName:     hit.FieldName,
-				MatchType:     hit.MatchType,
-				RiskLevel:     hit.RiskLevel,
-				SuggestAction: hit.SuggestAction,
-				MatchedText:   hit.MatchedText,
-				Snippet:       hit.Snippet,
-				PositionStart: int64(hit.PositionStart),
-				PositionEnd:   int64(hit.PositionEnd),
-			})
-		}
-		return tx.Create(&resultHits).Error
-	})
-}
-
 // finishTask 负责统一收口任务统计与最终状态。
 func (w *Worker) finishTask(ctx context.Context, taskID, orgID uint64, status string, totalScanned, hitArticles, hitCount, failCount int64, errorMessage string) error {
 	updates := map[string]any{
@@ -195,77 +141,4 @@ func (w *Worker) finishTask(ctx context.Context, taskID, orgID uint64, status st
 	return w.db.WithContext(ctx).Model(&InspectionTask{}).
 		Where("id = ? AND orgid = ?", taskID, orgID).
 		Updates(updates).Error
-}
-
-// decodeTaskRules 同时兼容规则快照的新旧结构，避免历史任务因结构演进无法执行。
-func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
-	if strings.TrimSpace(snapshot) == "" {
-		return nil, errors.New("task rule snapshot is required")
-	}
-
-	var rules []KeywordRule
-	if err := json.Unmarshal([]byte(snapshot), &rules); err == nil && len(rules) > 0 {
-		return rules, nil
-	}
-
-	var dtos []KeywordDTO
-	if err := json.Unmarshal([]byte(snapshot), &dtos); err != nil {
-		return nil, err
-	}
-	rules = make([]KeywordRule, 0, len(dtos))
-	for _, dto := range dtos {
-		rules = append(rules, KeywordRule{
-			ID:            dto.ID,
-			Name:          dto.Name,
-			Category:      dto.CategoryName,
-			MatchType:     dto.MatchType,
-			RiskLevel:     dto.RiskLevel,
-			SuggestAction: dto.SuggestAction,
-			Scopes:        append([]string(nil), dto.Scopes...),
-		})
-	}
-	return rules, nil
-}
-
-// parseArticleStateFilter 为空或非法时默认只扫在线文稿，符合一期约束。
-func parseArticleStateFilter(value string) int8 {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ArticleStateOnline
-	}
-	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return ArticleStateOnline
-	}
-	return int8(parsed)
-}
-
-// resolveTaskStatus 按整批扫描结果归并状态，便于前端快速判断任务是否可复核。
-func resolveTaskStatus(totalScanned, failCount int64) string {
-	switch {
-	case totalScanned == 0:
-		return TaskStatusSuccess
-	case failCount == 0:
-		return TaskStatusSuccess
-	case failCount >= totalScanned:
-		return TaskStatusFailed
-	default:
-		return TaskStatusPartialSuccess
-	}
-}
-
-func uniqueFieldCount(hits []Hit) int {
-	seen := make(map[string]struct{}, len(hits))
-	for _, hit := range hits {
-		seen[hit.FieldName] = struct{}{}
-	}
-	return len(seen)
-}
-
-func uniqueKeywordCount(hits []Hit) int {
-	seen := make(map[uint64]struct{}, len(hits))
-	for _, hit := range hits {
-		seen[hit.KeywordID] = struct{}{}
-	}
-	return len(seen)
 }
