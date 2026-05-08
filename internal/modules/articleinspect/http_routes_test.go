@@ -162,6 +162,15 @@ func TestHandlerKeywordTaskAndResultsRoutes(t *testing.T) {
 	if _, ok := detailData["hits"].([]any); !ok {
 		t.Fatalf("detail hits type = %T, want []any", detailData["hits"])
 	}
+	if _, ok := detailData["operation_logs"].([]any); !ok {
+		t.Fatalf("detail operation_logs type = %T, want []any", detailData["operation_logs"])
+	}
+	if _, ok := detailData["field_change_logs"].([]any); !ok {
+		t.Fatalf("detail field_change_logs type = %T, want []any", detailData["field_change_logs"])
+	}
+	if _, ok := detailData["field_changes"]; ok {
+		t.Fatalf("detail keys = %#v, do not want field_changes alias", detailData)
+	}
 
 	deletedKeyword := sendArticleInspectRequest(t, handler, http.MethodDelete, "/api/v1/article-inspect/keywords/"+articleInspectUint64String(t, createdKeywordData["id"])+"?orgid=100", nil)
 	if deletedKeyword.status != http.StatusOK {

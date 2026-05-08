@@ -1,38 +1,19 @@
-package articleinspect
+package audit
 
 import (
 	"context"
 	"strings"
-	"time"
+
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
 )
 
-type OperationLogListInput struct {
-	OrgID        uint64
-	ArticleID    uint64
-	TaskID       uint64
-	OperatorName string
-	StartAt      *time.Time
-	EndAt        *time.Time
-	Page         int
-	PageSize     int
-}
-
-type FieldChangeLogListInput struct {
-	OrgID     uint64
-	ArticleID uint64
-	FieldName string
-	StartAt   *time.Time
-	EndAt     *time.Time
-	Page      int
-	PageSize  int
-}
-
-func (r *ResultRepository) ListOperationLogs(ctx context.Context, input OperationLogListInput) ([]InspectionOperationLog, int64, error) {
+func (r *AuditRepository) ListOperationLogs(ctx context.Context, input OperationLogListInput) ([]domainpkg.InspectionOperationLog, int64, error) {
 	if r == nil || r.db == nil || input.OrgID == 0 {
 		return nil, 0, ErrInvalidLogQuery
 	}
-	page, pageSize := normalizePage(input.Page, input.PageSize)
-	query := r.db.WithContext(ctx).Model(&InspectionOperationLog{}).Where("orgid = ?", input.OrgID)
+	page, pageSize := sharedpkg.NormalizePage(input.Page, input.PageSize)
+	query := r.db.WithContext(ctx).Model(&domainpkg.InspectionOperationLog{}).Where("orgid = ?", input.OrgID)
 	if input.ArticleID != 0 {
 		query = query.Where("article_id = ?", input.ArticleID)
 	}
@@ -52,19 +33,19 @@ func (r *ResultRepository) ListOperationLogs(ctx context.Context, input Operatio
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	items := make([]InspectionOperationLog, 0, pageSize)
+	items := make([]domainpkg.InspectionOperationLog, 0, pageSize)
 	if err := query.Order("create_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
 }
 
-func (r *ResultRepository) ListFieldChangeLogs(ctx context.Context, input FieldChangeLogListInput) ([]InspectionFieldChangeLog, int64, error) {
+func (r *AuditRepository) ListFieldChangeLogs(ctx context.Context, input FieldChangeLogListInput) ([]domainpkg.InspectionFieldChangeLog, int64, error) {
 	if r == nil || r.db == nil || input.OrgID == 0 {
 		return nil, 0, ErrInvalidLogQuery
 	}
-	page, pageSize := normalizePage(input.Page, input.PageSize)
-	query := r.db.WithContext(ctx).Model(&InspectionFieldChangeLog{}).Where("orgid = ?", input.OrgID)
+	page, pageSize := sharedpkg.NormalizePage(input.Page, input.PageSize)
+	query := r.db.WithContext(ctx).Model(&domainpkg.InspectionFieldChangeLog{}).Where("orgid = ?", input.OrgID)
 	if input.ArticleID != 0 {
 		query = query.Where("article_id = ?", input.ArticleID)
 	}
@@ -81,7 +62,7 @@ func (r *ResultRepository) ListFieldChangeLogs(ctx context.Context, input FieldC
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	items := make([]InspectionFieldChangeLog, 0, pageSize)
+	items := make([]domainpkg.InspectionFieldChangeLog, 0, pageSize)
 	if err := query.Order("create_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
 		return nil, 0, err
 	}

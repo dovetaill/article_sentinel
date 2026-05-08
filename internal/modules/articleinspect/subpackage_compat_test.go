@@ -4,7 +4,10 @@ import (
 	"net/http"
 	"testing"
 
+	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
+	auditpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/audit"
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	resultspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/results"
 	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
 	scanpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/scan"
 	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
@@ -55,6 +58,36 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 	var rulesKeywordService *rulespkg.KeywordService
 	rootKeywordService = rulesKeywordService
 	rulesKeywordService = rootKeywordService
+
+	var rootArticleDetail ArticleDetail
+	var articlesArticleDetail articlespkg.ArticleDetail
+	rootArticleDetail = articlesArticleDetail
+	articlesArticleDetail = rootArticleDetail
+
+	var rootArticleService *ArticleService
+	var articlesArticleService *articlespkg.ArticleService
+	rootArticleService = articlesArticleService
+	articlesArticleService = rootArticleService
+
+	var rootResultListInput ResultListInput
+	var resultsResultListInput resultspkg.ResultListInput
+	rootResultListInput = resultsResultListInput
+	resultsResultListInput = rootResultListInput
+
+	var rootResultService *ResultService
+	var resultsResultService *resultspkg.ResultService
+	rootResultService = resultsResultService
+	resultsResultService = rootResultService
+
+	var rootLogInput OperationLogListInput
+	var auditLogInput auditpkg.OperationLogListInput
+	rootLogInput = auditLogInput
+	auditLogInput = rootLogInput
+
+	var rootLogService *LogService
+	var auditLogService *auditpkg.LogService
+	rootLogService = auditLogService
+	auditLogService = rootLogService
 
 	var rootScannerImpl KeywordScanner
 	var scanScannerImpl scanpkg.KeywordScanner

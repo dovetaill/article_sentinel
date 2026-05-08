@@ -1,4 +1,4 @@
-package articleinspect
+package articles
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
 	"gorm.io/gorm"
 )
 
@@ -25,12 +27,12 @@ func (r *ArticleRepository) ListArticles(ctx context.Context, input ArticleListI
 		return nil, 0, ErrInvalidArticleQuery
 	}
 
-	page, pageSize := normalizePage(input.Page, input.PageSize)
-	query := r.db.WithContext(ctx).Model(&Article{}).Where("orgid = ?", input.OrgID)
+	page, pageSize := sharedpkg.NormalizePage(input.Page, input.PageSize)
+	query := r.db.WithContext(ctx).Model(&domainpkg.Article{}).Where("orgid = ?", input.OrgID)
 	if input.State != nil {
 		query = query.Where("state = ?", *input.State)
 	} else {
-		query = query.Where("state IN ?", []int8{ArticleStateOffline, ArticleStateOnline})
+		query = query.Where("state IN ?", []int8{domainpkg.ArticleStateOffline, domainpkg.ArticleStateOnline})
 	}
 	if input.ArticleID != 0 {
 		query = query.Where("id = ?", input.ArticleID)
@@ -44,7 +46,7 @@ func (r *ArticleRepository) ListArticles(ctx context.Context, input ArticleListI
 		return nil, 0, err
 	}
 
-	articles := make([]Article, 0, pageSize)
+	articles := make([]domainpkg.Article, 0, pageSize)
 	if err := query.Order("publish_at_time DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&articles).Error; err != nil {
 		return nil, 0, err
 	}
@@ -84,7 +86,7 @@ func (r *ArticleRepository) GetArticleDetail(ctx context.Context, orgID, article
 		return nil, ErrInvalidArticleQuery
 	}
 
-	var article Article
+	var article domainpkg.Article
 	if err := r.db.WithContext(ctx).Where("orgid = ? AND id = ?", orgID, articleID).First(&article).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrArticleNotFound
@@ -130,7 +132,7 @@ func (r *ArticleRepository) loadLatestInspectSummaries(ctx context.Context, orgI
 		return result, nil
 	}
 
-	rows := make([]InspectionResult, 0)
+	rows := make([]domainpkg.InspectionResult, 0)
 	if err := r.db.WithContext(ctx).
 		Where("orgid = ? AND article_id IN ?", orgID, articleIDs).
 		Order("article_id ASC, latest_action_at DESC, task_id DESC, id DESC").

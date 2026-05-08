@@ -1,11 +1,12 @@
 package articleinspect
 
-import "gorm.io/gorm"
+import (
+	resultspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/results"
+	"gorm.io/gorm"
+)
 
-type ResultRepository struct {
-	db *gorm.DB
-}
+type ResultRepository = resultspkg.ResultRepository
 
 func NewResultRepository(db *gorm.DB) *ResultRepository {
-	return &ResultRepository{db: db}
+	return resultspkg.NewResultRepository(db)
 }

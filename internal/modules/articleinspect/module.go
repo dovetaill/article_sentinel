@@ -1,6 +1,9 @@
 package articleinspect
 
-import "gorm.io/gorm"
+import (
+	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
+	"gorm.io/gorm"
+)
 
 // NewRoutes assembles the article inspection module dependencies for route registration.
 func NewRoutes(db *gorm.DB, dispatcher TaskDispatcher) Routes {
@@ -11,6 +14,7 @@ func NewRoutes(db *gorm.DB, dispatcher TaskDispatcher) Routes {
 	categoryRepo := NewCategoryRepository(db)
 	keywordRepo := NewKeywordRepository(db)
 	articleRepo := NewArticleRepository(db)
+	articleReadRepo := articlespkg.NewArticleRepository(db)
 
 	return Routes{
 		Categories: NewCategoryService(categoryRepo),
@@ -20,7 +24,7 @@ func NewRoutes(db *gorm.DB, dispatcher TaskDispatcher) Routes {
 		Actions:    NewActionService(db, NewActionRepository(db)),
 		Lifecycle:  NewLifecycleService(db),
 		Logs:       NewLogService(db),
-		Articles:   NewArticleService(articleRepo),
+		Articles:   NewArticleService(articleReadRepo),
 		Dispatcher: dispatcher,
 		Outbox:     defaultTaskOutboxSettings(),
 	}
