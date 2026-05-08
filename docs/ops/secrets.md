@@ -9,10 +9,15 @@
 
 - `/etc/article-sentinel/config.yaml`：主配置文件
 - `/etc/article-sentinel/article-sentinel.env`：环境变量覆盖
+- `*_FILE` 风格 secrets：
+  - `auth.session.legacy_secret_file`
+  - `auth.session.secret_file`
+  - `database.mysql.password_file`
+  - `database.postgres.password_file`
+  - `redis.password_file`
 
 当前版本还不支持：
 
-- `*_FILE` 风格 secrets
 - systemd credentials
 - 外部密钥管理器自动拉取
 
@@ -35,7 +40,28 @@
 `configs/config.example.yaml` 只保留占位值。目标机上：
 
 - 非敏感或结构化配置放到 `/etc/article-sentinel/config.yaml`
-- 高敏感覆盖值放到 `/etc/article-sentinel/article-sentinel.env`
+- 高敏感覆盖值优先放到宿主机私有 secret 文件，再通过 `*_file` 字段引用
+- 如果暂时没有文件挂载能力，再退回 `/etc/article-sentinel/article-sentinel.env`
+
+文件引用示例：
+
+```yaml
+database:
+  mysql:
+    password_file: /etc/article-sentinel/secrets/mysql-password
+redis:
+  password_file: /etc/article-sentinel/secrets/redis-password
+auth:
+  session:
+    legacy_secret_file: /etc/article-sentinel/secrets/auth-legacy-secret
+    secret_file: /etc/article-sentinel/secrets/auth-session-secret
+```
+
+说明：
+
+- secret 文件内容会自动做首尾空白裁剪
+- 空文件会在启动时直接报错，避免把空密码当成合法配置
+- `*_file` 与内联值同时存在时，以文件内容为准
 
 示例：
 
@@ -70,4 +96,4 @@ DOCS_ENABLED=false
 
 - release 包只会携带 `configs/config.example.yaml`，不会携带真实 `/etc/article-sentinel/config.yaml`
 - 不要把真实密钥写回仓库里的 `configs/`、`.env` 或 `docs/`
-- 未来如果引入 `*_FILE` 或 systemd credentials，应把本文件一起升级
+- 如果后续引入 systemd credentials 或外部密钥管理器，应把本文件一起升级
