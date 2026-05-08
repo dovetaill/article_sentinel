@@ -9,17 +9,19 @@
 
 1. `README.md`
    - 看项目定位、启动方式、部署命令
-2. `docs/maintainer-development-flow.md`
+2. `docs/ops/deploy.md` / `docs/ops/runtime.md` / `docs/ops/secrets.md` / `docs/ops/nginx.md`
+   - 看共享环境与生产环境的 artifact 部署、运行与配置约定
+3. `docs/maintainer-development-flow.md`
    - 看日常维护、扩展配置、加路由、写 worker、写 scheduler 的标准流程
-3. `internal/api/register/router.go`
+4. `internal/api/register/router.go`
    - 看当前后端如何做顶层 wiring、依赖装配、dispatcher 初始化与日志收口
-4. `internal/modules/articleinspect/routes.go` / `internal/modules/articleinspect/*_routes.go`
+5. `internal/modules/articleinspect/routes.go` / `internal/modules/articleinspect/*_routes.go`
    - 看 articleinspect 的真实 route contract、参数解析与 envelope 契约
-5. `internal/api/register/router_test.go`
+6. `internal/api/register/router_test.go`
    - 看当前路由面回归测试，也是“接口是否真实存在”的快速佐证
-6. `internal/modules/articleinspect/task_outbox.go` / `internal/queue/asynq/handlers.go` / `internal/scheduler/`
+7. `internal/modules/articleinspect/task_outbox.go` / `internal/queue/asynq/handlers.go` / `internal/scheduler/`
    - 看当前异步投递、claim / lease、dead-letter、cleanup 与 worker 消费的真实接线方式
-7. `scripts/articleinspect_outbox_requeue.sql`
+8. `scripts/articleinspect_outbox_requeue.sql`
    - 看当前 outbox 人工恢复模板，不要临场手写危险 SQL
 
 ## 2. 文档分层规则
@@ -29,6 +31,10 @@
 这些内容应优先视为“当前真实现状”：
 
 - `README.md`
+- `docs/ops/deploy.md`
+- `docs/ops/runtime.md`
+- `docs/ops/secrets.md`
+- `docs/ops/nginx.md`
 - `docs/maintainer-development-flow.md`
 - `internal/api/register/router.go`
 - `internal/api/register/router_test.go`

@@ -609,6 +609,10 @@ make migrate
 make test
 make verify
 make smoke
+make print-version
+make build
+make package
+make release
 ```
 
 说明：
@@ -616,6 +620,10 @@ make smoke
 - `make test`: 运行 `go test ./...`
 - `make verify`: 执行 `scripts/verify.sh`，当前等价于后端测试集
 - `make smoke`: 启动依赖、执行 migrate、拉起 server，并验证基础 HTTP 端点；它当前还不覆盖文稿巡检主链路
+- `make print-version`: 查看本次 release 解析出的 `VERSION` / `COMMIT` / `BUILD_TIME`
+- `make build`: 构建四个 Go 二进制和管理台静态资源
+- `make package`: 组装版本化发布目录，但不打 tarball
+- `make release`: 生成版本化 tarball 与对应 checksum
 
 ### 前端目录 `web/admin`
 
@@ -623,94 +631,85 @@ make smoke
 npm install
 npm run dev
 npm run build
-npm test -- --runInBand
+npm test
 ```
 
-## 生产部署命令清单
+## 发布与部署
 
-当前仓库只内置了开发用 `docker-compose.yml`，用于启动 MySQL / Redis；仓库里没有现成的生产 `Dockerfile`、`systemd`、`nginx` 或发布脚本。所以正式部署通常按“后端二进制 + 前端静态资源 + 外部 MySQL/Redis”来做。
+从这一版开始，仓库内置了发布骨架：Go 二进制、管理台静态资源、`deploy/` 模板、发布脚本和 release 打包约定。
 
-### 1. 准备生产配置
+环境约束：
+
+- 本地开发 / 个人沙箱：允许从源码目录直接运行
+- 共享测试 / Staging / UAT / 生产：只接受 artifact 部署，不再建议 source-tree deployment
+
+### 发布产物
+
+建议在构建机或 CI 上按下面顺序执行：
 
 ```bash
-cp configs/config.example.yaml configs/config.prod.yaml
+make print-version
+make build
+make release
 ```
 
-然后至少修改这些内容：
+产物约定：
 
-- `app.env`
-- `database.mysql.host` / `port` / `user` / `password` / `dbname`
-- `redis.addr` / `password`
-- `auth.session.legacy_secret` / `auth.session.secret`
-- `auth.session.login_url` / `auth.session.redirect_url`
-- 认证 cookie 固定为 `as_admin_session`，不再提供 `cookie_name` 配置
-- `log.*`
+- Go 二进制：`build/bin/linux-amd64/`
+- 管理台静态资源：`build/admin-dist/`
+- 组装后的发布目录：`build/package/article-sentinel_<version>_linux_amd64/`
+- 发布 tarball：`release/article-sentinel_<version>_linux_amd64.tar.gz`
+- tarball checksum：`release/article-sentinel_<version>_linux_amd64.tar.gz.sha256`
 
-### 2. 构建后端二进制
+包内目录结构：
 
-```bash
-mkdir -p bin
-go build -o bin/article-sentinel-server ./cmd/server
-go build -o bin/article-sentinel-worker ./cmd/worker
-go build -o bin/article-sentinel-migrate ./cmd/migrate
-go build -o bin/article-sentinel-scheduler ./cmd/scheduler
+```text
+article-sentinel_<version>_linux_amd64/
+  admin/
+  bin/
+  configs/
+  deploy/
+  manifest.json
+  manifest.sha256
+  migrations/
 ```
 
-### 3. 构建前端静态资源
+### 宿主机目录约定
 
-```bash
-cd web/admin
-npm ci
-npm run build
+```text
+/srv/article-sentinel/
+  releases/
+    <version>/
+  current -> /srv/article-sentinel/releases/<version>
+  previous -> /srv/article-sentinel/releases/<old-version>
 ```
 
-构建产物默认在 `web/admin/dist`。
-
-### 4. 发布前校验
-
-```bash
-make test
-make smoke
+```text
+/etc/article-sentinel/
+  config.yaml
+  article-sentinel.env
 ```
 
-如果是纯生产环境、没有本地 compose 依赖，也至少建议执行：
+说明：
 
-```bash
-go test ./...
-cd web/admin && npm test -- --runInBand
-```
+- `configs/config.example.yaml` 只作为随包示例文件；真正运行时统一读取 `/etc/article-sentinel/config.yaml`
+- 环境变量覆盖统一放到 `/etc/article-sentinel/article-sentinel.env`
+- 共享环境和生产环境禁止直接把源码目录当线上运行目录
 
-### 5. 执行数据库迁移
+### 发布骨架入口
 
-```bash
-./bin/article-sentinel-migrate -config configs/config.prod.yaml
-```
+- Nginx 模板：`deploy/nginx/article-sentinel.conf`
+- systemd 模板：`deploy/systemd/`
+- 安装脚本：`deploy/scripts/install-release.sh`
+- 激活脚本：`deploy/scripts/activate-release.sh`
+- 回滚脚本：`deploy/scripts/rollback-release.sh`
 
-### 6. 启动生产服务
+更详细的运维手册见：
 
-启动 API：
-
-```bash
-./bin/article-sentinel-server -config configs/config.prod.yaml
-```
-
-启动 worker：
-
-```bash
-./bin/article-sentinel-worker -config configs/config.prod.yaml
-```
-
-如果启用了调度任务，再启动 scheduler：
-
-```bash
-./bin/article-sentinel-scheduler -config configs/config.prod.yaml
-```
-
-### 7. 接入 Web 服务
-
-- 用 Nginx 或同类反向代理把 API 转发到后端服务端口
-- 用 Nginx、CDN 或静态文件服务托管 `web/admin/dist`
-- 如果你需要进程守护，建议额外配置 `systemd`、Supervisor、PM2 或容器编排系统
+- `docs/ops/deploy.md`
+- `docs/ops/runtime.md`
+- `docs/ops/secrets.md`
+- `docs/ops/nginx.md`
 
 ## API 与页面文档
 
@@ -719,6 +718,10 @@ cd web/admin && npm test -- --runInBand
 - `docs/article-inspection-pages.md`: 页面职责、联调路径、验收建议
 - `docs/article-inspection-design.md`: 业务设计文档
 - `docs/maintainer-development-flow.md`: 交接维护开发手册，涵盖配置、路由、业务、worker、scheduler 扩展方式
+- `docs/ops/deploy.md`: artifact 安装、激活、回滚顺序
+- `docs/ops/runtime.md`: systemd / journald 日常运维命令
+- `docs/ops/secrets.md`: 运行时配置与敏感信息放置约定
+- `docs/ops/nginx.md`: Nginx 同源代理与缓存策略
 - `docs/plans/2026-04-20-article-sentinel-implementation.md`: 实施计划
 
 ## DDL 与数据库资料
