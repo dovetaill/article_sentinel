@@ -1,9 +1,11 @@
-package articleinspect
+package rules
 
 import (
 	"fmt"
 	"sort"
 	"strings"
+
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 )
 
 type normalizedKeywordInput struct {
@@ -33,17 +35,17 @@ func normalizeCreateKeywordInput(input CreateKeywordInput) (*normalizedKeywordIn
 	}
 
 	matchType := strings.TrimSpace(strings.ToLower(input.MatchType))
-	if !containsString(InspectionMatchTypes(), matchType) {
+	if !containsString(domainpkg.InspectionMatchTypes(), matchType) {
 		return nil, fmt.Errorf("%w: unsupported match type %q", ErrInvalidKeywordInput, input.MatchType)
 	}
 
 	riskLevel := strings.TrimSpace(strings.ToLower(input.RiskLevel))
-	if !containsString(InspectionRiskLevels(), riskLevel) {
+	if !containsString(domainpkg.InspectionRiskLevels(), riskLevel) {
 		return nil, fmt.Errorf("%w: unsupported risk level %q", ErrInvalidKeywordInput, input.RiskLevel)
 	}
 
 	suggestAction := strings.TrimSpace(strings.ToLower(input.SuggestAction))
-	if !containsString(InspectionSuggestActions(), suggestAction) {
+	if !containsString(domainpkg.InspectionSuggestActions(), suggestAction) {
 		return nil, fmt.Errorf("%w: unsupported suggest action %q", ErrInvalidKeywordInput, input.SuggestAction)
 	}
 
@@ -74,7 +76,7 @@ func normalizeKeywordScopes(scopes []string) ([]string, error) {
 	normalized := make([]string, 0, len(scopes))
 	for _, scope := range scopes {
 		scope = strings.TrimSpace(strings.ToLower(scope))
-		if !containsString(InspectionKeywordScopes(), scope) {
+		if !containsString(domainpkg.InspectionKeywordScopes(), scope) {
 			return nil, fmt.Errorf("%w: unsupported scope %q", ErrInvalidKeywordInput, scope)
 		}
 		if _, ok := seen[scope]; ok {

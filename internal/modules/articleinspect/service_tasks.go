@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	"gorm.io/gorm"
 )
@@ -184,7 +185,7 @@ func (s *TaskService) prepareTaskCreate(ctx context.Context, input CreateInspect
 	if err != nil {
 		return nil, err
 	}
-	ruleSnapshot, err := json.Marshal(buildKeywordSnapshots(keywords, scopesByKeyword))
+	ruleSnapshot, err := json.Marshal(rulespkg.BuildKeywordRuleSnapshots(keywords, scopesByKeyword))
 	if err != nil {
 		return nil, err
 	}
@@ -302,14 +303,6 @@ func (s *TaskService) deleteTaskGraph(ctx context.Context, orgID, taskID uint64)
 		}
 		return nil
 	})
-}
-
-func buildKeywordSnapshots(keywords []KeywordRecord, scopesByKeyword map[uint64][]InspectionKeywordScope) []KeywordDTO {
-	items := make([]KeywordDTO, 0, len(keywords))
-	for _, keyword := range keywords {
-		items = append(items, *buildKeywordDTO(&keyword, scopesByKeyword[keyword.ID]))
-	}
-	return items
 }
 
 func buildTaskNumber(now time.Time) string {

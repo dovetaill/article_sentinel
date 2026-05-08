@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
 	scanpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/scan"
 	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
 )
@@ -34,6 +35,26 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 	var scanHit scanpkg.Hit
 	rootHit = scanHit
 	scanHit = rootHit
+
+	var rootKeywordDTO KeywordDTO
+	var rulesKeywordDTO rulespkg.KeywordDTO
+	rootKeywordDTO = rulesKeywordDTO
+	rulesKeywordDTO = rootKeywordDTO
+
+	var rootCategoryDTO CategoryDTO
+	var rulesCategoryDTO rulespkg.CategoryDTO
+	rootCategoryDTO = rulesCategoryDTO
+	rulesCategoryDTO = rootCategoryDTO
+
+	var rootKeywordRepo *KeywordRepository
+	var rulesKeywordRepo *rulespkg.KeywordRepository
+	rootKeywordRepo = rulesKeywordRepo
+	rulesKeywordRepo = rootKeywordRepo
+
+	var rootKeywordService *KeywordService
+	var rulesKeywordService *rulespkg.KeywordService
+	rootKeywordService = rulesKeywordService
+	rulesKeywordService = rootKeywordService
 
 	var rootScannerImpl KeywordScanner
 	var scanScannerImpl scanpkg.KeywordScanner

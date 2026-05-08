@@ -123,8 +123,21 @@ func TestArticleInspectWorker(t *testing.T) {
 	})
 }
 
-func TestDecodeTaskRulesFromKeywordDTOJSON(t *testing.T) {
-	snapshot, err := json.Marshal([]KeywordDTO{
+func TestDecodeTaskRulesFromLegacyKeywordSnapshotJSON(t *testing.T) {
+	type legacyKeywordSnapshotPayload struct {
+		ID            uint64   `json:"id"`
+		OrgID         uint64   `json:"orgid"`
+		Name          string   `json:"name"`
+		CategoryID    uint64   `json:"category_id"`
+		CategoryName  string   `json:"category_name"`
+		MatchType     string   `json:"match_type"`
+		RiskLevel     string   `json:"risk_level"`
+		SuggestAction string   `json:"suggest_action"`
+		Enabled       bool     `json:"enabled"`
+		Scopes        []string `json:"scopes"`
+	}
+
+	snapshot, err := json.Marshal([]legacyKeywordSnapshotPayload{
 		{
 			ID:            9101013,
 			OrgID:         29,

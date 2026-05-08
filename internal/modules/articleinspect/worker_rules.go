@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+type legacyKeywordRuleSnapshot struct {
+	ID            uint64   `json:"id"`
+	Name          string   `json:"name"`
+	CategoryName  string   `json:"category_name"`
+	MatchType     string   `json:"match_type"`
+	RiskLevel     string   `json:"risk_level"`
+	SuggestAction string   `json:"suggest_action"`
+	Scopes        []string `json:"scopes"`
+}
+
 // decodeTaskRules 同时兼容规则快照的新旧结构，避免历史任务因结构演进无法执行。
 func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
 	if strings.TrimSpace(snapshot) == "" {
@@ -18,20 +28,20 @@ func decodeTaskRules(snapshot string) ([]KeywordRule, error) {
 		return rules, nil
 	}
 
-	var dtos []KeywordDTO
-	if err := json.Unmarshal([]byte(snapshot), &dtos); err != nil {
+	var legacy []legacyKeywordRuleSnapshot
+	if err := json.Unmarshal([]byte(snapshot), &legacy); err != nil {
 		return nil, err
 	}
-	rules = make([]KeywordRule, 0, len(dtos))
-	for _, dto := range dtos {
+	rules = make([]KeywordRule, 0, len(legacy))
+	for _, item := range legacy {
 		rules = append(rules, KeywordRule{
-			ID:            dto.ID,
-			Name:          dto.Name,
-			Category:      dto.CategoryName,
-			MatchType:     dto.MatchType,
-			RiskLevel:     dto.RiskLevel,
-			SuggestAction: dto.SuggestAction,
-			Scopes:        append([]string(nil), dto.Scopes...),
+			ID:            item.ID,
+			Name:          item.Name,
+			Category:      item.CategoryName,
+			MatchType:     item.MatchType,
+			RiskLevel:     item.RiskLevel,
+			SuggestAction: item.SuggestAction,
+			Scopes:        append([]string(nil), item.Scopes...),
 		})
 	}
 	return rules, nil

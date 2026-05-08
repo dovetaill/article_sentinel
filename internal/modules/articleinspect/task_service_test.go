@@ -2,6 +2,7 @@ package articleinspect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -79,6 +80,54 @@ func TestTaskCreation(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidTaskInput) {
 		t.Fatalf("Create(missing orgid) error = %v, want %v", err, ErrInvalidTaskInput)
+	}
+}
+
+func TestTaskCreationRuleSnapshotUsesStableRuleShape(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Remark:        "internal note",
+		Scopes:        []string{KeywordScopeTitle, KeywordScopeBody},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	created, err := taskService.Create(ctx, CreateInspectionTaskInput{
+		OrgID:      100,
+		KeywordIDs: []uint64{keyword.ID},
+	})
+	if err != nil {
+		t.Fatalf("Create task error = %v", err)
+	}
+
+	var snapshot []map[string]any
+	if err := json.Unmarshal([]byte(created.RuleSnapshot), &snapshot); err != nil {
+		t.Fatalf("unmarshal RuleSnapshot error = %v", err)
+	}
+	if len(snapshot) != 1 {
+		t.Fatalf("RuleSnapshot items len = %d, want %d", len(snapshot), 1)
+	}
+	item := snapshot[0]
+	if _, ok := item["category_name"]; !ok {
+		t.Fatalf("RuleSnapshot item = %#v, want category_name", item)
+	}
+	for _, forbidden := range []string{"enabled", "remark", "creator_id", "creator_name", "updater_id", "updater_name", "category_id"} {
+		if _, ok := item[forbidden]; ok {
+			t.Fatalf("RuleSnapshot item = %#v, do not want %q in stable rule snapshot", item, forbidden)
+		}
 	}
 }
 
