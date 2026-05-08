@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"testing"
 
+	actionspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/actions"
 	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
 	auditpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/audit"
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	lifecyclepkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/lifecycle"
 	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	resultspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/results"
 	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
@@ -112,6 +114,61 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 	var outboxReport outboxpkg.TaskOutboxDispatchReport
 	rootOutboxReport = outboxReport
 	outboxReport = rootOutboxReport
+
+	var rootActionInput BatchActionInput
+	var actionsInput actionspkg.BatchActionInput
+	rootActionInput = actionsInput
+	actionsInput = rootActionInput
+
+	var rootActionSummary BatchActionSummary
+	var actionsSummary actionspkg.BatchActionSummary
+	rootActionSummary = actionsSummary
+	actionsSummary = rootActionSummary
+
+	var rootActionRepo *ActionRepository
+	var actionsRepo *actionspkg.ActionRepository
+	rootActionRepo = actionsRepo
+	actionsRepo = rootActionRepo
+
+	var rootActionService *ActionService
+	var actionsService *actionspkg.ActionService
+	rootActionService = actionsService
+	actionsService = rootActionService
+
+	var rootEditableFields EditableArticleFields
+	var lifecycleFields lifecyclepkg.EditableArticleFields
+	rootEditableFields = lifecycleFields
+	lifecycleFields = rootEditableFields
+
+	var rootFieldChange FieldChange
+	var lifecycleFieldChange lifecyclepkg.FieldChange
+	rootFieldChange = lifecycleFieldChange
+	lifecycleFieldChange = rootFieldChange
+
+	var rootOfflineInput OfflineArticleInput
+	var lifecycleOfflineInput lifecyclepkg.OfflineArticleInput
+	rootOfflineInput = lifecycleOfflineInput
+	lifecycleOfflineInput = rootOfflineInput
+
+	var rootUpdateFieldsInput UpdateArticleFieldsInput
+	var lifecycleUpdateFieldsInput lifecyclepkg.UpdateArticleFieldsInput
+	rootUpdateFieldsInput = lifecycleUpdateFieldsInput
+	lifecycleUpdateFieldsInput = rootUpdateFieldsInput
+
+	var rootRepublishInput RepublishArticleInput
+	var lifecycleRepublishInput lifecyclepkg.RepublishArticleInput
+	rootRepublishInput = lifecycleRepublishInput
+	lifecycleRepublishInput = rootRepublishInput
+
+	var rootLifecycleResult LifecycleActionResult
+	var lifecycleResult lifecyclepkg.LifecycleActionResult
+	rootLifecycleResult = lifecycleResult
+	lifecycleResult = rootLifecycleResult
+
+	var rootLifecycleService *LifecycleService
+	var lifecycleService *lifecyclepkg.LifecycleService
+	rootLifecycleService = lifecycleService
+	lifecycleService = rootLifecycleService
 
 	var rootRelay *TaskOutboxRelay
 	var outboxRelay *outboxpkg.TaskOutboxRelay

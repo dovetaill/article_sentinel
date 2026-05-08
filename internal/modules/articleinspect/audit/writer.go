@@ -1,19 +1,39 @@
-package articleinspect
+package audit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 )
 
-func resolveAuditTaskID(requestTaskID, resultTaskID uint64) uint64 {
+func (r *AuditRepository) CreateOperationLog(ctx context.Context, log *domainpkg.InspectionOperationLog) error {
+	if r == nil || r.db == nil || log == nil {
+		return ErrInvalidLogQuery
+	}
+	return r.db.WithContext(ctx).Create(log).Error
+}
+
+func (r *AuditRepository) CreateFieldChangeLogs(ctx context.Context, logs []domainpkg.InspectionFieldChangeLog) error {
+	if r == nil || r.db == nil {
+		return ErrInvalidLogQuery
+	}
+	if len(logs) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Create(&logs).Error
+}
+
+func ResolveTaskID(requestTaskID, resultTaskID uint64) uint64 {
 	if resultTaskID != 0 {
 		return resultTaskID
 	}
 	return requestTaskID
 }
 
-func buildAuditSnapshot(payload any) string {
+func BuildSnapshot(payload any) string {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return ""
@@ -21,7 +41,7 @@ func buildAuditSnapshot(payload any) string {
 	return string(data)
 }
 
-func buildOperationLogSummary(operationType, status, beforeState, afterState, reason string, taskID, articleID, resultID uint64) string {
+func BuildOperationLogSummary(operationType, status, beforeState, afterState, reason string, taskID, articleID, resultID uint64) string {
 	summary := strings.TrimSpace(strings.Join([]string{
 		operationTypeLabel(operationType),
 		operationStatusLabel(status),
@@ -62,15 +82,15 @@ func buildOperationLogSummary(operationType, status, beforeState, afterState, re
 
 func operationTypeLabel(value string) string {
 	switch strings.TrimSpace(value) {
-	case ActionTypeBatchIgnore:
+	case domainpkg.ActionTypeBatchIgnore:
 		return "ignore"
-	case ActionTypeBatchProcess:
+	case domainpkg.ActionTypeBatchProcess:
 		return "process"
-	case ActionTypeOffline:
+	case domainpkg.ActionTypeOffline:
 		return "offline"
-	case ActionTypeRectify:
+	case domainpkg.ActionTypeRectify:
 		return "rectify"
-	case ActionTypeRepublish:
+	case domainpkg.ActionTypeRepublish:
 		return "republish"
 	default:
 		return strings.TrimSpace(value)
@@ -79,11 +99,11 @@ func operationTypeLabel(value string) string {
 
 func operationStatusLabel(value string) string {
 	switch strings.TrimSpace(value) {
-	case ActionStatusSuccess:
+	case domainpkg.ActionStatusSuccess:
 		return "succeeded"
-	case ActionStatusSkipped:
+	case domainpkg.ActionStatusSkipped:
 		return "skipped"
-	case ActionStatusFailed:
+	case domainpkg.ActionStatusFailed:
 		return "failed"
 	default:
 		return strings.TrimSpace(value)
