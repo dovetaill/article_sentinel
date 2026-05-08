@@ -7,13 +7,15 @@ TARGET_ARCH ?= amd64
 BUILD_DIR := build
 RELEASE_DIR := release
 BIN_DIR := $(BUILD_DIR)/bin/$(TARGET_OS)-$(TARGET_ARCH)
+ADMIN_DIR := web/admin
+ADMIN_DIST_DIR := $(BUILD_DIR)/admin-dist
 PACKAGE_ROOT := $(BUILD_DIR)/package/article-sentinel_$(VERSION)_$(TARGET_OS)_$(TARGET_ARCH)
 CONFIG ?= configs/config.local.yaml
 COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
 DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
 
-.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go
+.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go build-admin build
 
 up:
 	$(COMPOSE) up -d --wait mysql redis
@@ -96,3 +98,12 @@ build-migrate:
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/article-sentinel-migrate ./cmd/migrate
 
 build-go: build-server build-worker build-scheduler build-migrate
+
+build-admin:
+	npm --prefix $(ADMIN_DIR) ci
+	npm --prefix $(ADMIN_DIR) run build
+	rm -rf $(ADMIN_DIST_DIR)
+	@mkdir -p $(ADMIN_DIST_DIR)
+	cp -R $(ADMIN_DIR)/dist/. $(ADMIN_DIST_DIR)/
+
+build: build-go build-admin
