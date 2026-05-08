@@ -6,16 +6,19 @@ TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
 BUILD_DIR := build
 RELEASE_DIR := release
+RELEASE_BASENAME = article-sentinel_$(VERSION)_$(TARGET_OS)_$(TARGET_ARCH)
 BIN_DIR := $(BUILD_DIR)/bin/$(TARGET_OS)-$(TARGET_ARCH)
 ADMIN_DIR := web/admin
 ADMIN_DIST_DIR := $(BUILD_DIR)/admin-dist
-PACKAGE_ROOT := $(BUILD_DIR)/package/article-sentinel_$(VERSION)_$(TARGET_OS)_$(TARGET_ARCH)
+PACKAGE_ROOT = $(BUILD_DIR)/package/$(RELEASE_BASENAME)
+RELEASE_TARBALL = $(RELEASE_DIR)/$(RELEASE_BASENAME).tar.gz
+RELEASE_TARBALL_SHA256 = $(RELEASE_TARBALL).sha256
 CONFIG ?= configs/config.local.yaml
 COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
 DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
 
-.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go build-admin build
+.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go build-admin build package release
 
 up:
 	$(COMPOSE) up -d --wait mysql redis
@@ -107,3 +110,27 @@ build-admin:
 	cp -R $(ADMIN_DIR)/dist/. $(ADMIN_DIST_DIR)/
 
 build: build-go build-admin
+
+package: build scripts/package_release.sh scripts/write_release_manifest.sh
+	bash scripts/package_release.sh \
+		--package-root "$(PACKAGE_ROOT)" \
+		--bin-dir "$(BIN_DIR)" \
+		--admin-dir "$(ADMIN_DIST_DIR)" \
+		--migrations-dir "migrations" \
+		--config-file "configs/config.example.yaml" \
+		--deploy-dir "deploy"
+	bash scripts/write_release_manifest.sh \
+		--package-root "$(PACKAGE_ROOT)" \
+		--app "article-sentinel" \
+		--version "$(VERSION)" \
+		--git-sha "$(COMMIT)" \
+		--build-time "$(BUILD_TIME)" \
+		--target-os "$(TARGET_OS)" \
+		--target-arch "$(TARGET_ARCH)"
+
+release: package
+	@mkdir -p $(RELEASE_DIR)
+	rm -f "$(RELEASE_TARBALL)" "$(RELEASE_TARBALL_SHA256)"
+	tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - \
+		-C "$(BUILD_DIR)/package" "$(RELEASE_BASENAME)" | gzip -n >"$(RELEASE_TARBALL)"
+	@(cd "$(RELEASE_DIR)" && sha256sum "$(RELEASE_BASENAME).tar.gz" >"$(RELEASE_BASENAME).tar.gz.sha256")
