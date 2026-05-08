@@ -138,6 +138,9 @@ app:
   name: article-sentinel
 http:
   request_timeout_seconds: 27
+  trusted_proxy_cidrs:
+    - 127.0.0.1/32
+    - ::1/128
 database:
   driver: mysql
   mysql:
@@ -171,6 +174,9 @@ log:
 	if cfg.Docs.UIPath != "/reference" {
 		t.Fatalf("Docs.UIPath = %q, want %q", cfg.Docs.UIPath, "/reference")
 	}
+	if !reflect.DeepEqual(cfg.HTTP.TrustedProxyCIDRs, []string{"127.0.0.1/32", "::1/128"}) {
+		t.Fatalf("HTTP.TrustedProxyCIDRs = %v, want %v", cfg.HTTP.TrustedProxyCIDRs, []string{"127.0.0.1/32", "::1/128"})
+	}
 }
 
 func TestLoadPreservesExplicitFalseSessionSecureCookie(t *testing.T) {
@@ -193,6 +199,7 @@ auth:
     legacy_secret: legacy-secret
     secret: session-secret
     secure_cookie: false
+    allow_legacy_query_jwt: true
     login_url: https://example.com/login
     redirect_url: http://127.0.0.1:5173/
 docs:
@@ -213,6 +220,9 @@ log:
 	}
 	if cfg.Auth.Session.RedirectURL != "http://127.0.0.1:5173/" {
 		t.Fatalf("Auth.Session.RedirectURL = %q", cfg.Auth.Session.RedirectURL)
+	}
+	if !cfg.Auth.Session.AllowLegacyQueryJWT {
+		t.Fatal("Auth.Session.AllowLegacyQueryJWT = false, want true")
 	}
 }
 
@@ -253,6 +263,35 @@ log:
 	}
 }
 
+func TestLoadRejectsInvalidTrustedProxyCIDR(t *testing.T) {
+	clearLegacyDatabaseEnv(t)
+
+	path := writeConfigFile(t, `
+app:
+  name: article-sentinel
+http:
+  trusted_proxy_cidrs:
+    - definitely-not-a-cidr
+database:
+  driver: mysql
+  mysql:
+    host: 127.0.0.1
+    user: root
+    password: root
+    dbname: article_sentinel
+redis:
+  addr: 127.0.0.1:6379
+docs:
+  enabled: false
+log:
+  level: info
+`)
+
+	if _, err := config.Load(path); err == nil {
+		t.Fatal("Load() error = nil, want non-nil")
+	}
+}
+
 func clearLegacyDatabaseEnv(t *testing.T) {
 	t.Helper()
 
@@ -280,6 +319,8 @@ func clearLegacyDatabaseEnv(t *testing.T) {
 		"DB_MYSQL_MAX_IDLE_CONNS",
 		"DB_MYSQL_CONN_MAX_LIFETIME_MINUTES",
 		"HTTP_REQUEST_TIMEOUT_SECONDS",
+		"HTTP_TRUSTED_PROXY_CIDRS",
+		"AUTH_SESSION_ALLOW_LEGACY_QUERY_JWT",
 		"DOCS_ENABLED",
 		"DOCS_OPENAPI_PATH",
 		"DOCS_UI_PATH",

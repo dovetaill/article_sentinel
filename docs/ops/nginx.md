@@ -25,14 +25,29 @@
 
 原因：
 
-- 当前后端会读取 `X-Forwarded-For` / `X-Real-IP`
+- 后端现在只会在 `http.trusted_proxy_cidrs` 命中时信任 `X-Forwarded-For` / `X-Real-IP`
 - 因此 Nginx 侧应写入受控值，而不是盲目透传客户端伪造链
+- 同机部署时建议把 `/etc/article-sentinel/config.yaml` 中的 `http.trusted_proxy_cidrs` 设为：
 
-## `/auth/login?jwt=...` 注意事项
+```yaml
+http:
+  trusted_proxy_cidrs:
+    - 127.0.0.1/32
+    - ::1/128
+```
 
-当前登录桥仍支持 query-string JWT，因此模板对 `/auth/login` 做了单独的 `access_log off`，避免在 access log 中记录 bearer material。
+## 登录桥接说明
 
-这只是第一阶段降噪措施，不等于该登录桥已经达到长期安全目标。
+当前推荐流程：
+
+1. 上游系统把 legacy JWT 放进 `POST /api/v1/auth/exchange`
+2. 后端返回短时一次性 `code`
+3. 浏览器跳转到 `/auth/login?code=...`
+4. 后端消费 `code`、写入 `as_admin_session`，再跳到管理台
+
+默认情况下，后端已经禁用 `/auth/login?jwt=...` 这种 bearer-in-URL 直连方式。
+
+模板仍然对 `/auth/login` 做 `access_log off`，作为 defense-in-depth，避免把短时 `code` 或兼容期开关残留流量写进 access log。
 
 ## 上线步骤
 

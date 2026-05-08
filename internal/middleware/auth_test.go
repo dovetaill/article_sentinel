@@ -192,3 +192,30 @@ func TestTrustedHeaderAuthFallsBackToDevHeader(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
 	}
 }
+
+func TestAuthenticateIgnoresForwardedHeadersWhenProxyNotTrusted(t *testing.T) {
+	var captured identity.RequestMetadata
+
+	handler := Authenticate(nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		metadata, ok := identity.RequestMetadataFromContext(r.Context())
+		if !ok {
+			t.Fatal("request metadata missing from context")
+		}
+		captured = metadata
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	req.RemoteAddr = "198.51.100.20:4321"
+	req.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
+	req.Header.Set("X-Real-IP", "203.0.113.10")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if captured.SourceIP != "198.51.100.20" {
+		t.Fatalf("SourceIP = %q, want %q", captured.SourceIP, "198.51.100.20")
+	}
+}

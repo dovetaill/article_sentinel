@@ -20,6 +20,10 @@ http:
   read_timeout_seconds: 15
   write_timeout_seconds: 15
   idle_timeout_seconds: 60
+  # Only trust forwarded headers from explicitly listed reverse proxies.
+  trusted_proxy_cidrs:
+    - 127.0.0.1/32
+    - ::1/128
 
 redis:
   addr: 127.0.0.1:6380
@@ -71,6 +75,8 @@ auth:
     ttl_hours: 24
     # 本地 HTTP 联调可暂时设为 false；生产 HTTPS 环境必须改成 true。
     secure_cookie: false
+    # 默认禁用 ?jwt=... URL 跳转桥；优先使用 POST /api/v1/auth/exchange -> /auth/login?code=...
+    allow_legacy_query_jwt: false
     # 校验失败或 cookie 失效后回到的登录页。
     login_url: https://appadmin.cq.qiludev.com/cq-admin/index.html
     # 第三方跳转登录成功后落到的管理台地址。

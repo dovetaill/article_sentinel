@@ -57,6 +57,7 @@ func NewRouter(rt *bootstrap.Runtime) http.Handler {
 	return middleware.Chain(
 		apiMux,
 		middleware.RequestID(),
+		middleware.RequestMetadata(trustedProxyCIDRs(rt)),
 		middleware.SessionContext(adminSessionManager),
 		middleware.Recover(),
 		middleware.Timeout(timeout),
@@ -134,4 +135,11 @@ func sessionConfig(rt *bootstrap.Runtime) config.SessionConfig {
 		return config.SessionConfig{}
 	}
 	return rt.Config.Auth.Session
+}
+
+func trustedProxyCIDRs(rt *bootstrap.Runtime) []string {
+	if rt == nil || rt.Config == nil {
+		return nil
+	}
+	return rt.Config.HTTP.TrustedProxyCIDRs
 }

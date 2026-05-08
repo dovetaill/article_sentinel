@@ -694,6 +694,8 @@ article-sentinel_<version>_linux_amd64/
 
 - `configs/config.example.yaml` 只作为随包示例文件；真正运行时统一读取 `/etc/article-sentinel/config.yaml`
 - 环境变量覆盖统一放到 `/etc/article-sentinel/article-sentinel.env`
+- `http.trusted_proxy_cidrs` 只应填写你明确控制的反向代理来源；同机 Nginx 场景通常是 `127.0.0.1/32` 与 `::1/128`
+- 管理台登录桥默认不再接受 `/auth/login?jwt=...`；推荐由上游系统先 `POST /api/v1/auth/exchange` 换取短时一次性 `code`，再把浏览器重定向到 `/auth/login?code=...`
 - 共享环境和生产环境禁止直接把源码目录当线上运行目录
 
 ### 发布骨架入口

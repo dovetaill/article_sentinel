@@ -23,10 +23,11 @@ type AppConfig struct {
 
 // HTTPConfig 定义 HTTP 服务器与应用超时配置。
 type HTTPConfig struct {
-	RequestTimeoutSeconds int `yaml:"request_timeout_seconds" env:"HTTP_REQUEST_TIMEOUT_SECONDS" env-default:"15"`
-	ReadTimeoutSeconds    int `yaml:"read_timeout_seconds" env:"HTTP_READ_TIMEOUT_SECONDS" env-default:"15"`
-	WriteTimeoutSeconds   int `yaml:"write_timeout_seconds" env:"HTTP_WRITE_TIMEOUT_SECONDS" env-default:"15"`
-	IdleTimeoutSeconds    int `yaml:"idle_timeout_seconds" env:"HTTP_IDLE_TIMEOUT_SECONDS" env-default:"60"`
+	RequestTimeoutSeconds int      `yaml:"request_timeout_seconds" env:"HTTP_REQUEST_TIMEOUT_SECONDS" env-default:"15"`
+	ReadTimeoutSeconds    int      `yaml:"read_timeout_seconds" env:"HTTP_READ_TIMEOUT_SECONDS" env-default:"15"`
+	WriteTimeoutSeconds   int      `yaml:"write_timeout_seconds" env:"HTTP_WRITE_TIMEOUT_SECONDS" env-default:"15"`
+	IdleTimeoutSeconds    int      `yaml:"idle_timeout_seconds" env:"HTTP_IDLE_TIMEOUT_SECONDS" env-default:"60"`
+	TrustedProxyCIDRs     []string `yaml:"trusted_proxy_cidrs" env:"HTTP_TRUSTED_PROXY_CIDRS" env-separator:","`
 }
 
 // MySQLConfig 定义主数据库为 MySQL 时的连接与连接池参数。
@@ -84,15 +85,16 @@ type AuthConfig struct {
 
 // SessionConfig 定义管理台第三方跳转登录的 session 参数。
 type SessionConfig struct {
-	LegacySecret     string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
-	LegacySecretFile string `yaml:"legacy_secret_file" env:"AUTH_SESSION_LEGACY_SECRET_FILE"`
-	Secret           string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
-	SecretFile       string `yaml:"secret_file" env:"AUTH_SESSION_SECRET_FILE"`
-	Issuer           string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
-	TTLHours         int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
-	SecureCookie     bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
-	LoginURL         string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`
-	RedirectURL      string `yaml:"redirect_url" env:"AUTH_SESSION_REDIRECT_URL" env-default:"/"`
+	LegacySecret        string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
+	LegacySecretFile    string `yaml:"legacy_secret_file" env:"AUTH_SESSION_LEGACY_SECRET_FILE"`
+	Secret              string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
+	SecretFile          string `yaml:"secret_file" env:"AUTH_SESSION_SECRET_FILE"`
+	Issuer              string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
+	TTLHours            int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
+	SecureCookie        bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
+	AllowLegacyQueryJWT bool   `yaml:"allow_legacy_query_jwt" env:"AUTH_SESSION_ALLOW_LEGACY_QUERY_JWT"`
+	LoginURL            string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`
+	RedirectURL         string `yaml:"redirect_url" env:"AUTH_SESSION_REDIRECT_URL" env-default:"/"`
 }
 
 // QueueConfig 定义后台队列运行参数。

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -32,6 +33,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("read config %q: %w", path, err)
 	}
 	if err := applyFileBackedSecrets(cfg); err != nil {
+		return nil, err
+	}
+	if err := validateTrustedProxyCIDRs(cfg); err != nil {
 		return nil, err
 	}
 	if err := validatePrimaryDatabaseConfig(cfg); err != nil {
@@ -131,6 +135,27 @@ func validatePrimaryDatabaseConfig(cfg *Config) error {
 	default:
 		return fmt.Errorf("unsupported database driver: %s", cfg.Database.Driver)
 	}
+}
+
+func validateTrustedProxyCIDRs(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is required")
+	}
+
+	normalized := make([]string, 0, len(cfg.HTTP.TrustedProxyCIDRs))
+	for _, cidr := range cfg.HTTP.TrustedProxyCIDRs {
+		trimmed := strings.TrimSpace(cidr)
+		if trimmed == "" {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(trimmed); err != nil {
+			return fmt.Errorf("invalid http.trusted_proxy_cidrs entry %q: %w", trimmed, err)
+		}
+		normalized = append(normalized, trimmed)
+	}
+
+	cfg.HTTP.TrustedProxyCIDRs = normalized
+	return nil
 }
 
 func validateRequiredFields(prefix string, fields map[string]string) error {
