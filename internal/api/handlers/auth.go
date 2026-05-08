@@ -25,11 +25,10 @@ const (
 )
 
 type AuthHandler struct {
-	manager             *identity.AdminSessionManager
-	loginURL            string
-	redirectURL         string
-	allowLegacyQueryJWT bool
-	exchangeCodeStore   *authExchangeCodeStore
+	manager           *identity.AdminSessionManager
+	loginURL          string
+	redirectURL       string
+	exchangeCodeStore *authExchangeCodeStore
 }
 
 func RegisterAuthRoutes(mux *http.ServeMux, manager *identity.AdminSessionManager, sessionCfg config.SessionConfig) {
@@ -38,11 +37,10 @@ func RegisterAuthRoutes(mux *http.ServeMux, manager *identity.AdminSessionManage
 	}
 
 	handler := &AuthHandler{
-		manager:             manager,
-		loginURL:            normalizeRedirectTarget(sessionCfg.LoginURL, DefaultAdminLoginURL),
-		redirectURL:         normalizeRedirectTarget(sessionCfg.RedirectURL, DefaultAdminRedirectURL),
-		allowLegacyQueryJWT: sessionCfg.AllowLegacyQueryJWT,
-		exchangeCodeStore:   newAuthExchangeCodeStore(defaultExchangeCodeTTL),
+		manager:           manager,
+		loginURL:          normalizeRedirectTarget(sessionCfg.LoginURL, DefaultAdminLoginURL),
+		redirectURL:       normalizeRedirectTarget(sessionCfg.RedirectURL, DefaultAdminRedirectURL),
+		exchangeCodeStore: newAuthExchangeCodeStore(defaultExchangeCodeTTL),
 	}
 	mux.Handle("/auth/login", http.HandlerFunc(handler.Login))
 	mux.Handle("/api/v1/auth/exchange", http.HandlerFunc(handler.Exchange))
@@ -76,11 +74,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	legacyJWT := strings.TrimSpace(r.URL.Query().Get("jwt"))
 	if legacyJWT == "" {
-		clearAdminSessionCookie(w, h.manager)
-		http.Redirect(w, r, h.loginRedirectURL(), http.StatusFound)
-		return
-	}
-	if !h.allowLegacyQueryJWT {
 		clearAdminSessionCookie(w, h.manager)
 		http.Redirect(w, r, h.loginRedirectURL(), http.StatusFound)
 		return

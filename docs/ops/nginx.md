@@ -38,16 +38,15 @@ http:
 
 ## 登录桥接说明
 
-当前推荐流程：
+当前主流程：
 
-1. 上游系统把 legacy JWT 放进 `POST /api/v1/auth/exchange`
-2. 后端返回短时一次性 `code`
-3. 浏览器跳转到 `/auth/login?code=...`
-4. 后端消费 `code`、写入 `as_admin_session`，再跳到管理台
+1. 上游系统直接跳转到 `/auth/login?jwt=...`
+2. 后端校验 legacy JWT、写入 `as_admin_session`
+3. 后端 302 跳转到管理台
 
-默认情况下，后端已经禁用 `/auth/login?jwt=...` 这种 bearer-in-URL 直连方式。
+模板仍然对 `/auth/login` 做 `access_log off`，避免在 access log 中记录 query 中的 bearer material。
 
-模板仍然对 `/auth/login` 做 `access_log off`，作为 defense-in-depth，避免把短时 `code` 或兼容期开关残留流量写进 access log。
+如后续需要进一步降低 URL 中 token 暴露面，可扩展 `POST /api/v1/auth/exchange` -> `/auth/login?code=...` 的一次性 code 方案。
 
 ## 上线步骤
 

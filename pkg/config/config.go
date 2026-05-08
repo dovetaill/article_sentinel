@@ -85,16 +85,15 @@ type AuthConfig struct {
 
 // SessionConfig 定义管理台第三方跳转登录的 session 参数。
 type SessionConfig struct {
-	LegacySecret        string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
-	LegacySecretFile    string `yaml:"legacy_secret_file" env:"AUTH_SESSION_LEGACY_SECRET_FILE"`
-	Secret              string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
-	SecretFile          string `yaml:"secret_file" env:"AUTH_SESSION_SECRET_FILE"`
-	Issuer              string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
-	TTLHours            int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
-	SecureCookie        bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
-	AllowLegacyQueryJWT bool   `yaml:"allow_legacy_query_jwt" env:"AUTH_SESSION_ALLOW_LEGACY_QUERY_JWT"`
-	LoginURL            string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`
-	RedirectURL         string `yaml:"redirect_url" env:"AUTH_SESSION_REDIRECT_URL" env-default:"/"`
+	LegacySecret     string `yaml:"legacy_secret" env:"AUTH_SESSION_LEGACY_SECRET"`
+	LegacySecretFile string `yaml:"legacy_secret_file" env:"AUTH_SESSION_LEGACY_SECRET_FILE"`
+	Secret           string `yaml:"secret" env:"AUTH_SESSION_SECRET"`
+	SecretFile       string `yaml:"secret_file" env:"AUTH_SESSION_SECRET_FILE"`
+	Issuer           string `yaml:"issuer" env:"AUTH_SESSION_ISSUER" env-default:"article-sentinel-admin"`
+	TTLHours         int    `yaml:"ttl_hours" env:"AUTH_SESSION_TTL_HOURS" env-default:"24"`
+	SecureCookie     bool   `yaml:"secure_cookie" env:"AUTH_SESSION_SECURE_COOKIE"`
+	LoginURL         string `yaml:"login_url" env:"AUTH_SESSION_LOGIN_URL" env-default:"https://appadmin.cq.qiludev.com/cq-admin/index.html"`
+	RedirectURL      string `yaml:"redirect_url" env:"AUTH_SESSION_REDIRECT_URL" env-default:"/"`
 }
 
 // QueueConfig 定义后台队列运行参数。

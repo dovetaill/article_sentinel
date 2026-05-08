@@ -199,7 +199,6 @@ auth:
     legacy_secret: legacy-secret
     secret: session-secret
     secure_cookie: false
-    allow_legacy_query_jwt: true
     login_url: https://example.com/login
     redirect_url: http://127.0.0.1:5173/
 docs:
@@ -220,9 +219,6 @@ log:
 	}
 	if cfg.Auth.Session.RedirectURL != "http://127.0.0.1:5173/" {
 		t.Fatalf("Auth.Session.RedirectURL = %q", cfg.Auth.Session.RedirectURL)
-	}
-	if !cfg.Auth.Session.AllowLegacyQueryJWT {
-		t.Fatal("Auth.Session.AllowLegacyQueryJWT = false, want true")
 	}
 }
 
@@ -320,7 +316,6 @@ func clearLegacyDatabaseEnv(t *testing.T) {
 		"DB_MYSQL_CONN_MAX_LIFETIME_MINUTES",
 		"HTTP_REQUEST_TIMEOUT_SECONDS",
 		"HTTP_TRUSTED_PROXY_CIDRS",
-		"AUTH_SESSION_ALLOW_LEGACY_QUERY_JWT",
 		"DOCS_ENABLED",
 		"DOCS_OPENAPI_PATH",
 		"DOCS_UI_PATH",
