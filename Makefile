@@ -1,10 +1,18 @@
 export GOCACHE ?= /tmp/article-sentinel-go-cache
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+TARGET_OS ?= linux
+TARGET_ARCH ?= amd64
+BUILD_DIR := build
+RELEASE_DIR := release
+PACKAGE_ROOT := $(BUILD_DIR)/package/article-sentinel_$(VERSION)_$(TARGET_OS)_$(TARGET_ARCH)
 CONFIG ?= configs/config.local.yaml
 COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
 DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
 
-.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate
+.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version
 
 up:
 	$(COMPOSE) up -d --wait mysql redis
@@ -62,3 +70,10 @@ smoke:
 
 migrate:
 	go run ./cmd/migrate -config $(CONFIG)
+
+print-version:
+	@echo "VERSION=$(VERSION)"
+	@echo "COMMIT=$(COMMIT)"
+	@echo "BUILD_TIME=$(BUILD_TIME)"
+	@echo "TARGET_OS=$(TARGET_OS)"
+	@echo "TARGET_ARCH=$(TARGET_ARCH)"
