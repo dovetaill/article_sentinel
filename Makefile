@@ -6,13 +6,14 @@ TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
 BUILD_DIR := build
 RELEASE_DIR := release
+BIN_DIR := $(BUILD_DIR)/bin/$(TARGET_OS)-$(TARGET_ARCH)
 PACKAGE_ROOT := $(BUILD_DIR)/package/article-sentinel_$(VERSION)_$(TARGET_OS)_$(TARGET_ARCH)
 CONFIG ?= configs/config.local.yaml
 COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
 DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
 
-.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version
+.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go
 
 up:
 	$(COMPOSE) up -d --wait mysql redis
@@ -77,3 +78,21 @@ print-version:
 	@echo "BUILD_TIME=$(BUILD_TIME)"
 	@echo "TARGET_OS=$(TARGET_OS)"
 	@echo "TARGET_ARCH=$(TARGET_ARCH)"
+
+build-server:
+	@mkdir -p $(BIN_DIR)
+	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/article-sentinel-server ./cmd/server
+
+build-worker:
+	@mkdir -p $(BIN_DIR)
+	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/article-sentinel-worker ./cmd/worker
+
+build-scheduler:
+	@mkdir -p $(BIN_DIR)
+	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/article-sentinel-scheduler ./cmd/scheduler
+
+build-migrate:
+	@mkdir -p $(BIN_DIR)
+	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/article-sentinel-migrate ./cmd/migrate
+
+build-go: build-server build-worker build-scheduler build-migrate
