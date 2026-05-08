@@ -1,14 +1,7 @@
 package articleinspect
 
-import "errors"
+import outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 
-var ErrTaskOutboxDispatcherUnavailable = errors.New("task outbox dispatcher unavailable")
+var ErrTaskOutboxDispatcherUnavailable = outboxpkg.ErrTaskOutboxDispatcherUnavailable
 
-type TaskOutboxDispatchReport struct {
-	Scanned      int
-	Claimed      int
-	Dispatched   int
-	Retried      int
-	DeadLettered int
-	Failed       int
-}
+type TaskOutboxDispatchReport = outboxpkg.TaskOutboxDispatchReport

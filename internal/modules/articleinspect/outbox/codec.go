@@ -1,10 +1,11 @@
-package articleinspect
+package outbox
 
 import (
 	"encoding/json"
 	"strings"
 	"time"
 
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 )
 
@@ -16,11 +17,11 @@ func decodeTaskOutboxPayload(raw string) (queuetasks.ArticleInspectTaskPayload, 
 	return payload, nil
 }
 
-func isDispatchableMessage(message InspectionTaskOutboxMessage, now time.Time) bool {
+func isDispatchableMessage(message domainpkg.InspectionTaskOutboxMessage, now time.Time) bool {
 	switch strings.TrimSpace(message.Status) {
-	case TaskOutboxStatusPending:
+	case domainpkg.TaskOutboxStatusPending:
 		return message.NextAttemptAt == nil || !message.NextAttemptAt.After(now)
-	case TaskOutboxStatusClaimed:
+	case domainpkg.TaskOutboxStatusClaimed:
 		return message.ClaimUntil == nil || message.ClaimUntil.Before(now)
 	default:
 		return false

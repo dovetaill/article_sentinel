@@ -1,8 +1,10 @@
-package articleinspect
+package outbox
 
 import (
 	"context"
 	"time"
+
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 )
 
 func (r *TaskOutboxRelay) CleanupArticleInspectTaskOutbox(ctx context.Context, limit int) (int, error) {
@@ -16,11 +18,11 @@ func (r *TaskOutboxRelay) CleanupArticleInspectTaskOutbox(ctx context.Context, l
 	now := time.Now().UTC()
 	ids := make([]uint64, 0, limit)
 	if err := r.db.WithContext(ctx).
-		Model(&InspectionTaskOutboxMessage{}).
+		Model(&domainpkg.InspectionTaskOutboxMessage{}).
 		Where(
 			`(status = ? OR status = ?) AND retained_until IS NOT NULL AND retained_until < ?`,
-			TaskOutboxStatusDispatched,
-			TaskOutboxStatusDeadLetter,
+			domainpkg.TaskOutboxStatusDispatched,
+			domainpkg.TaskOutboxStatusDeadLetter,
 			now,
 		).
 		Order("retained_until ASC").
@@ -33,7 +35,7 @@ func (r *TaskOutboxRelay) CleanupArticleInspectTaskOutbox(ctx context.Context, l
 		return 0, nil
 	}
 
-	result := r.db.WithContext(ctx).Where("id IN ?", ids).Delete(&InspectionTaskOutboxMessage{})
+	result := r.db.WithContext(ctx).Where("id IN ?", ids).Delete(&domainpkg.InspectionTaskOutboxMessage{})
 	if result.Error != nil {
 		return 0, result.Error
 	}

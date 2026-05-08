@@ -1,16 +1,20 @@
 package articleinspect
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
 	auditpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/audit"
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	resultspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/results"
 	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
 	scanpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/scan"
 	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
+	taskspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/tasks"
+	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 )
 
 func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
@@ -79,6 +83,41 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 	rootResultService = resultsResultService
 	resultsResultService = rootResultService
 
+	var rootTaskFilter CandidateArticleFilter
+	var tasksTaskFilter taskspkg.CandidateArticleFilter
+	rootTaskFilter = tasksTaskFilter
+	tasksTaskFilter = rootTaskFilter
+
+	var rootTaskListInput TaskListInput
+	var tasksTaskListInput taskspkg.TaskListInput
+	rootTaskListInput = tasksTaskListInput
+	tasksTaskListInput = rootTaskListInput
+
+	var rootTaskCreateInput CreateInspectionTaskInput
+	var tasksTaskCreateInput taskspkg.CreateInspectionTaskInput
+	rootTaskCreateInput = tasksTaskCreateInput
+	tasksTaskCreateInput = rootTaskCreateInput
+
+	var rootTaskService *TaskService
+	var tasksTaskService *taskspkg.TaskService
+	rootTaskService = tasksTaskService
+	tasksTaskService = rootTaskService
+
+	var rootOutboxSettings TaskOutboxSettings
+	var outboxSettings outboxpkg.TaskOutboxSettings
+	rootOutboxSettings = outboxSettings
+	outboxSettings = rootOutboxSettings
+
+	var rootOutboxReport TaskOutboxDispatchReport
+	var outboxReport outboxpkg.TaskOutboxDispatchReport
+	rootOutboxReport = outboxReport
+	outboxReport = rootOutboxReport
+
+	var rootRelay *TaskOutboxRelay
+	var outboxRelay *outboxpkg.TaskOutboxRelay
+	rootRelay = outboxRelay
+	outboxRelay = rootRelay
+
 	var rootLogInput OperationLogListInput
 	var auditLogInput auditpkg.OperationLogListInput
 	rootLogInput = auditLogInput
@@ -97,6 +136,12 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 	if ArticleStateOnline != domainpkg.ArticleStateOnline {
 		t.Fatalf("ArticleStateOnline = %d, want %d", ArticleStateOnline, domainpkg.ArticleStateOnline)
 	}
+	if ErrInvalidTaskInput != taskspkg.ErrInvalidTaskInput {
+		t.Fatal("ErrInvalidTaskInput does not match tasks.ErrInvalidTaskInput")
+	}
+	if ErrTaskOutboxDispatcherUnavailable != outboxpkg.ErrTaskOutboxDispatcherUnavailable {
+		t.Fatal("ErrTaskOutboxDispatcherUnavailable does not match outbox.ErrTaskOutboxDispatcherUnavailable")
+	}
 
 	rootScanner := NewKeywordScanner()
 	if rootScanner == nil {
@@ -111,8 +156,24 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 		t.Fatal("scanner alias contracts = nil")
 	}
 
+	dispatcher := compatTaskDispatcher{}
+	var rootDispatcher TaskDispatcher = dispatcher
+	var tasksDispatcher taskspkg.TaskDispatcher = rootDispatcher
+	var outboxDispatcher outboxpkg.TaskDispatcher = rootDispatcher
+	rootDispatcher = tasksDispatcher
+	rootDispatcher = outboxDispatcher
+	if rootDispatcher == nil || tasksDispatcher == nil || outboxDispatcher == nil {
+		t.Fatal("task dispatcher compatibility contracts = nil")
+	}
+
 	envelope := sharedpkg.SuccessOKEnvelope(http.StatusOK, "ok", map[string]string{"status": "ok"})
 	if envelope.Status != http.StatusOK {
 		t.Fatalf("shared SuccessOKEnvelope status = %d, want %d", envelope.Status, http.StatusOK)
 	}
+}
+
+type compatTaskDispatcher struct{}
+
+func (compatTaskDispatcher) DispatchArticleInspectTask(_ context.Context, _ queuetasks.ArticleInspectTaskPayload) error {
+	return nil
 }
