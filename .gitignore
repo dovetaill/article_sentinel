@@ -71,6 +71,8 @@ $RECYCLE.BIN/
 # =========================
 node_modules/
 dist/
+/build/
+/release/
 
 # =========================
 # 本地 SQL 草稿 / 导出

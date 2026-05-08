@@ -1,0 +1,30 @@
+[Unit]
+Description=article-sentinel API server
+After=network-online.target
+Wants=network-online.target
+PartOf=article-sentinel.target
+
+[Service]
+Type=exec
+User=article-sentinel
+Group=article-sentinel
+WorkingDirectory=/srv/article-sentinel/current
+EnvironmentFile=-/etc/article-sentinel/article-sentinel.env
+Environment=APP_HOST=127.0.0.1
+Environment=LOG_OUTPUT=stdout
+Environment=AUTH_SESSION_SECURE_COOKIE=true
+Environment=DOCS_ENABLED=false
+ExecStart=/srv/article-sentinel/current/bin/article-sentinel-server -config /etc/article-sentinel/config.yaml
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=article-sentinel.target

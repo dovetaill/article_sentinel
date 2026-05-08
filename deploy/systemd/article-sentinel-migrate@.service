@@ -1,0 +1,22 @@
+[Unit]
+Description=article-sentinel database migration (%i)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/srv/article-sentinel/releases/%i/bin/article-sentinel-migrate
+
+[Service]
+Type=oneshot
+User=article-sentinel
+Group=article-sentinel
+WorkingDirectory=/srv/article-sentinel/releases/%i
+EnvironmentFile=-/etc/article-sentinel/article-sentinel.env
+Environment=LOG_OUTPUT=stdout
+ExecStart=/srv/article-sentinel/releases/%i/bin/article-sentinel-migrate -config /etc/article-sentinel/config.yaml
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=full
+UMask=0077

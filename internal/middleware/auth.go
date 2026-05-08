@@ -26,8 +26,9 @@ type HeaderAuthConfig struct {
 }
 
 type authOptions struct {
-	trustedHeader *HeaderAuthConfig
-	devHeader     *HeaderAuthConfig
+	trustedHeader     *HeaderAuthConfig
+	devHeader         *HeaderAuthConfig
+	trustedProxyCIDRs []*net.IPNet
 }
 
 type AuthOption func(*authOptions)
@@ -46,6 +47,13 @@ func WithDevHeader(config HeaderAuthConfig) AuthOption {
 	}
 }
 
+func WithTrustedProxyCIDRs(cidrs ...string) AuthOption {
+	trustedProxyNets := parseTrustedProxyCIDRs(cidrs)
+	return func(options *authOptions) {
+		options.trustedProxyCIDRs = trustedProxyNets
+	}
+}
+
 func Authenticate(authenticator authenticator, options ...AuthOption) Middleware {
 	config := authOptions{}
 	for _, option := range options {
@@ -57,7 +65,7 @@ func Authenticate(authenticator authenticator, options ...AuthOption) Middleware
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := identity.ContextWithRequestMetadata(r.Context(), identity.RequestMetadata{
-				SourceIP: clientIPFromRequest(r),
+				SourceIP: clientIPFromRequest(r, config.trustedProxyCIDRs),
 			})
 
 			header := strings.TrimSpace(r.Header.Get("Authorization"))
@@ -137,30 +145,112 @@ func contextWithActor(ctx context.Context, actor identity.Actor) context.Context
 	return identity.ContextWithPrincipal(ctx, identity.PrincipalFromActor(actor))
 }
 
-func clientIPFromRequest(r *http.Request) string {
+func clientIPFromRequest(r *http.Request, trustedProxyCIDRs []*net.IPNet) string {
 	if r == nil {
 		return ""
 	}
-	if forwardedFor := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwardedFor != "" {
-		parts := strings.Split(forwardedFor, ",")
-		if len(parts) > 0 {
-			if ip := strings.TrimSpace(parts[0]); ip != "" {
-				return ip
+
+	remoteIP, remoteText := remoteIPFromRequest(r.RemoteAddr)
+	if remoteText == "" {
+		return ""
+	}
+	if remoteIP == nil || !isTrustedProxy(remoteIP, trustedProxyCIDRs) {
+		return remoteText
+	}
+
+	if forwardedIP := forwardedClientIPFromHeaders(r.Header.Values("X-Forwarded-For"), trustedProxyCIDRs); forwardedIP != nil {
+		return forwardedIP.String()
+	}
+	if realIP := parseIPCandidate(r.Header.Get("X-Real-IP")); realIP != nil {
+		return realIP.String()
+	}
+
+	return remoteText
+}
+
+func parseTrustedProxyCIDRs(cidrs []string) []*net.IPNet {
+	networks := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		trimmed := strings.TrimSpace(cidr)
+		if trimmed == "" {
+			continue
+		}
+		_, network, err := net.ParseCIDR(trimmed)
+		if err != nil || network == nil {
+			continue
+		}
+		networks = append(networks, network)
+	}
+	return networks
+}
+
+func forwardedClientIPFromHeaders(values []string, trustedProxyCIDRs []*net.IPNet) net.IP {
+	candidates := make([]net.IP, 0)
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if ip := parseIPCandidate(part); ip != nil {
+				candidates = append(candidates, ip)
 			}
 		}
 	}
-	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
-		return realIP
+
+	for index := len(candidates) - 1; index >= 0; index-- {
+		if !isTrustedProxy(candidates[index], trustedProxyCIDRs) {
+			return candidates[index]
+		}
 	}
-	remoteAddr := strings.TrimSpace(r.RemoteAddr)
-	if remoteAddr == "" {
-		return ""
+
+	return nil
+}
+
+func parseIPCandidate(value string) net.IP {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
 	}
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err == nil {
-		return host
+
+	if host, _, err := net.SplitHostPort(trimmed); err == nil {
+		trimmed = host
 	}
-	return remoteAddr
+
+	trimmed = strings.TrimPrefix(trimmed, "[")
+	trimmed = strings.TrimSuffix(trimmed, "]")
+	if trimmed == "" {
+		return nil
+	}
+
+	return net.ParseIP(trimmed)
+}
+
+func remoteIPFromRequest(remoteAddr string) (net.IP, string) {
+	trimmed := strings.TrimSpace(remoteAddr)
+	if trimmed == "" {
+		return nil, ""
+	}
+
+	if host, _, err := net.SplitHostPort(trimmed); err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return ip, ip.String()
+		}
+		return nil, host
+	}
+	if ip := net.ParseIP(trimmed); ip != nil {
+		return ip, ip.String()
+	}
+
+	return nil, trimmed
+}
+
+func isTrustedProxy(ip net.IP, trustedProxyCIDRs []*net.IPNet) bool {
+	if ip == nil {
+		return false
+	}
+	for _, network := range trustedProxyCIDRs {
+		if network != nil && network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func bearerToken(header string) (string, bool) {

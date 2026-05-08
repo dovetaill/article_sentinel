@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
+	"os"
 	"strings"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -30,11 +32,83 @@ func Load(path string) (*Config, error) {
 	if err := cleanenv.ReadConfig(path, cfg); err != nil {
 		return nil, fmt.Errorf("read config %q: %w", path, err)
 	}
+	if err := applyFileBackedSecrets(cfg); err != nil {
+		return nil, err
+	}
+	if err := validateTrustedProxyCIDRs(cfg); err != nil {
+		return nil, err
+	}
 	if err := validatePrimaryDatabaseConfig(cfg); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
+}
+
+func applyFileBackedSecrets(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is required")
+	}
+
+	secretFields := []struct {
+		name   string
+		path   string
+		target *string
+	}{
+		{
+			name:   "auth.session.legacy_secret_file",
+			path:   cfg.Auth.Session.LegacySecretFile,
+			target: &cfg.Auth.Session.LegacySecret,
+		},
+		{
+			name:   "auth.session.secret_file",
+			path:   cfg.Auth.Session.SecretFile,
+			target: &cfg.Auth.Session.Secret,
+		},
+		{
+			name:   "database.mysql.password_file",
+			path:   cfg.Database.MySQL.PasswordFile,
+			target: &cfg.Database.MySQL.Password,
+		},
+		{
+			name:   "database.postgres.password_file",
+			path:   cfg.Database.Postgres.PasswordFile,
+			target: &cfg.Database.Postgres.Password,
+		},
+		{
+			name:   "redis.password_file",
+			path:   cfg.Redis.PasswordFile,
+			target: &cfg.Redis.Password,
+		},
+	}
+
+	for _, field := range secretFields {
+		if strings.TrimSpace(field.path) == "" {
+			continue
+		}
+
+		value, err := readSecretFile(field.name, field.path)
+		if err != nil {
+			return err
+		}
+		*field.target = value
+	}
+
+	return nil
+}
+
+func readSecretFile(fieldName, path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", fieldName, err)
+	}
+
+	value := strings.TrimSpace(string(content))
+	if value == "" {
+		return "", fmt.Errorf("%s is empty", fieldName)
+	}
+
+	return value, nil
 }
 
 func validatePrimaryDatabaseConfig(cfg *Config) error {
@@ -61,6 +135,27 @@ func validatePrimaryDatabaseConfig(cfg *Config) error {
 	default:
 		return fmt.Errorf("unsupported database driver: %s", cfg.Database.Driver)
 	}
+}
+
+func validateTrustedProxyCIDRs(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is required")
+	}
+
+	normalized := make([]string, 0, len(cfg.HTTP.TrustedProxyCIDRs))
+	for _, cidr := range cfg.HTTP.TrustedProxyCIDRs {
+		trimmed := strings.TrimSpace(cidr)
+		if trimmed == "" {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(trimmed); err != nil {
+			return fmt.Errorf("invalid http.trusted_proxy_cidrs entry %q: %w", trimmed, err)
+		}
+		normalized = append(normalized, trimmed)
+	}
+
+	cfg.HTTP.TrustedProxyCIDRs = normalized
+	return nil
 }
 
 func validateRequiredFields(prefix string, fields map[string]string) error {
