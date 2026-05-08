@@ -26,6 +26,10 @@ type taskArticleRepository interface {
 	ListCandidateArticles(ctx context.Context, filter CandidateArticleFilter) ([]CandidateArticle, uint64, error)
 }
 
+type taskOutboxImmediateRelay interface {
+	TryDispatchMessage(ctx context.Context, outboxID uint64) bool
+}
+
 type TaskService struct {
 	db       *gorm.DB
 	keywords taskKeywordRepository
@@ -133,7 +137,7 @@ func (s *TaskService) CreateWithOutbox(ctx context.Context, input CreateInspecti
 	return prepared.Task, outbox, nil
 }
 
-func (s *TaskService) CreateAndEnqueue(ctx context.Context, input CreateInspectionTaskInput, relay *TaskOutboxRelay) (*InspectionTask, error) {
+func (s *TaskService) CreateAndEnqueue(ctx context.Context, input CreateInspectionTaskInput, relay taskOutboxImmediateRelay) (*InspectionTask, error) {
 	task, outbox, err := s.CreateWithOutbox(ctx, input)
 	if err != nil {
 		return nil, err

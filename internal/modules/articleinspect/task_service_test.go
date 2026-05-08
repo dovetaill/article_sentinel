@@ -10,6 +10,16 @@ import (
 	"github.com/dovetaill/article-sentinel/internal/identity"
 )
 
+type taskOutboxImmediateRelayStub struct {
+	outboxIDs []uint64
+}
+
+func (s *taskOutboxImmediateRelayStub) TryDispatchMessage(ctx context.Context, outboxID uint64) bool {
+	_ = ctx
+	s.outboxIDs = append(s.outboxIDs, outboxID)
+	return true
+}
+
 func TestTaskCreation(t *testing.T) {
 	db := newArticleInspectTestDB(t)
 	seedOrgCategoryFixtures(t, db)
@@ -69,6 +79,113 @@ func TestTaskCreation(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidTaskInput) {
 		t.Fatalf("Create(missing orgid) error = %v, want %v", err, ErrInvalidTaskInput)
+	}
+}
+
+func TestTaskCreateAndEnqueueUsesImmediateRelaySeam(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	relay := &taskOutboxImmediateRelayStub{}
+	created, err := taskService.CreateAndEnqueue(ctx, CreateInspectionTaskInput{
+		OrgID:        100,
+		KeywordIDs:   []uint64{keyword.ID},
+		IncludeBody:  true,
+		ArticleState: ArticleStateOnline,
+	}, relay)
+	if err != nil {
+		t.Fatalf("CreateAndEnqueue() error = %v", err)
+	}
+	if created.ID == 0 {
+		t.Fatal("CreateAndEnqueue().Task.ID = 0, want persisted task id")
+	}
+	if len(relay.outboxIDs) != 1 {
+		t.Fatalf("relay outboxIDs len = %d, want %d", len(relay.outboxIDs), 1)
+	}
+
+	var outbox InspectionTaskOutboxMessage
+	if err := db.Where("orgid = ? AND task_id = ?", 100, created.ID).First(&outbox).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if relay.outboxIDs[0] != outbox.ID {
+		t.Fatalf("relay outboxID = %d, want %d", relay.outboxIDs[0], outbox.ID)
+	}
+	if outbox.Status != TaskOutboxStatusPending {
+		t.Fatalf("outbox status = %q, want %q", outbox.Status, TaskOutboxStatusPending)
+	}
+}
+
+func TestTaskCreateAndEnqueueWithTaskOutboxRelayDispatchesCommittedMessage(t *testing.T) {
+	db := newArticleInspectTestDB(t)
+	seedOrgCategoryFixtures(t, db)
+	keywordService := NewKeywordService(NewKeywordRepository(db))
+	taskService := NewTaskService(db, NewKeywordRepository(db), NewArticleRepository(db))
+	ctx := identity.ContextWithActor(context.Background(), identity.NewActor(9, "operator", "ops", "active"))
+
+	keyword, err := keywordService.Create(ctx, CreateKeywordInput{
+		OrgID:         100,
+		Name:          "spam",
+		CategoryID:    1001,
+		MatchType:     MatchTypeContains,
+		RiskLevel:     RiskLevelHigh,
+		SuggestAction: SuggestActionOffline,
+		Enabled:       true,
+		Scopes:        []string{KeywordScopeTitle},
+	})
+	if err != nil {
+		t.Fatalf("Create keyword error = %v", err)
+	}
+
+	dispatcher := &articleInspectTaskDispatcherStub{}
+	relay := NewTaskOutboxRelay(db, dispatcher, nil)
+	created, err := taskService.CreateAndEnqueue(ctx, CreateInspectionTaskInput{
+		OrgID:        100,
+		KeywordIDs:   []uint64{keyword.ID},
+		IncludeBody:  true,
+		ArticleState: ArticleStateOnline,
+	}, relay)
+	if err != nil {
+		t.Fatalf("CreateAndEnqueue() error = %v", err)
+	}
+	if created.ID == 0 {
+		t.Fatal("CreateAndEnqueue().Task.ID = 0, want persisted task id")
+	}
+	if len(dispatcher.payloads) != 1 {
+		t.Fatalf("dispatcher payloads len = %d, want %d", len(dispatcher.payloads), 1)
+	}
+	if dispatcher.payloads[0].TaskID != created.ID || dispatcher.payloads[0].OrgID != created.OrgID {
+		t.Fatalf("dispatcher payload = %+v, want task=%d org=%d", dispatcher.payloads[0], created.ID, created.OrgID)
+	}
+
+	var outbox InspectionTaskOutboxMessage
+	if err := db.Where("orgid = ? AND task_id = ?", 100, created.ID).First(&outbox).Error; err != nil {
+		t.Fatalf("load outbox row: %v", err)
+	}
+	if outbox.Status != TaskOutboxStatusDispatched {
+		t.Fatalf("outbox status = %q, want %q", outbox.Status, TaskOutboxStatusDispatched)
+	}
+	if outbox.AttemptCount != 1 {
+		t.Fatalf("outbox attempt_count = %d, want %d", outbox.AttemptCount, 1)
+	}
+	if outbox.DispatchedAt == nil {
+		t.Fatal("outbox dispatched_at = nil, want timestamp")
 	}
 }
 
