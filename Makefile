@@ -18,7 +18,7 @@ COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
 DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
 
-.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version build-server build-worker build-scheduler build-migrate build-go build-admin build package release
+.PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version clean build-server build-worker build-scheduler build-migrate build-go build-admin build package release
 
 up:
 	$(COMPOSE) up -d --wait mysql redis
@@ -83,6 +83,9 @@ print-version:
 	@echo "BUILD_TIME=$(BUILD_TIME)"
 	@echo "TARGET_OS=$(TARGET_OS)"
 	@echo "TARGET_ARCH=$(TARGET_ARCH)"
+
+clean:
+	rm -rf "$(BUILD_DIR)" "$(RELEASE_DIR)"
 
 build-server:
 	@mkdir -p $(BIN_DIR)
