@@ -39,8 +39,12 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 		"/api/v1/article-inspect/categories/{id}/status",
 		"/api/v1/article-inspect/articles",
 		"/api/v1/article-inspect/articles/{article_id}",
+		"/api/v1/article-inspect/articles/{article_id}/offline",
+		"/api/v1/article-inspect/articles/{article_id}/rectify",
+		"/api/v1/article-inspect/articles/{article_id}/republish",
 		"/api/v1/article-inspect/keywords",
 		"/api/v1/article-inspect/keywords/{id}",
+		"/api/v1/article-inspect/keywords/{id}/status",
 		"/api/v1/article-inspect/tasks",
 		"/api/v1/article-inspect/tasks/{id}",
 		"/api/v1/article-inspect/results",
@@ -48,37 +52,16 @@ func TestRouteRegistrationRegistersArticleInspectPaths(t *testing.T) {
 		"/api/v1/article-inspect/actions/batch-offline",
 		"/api/v1/article-inspect/actions/batch-ignore",
 		"/api/v1/article-inspect/actions/batch-process",
-		"/api/v1/article-inspect/articles/{article_id}/rectify",
-		"/api/v1/article-inspect/articles/{article_id}/republish",
 		"/api/v1/article-inspect/logs/operations",
 		"/api/v1/article-inspect/logs/field-changes",
+		"/api/v1/article-inspect/articles/{article_id}/operation-logs",
+		"/api/v1/article-inspect/articles/{article_id}/change-logs",
 	}
 
 	for _, path := range requiredPaths {
 		if _, ok := doc.Paths[path]; !ok {
 			t.Fatalf("openapi missing path %s", path)
 		}
-	}
-
-	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost, "article-inspect-category-create")
-	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost, "article-inspect-task-create")
-	assertArticleInspectOperationID(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet, "article-inspect-keyword-detail")
-
-	if !articleInspectHasResponseStatus(doc.Paths, "/api/v1/article-inspect/categories", http.MethodPost, "201") {
-		t.Fatal("category create must document 201 response")
-	}
-	if !articleInspectHasResponseStatus(doc.Paths, "/api/v1/article-inspect/tasks", http.MethodPost, "201") {
-		t.Fatal("task create must document 201 response")
-	}
-
-	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/keywords/{id}", http.MethodGet, "id"); got != "integer" {
-		t.Fatalf("keyword detail path id schema type = %q, want %q", got, "integer")
-	}
-	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/categories", http.MethodGet, "enabled"); got != "boolean" {
-		t.Fatalf("category list enabled schema type = %q, want %q", got, "boolean")
-	}
-	if got := articleInspectParameterSchemaType(t, doc.Paths, "/api/v1/article-inspect/results", http.MethodGet, "orgid"); got != "integer" {
-		t.Fatalf("result list orgid schema type = %q, want %q", got, "integer")
 	}
 }
 

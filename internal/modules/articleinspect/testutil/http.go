@@ -149,3 +149,82 @@ func DecodeEnvelope(t *testing.T, rec *httptest.ResponseRecorder) response.Envel
 	}
 	return got
 }
+
+func DataMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+
+	data, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("data type = %T, want map[string]any", value)
+	}
+	return data
+}
+
+func ListField(t *testing.T, m map[string]any, key string) []any {
+	t.Helper()
+
+	value, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	items, ok := value.([]any)
+	if !ok {
+		t.Fatalf("key %q type = %T, want []any", key, value)
+	}
+	return items
+}
+
+func NumberField(t *testing.T, m map[string]any, key string) float64 {
+	t.Helper()
+
+	value, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case json.Number:
+		number, err := typed.Float64()
+		if err != nil {
+			t.Fatalf("json number %q: %v", typed, err)
+		}
+		return number
+	default:
+		t.Fatalf("key %q type = %T, want numeric", key, value)
+		return 0
+	}
+}
+
+func StringField(t *testing.T, m map[string]any, key string) string {
+	t.Helper()
+
+	value, ok := m[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	text, ok := value.(string)
+	if !ok {
+		t.Fatalf("key %q type = %T, want string", key, value)
+	}
+	return text
+}
+
+func Uint64Field(t *testing.T, m map[string]any, key string) uint64 {
+	t.Helper()
+	return uint64(NumberField(t, m, key))
+}
+
+func Uint64String(t *testing.T, value any) string {
+	t.Helper()
+
+	switch typed := value.(type) {
+	case float64:
+		return strconv.FormatUint(uint64(typed), 10)
+	case json.Number:
+		return typed.String()
+	default:
+		t.Fatalf("id type = %T, want numeric", value)
+		return ""
+	}
+}
