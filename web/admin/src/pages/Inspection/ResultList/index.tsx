@@ -1,7 +1,7 @@
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import { Button, Card, Modal, Space, Statistic, Tag, Typography, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import HitPreview from '@/components/HitPreview';
 import StatusTag from '@/components/StatusTag';
@@ -25,11 +25,13 @@ function resolveSharedTaskId(resultIds: number[], rows: ResultRecord[]) {
 
 export default function ResultListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const actionRef = useRef<ActionType>();
   const [messageApi, contextHolder] = message.useMessage();
   const [pageRows, setPageRows] = useState<ResultRecord[]>([]);
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
+  const currentHref = `${location.pathname}${location.search}`;
 
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
@@ -52,7 +54,10 @@ export default function ResultListPage() {
       title: '文章标题',
       dataIndex: 'article_title',
       render: (_, record) => (
-        <Button type="link" onClick={() => navigate(`/content/articles/${record.article_id}`)}>
+        <Button
+          type="link"
+          onClick={() => navigate(`/content/articles/${record.article_id}?return_to=${encodeURIComponent(currentHref)}`)}
+        >
           {record.article_title}
         </Button>
       )
@@ -102,7 +107,11 @@ export default function ResultListPage() {
       valueType: 'option',
       width: 220,
       render: (_, record) => [
-        <Button key="detail" type="link" onClick={() => navigate(`/content/articles/${record.article_id}`)}>
+        <Button
+          key="detail"
+          type="link"
+          onClick={() => navigate(`/content/articles/${record.article_id}?return_to=${encodeURIComponent(currentHref)}`)}
+        >
           查看详情
         </Button>,
         <Button key="offline" type="link" danger onClick={() => setConfirmIds([record.id])}>
@@ -111,7 +120,11 @@ export default function ResultListPage() {
         <Button
           key="rectify"
           type="link"
-          onClick={() => navigate(`/content/articles/${record.article_id}/rectify?task_id=${record.task_id}&result_id=${record.id}`)}
+          onClick={() =>
+            navigate(
+              `/content/articles/${record.article_id}/rectify?return_to=${encodeURIComponent(currentHref)}&task_id=${record.task_id}&result_id=${record.id}`
+            )
+          }
         >
           进入整改
         </Button>

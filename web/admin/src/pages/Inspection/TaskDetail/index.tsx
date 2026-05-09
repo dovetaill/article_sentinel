@@ -1,7 +1,7 @@
 import { PageContainer, ProDescriptions } from '@ant-design/pro-components';
 import { Button, Card, Empty, List, Space, Spin, Statistic, Tabs, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import HitPreview from '@/components/HitPreview';
 import SnapshotViewer from '@/components/SnapshotViewer';
@@ -24,6 +24,7 @@ function taskStatusLabel(status: string | undefined) {
 
 export default function TaskDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { taskId } = useParams();
   const numericTaskId = Number(taskId || 0) || 0;
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,7 @@ export default function TaskDetailPage() {
   const [results, setResults] = useState<ResultRecord[]>([]);
   const [logs, setLogs] = useState<OperationLogRecord[]>([]);
   const [activeTab, setActiveTab] = useState<TaskTabKey>('results');
+  const currentHref = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     if (!numericTaskId) {
@@ -106,7 +108,7 @@ export default function TaskDetailPage() {
                   <Button
                     type="link"
                     className="detail-list__title"
-                    onClick={() => navigate(`/content/articles/${item.article_id}`)}
+                    onClick={() => navigate(`/content/articles/${item.article_id}?return_to=${encodeURIComponent(currentHref)}`)}
                   >
                     {item.article_title}
                   </Button>

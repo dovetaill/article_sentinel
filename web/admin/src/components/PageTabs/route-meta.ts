@@ -132,6 +132,23 @@ export const workspaceRouteItems = [
         component: './Rules/KeywordList'
       }
     ]
+  },
+  {
+    path: '/content',
+    name: '内容中心',
+    routes: [
+      {
+        path: '/content/articles',
+        name: '文稿中心',
+        component: './Content/ArticleList'
+      },
+      {
+        path: '/content/articles/:articleId',
+        name: '文稿详情',
+        component: './Content/ArticleDetail',
+        hideInMenu: true
+      }
+    ]
   }
 ];
 
