@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "STRICT_PORT=5173 PORT=5173 HOST=0.0.0.0 max dev",
     "build": "max build",
+    "prepare": "max setup",
     "test": "vitest run"
   },
   "dependencies": {

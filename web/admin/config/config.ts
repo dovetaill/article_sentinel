@@ -23,5 +23,5 @@ export default defineConfig({
     chrome: 88,
     edge: 88
   },
-  proxy: proxy[process.env.NODE_ENV || 'dev'] ?? proxy.dev
+  proxy: proxy[(process.env.NODE_ENV || 'dev') as keyof typeof proxy] ?? proxy.dev
 });

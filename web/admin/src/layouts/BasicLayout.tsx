@@ -73,7 +73,8 @@ export default function BasicLayout() {
       location={{ pathname: resolveMenuKey(location.pathname) }}
       menu={{ defaultOpenAll: true }}
       menuItemRender={(item, dom) => {
-        if (!item.path) {
+        const path = item.path;
+        if (!path) {
           return dom;
         }
 
@@ -81,7 +82,7 @@ export default function BasicLayout() {
           <a
             onClick={(event) => {
               event.preventDefault();
-              navigate(item.path);
+              navigate(path);
             }}
           >
             {dom}

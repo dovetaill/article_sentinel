@@ -59,7 +59,9 @@ export const request: RequestConfig = {
   },
   errorConfig: {
     errorHandler(error) {
-      if (error?.response?.status === 401) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+
+      if (status === 401) {
         redirectToFixedLogin();
       }
 
