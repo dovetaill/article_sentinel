@@ -103,6 +103,17 @@ export const workspaceRouteItems = [
         name: '新建任务',
         component: './Inspection/TaskCreate',
         hideInMenu: true
+      },
+      {
+        path: '/inspection/tasks/:taskId',
+        name: '任务详情',
+        component: './Inspection/TaskDetail',
+        hideInMenu: true
+      },
+      {
+        path: '/inspection/results',
+        name: '风险结果',
+        component: './Inspection/ResultList'
       }
     ]
   },
