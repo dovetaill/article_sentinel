@@ -1,4 +1,4 @@
-package articleinspect
+package domain
 
 import (
 	"os"
@@ -99,8 +99,8 @@ func assertExactStringSet(t *testing.T, got []string, want []string) {
 }
 
 func TestMigrationFileContainsInspectionTables(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "migrations", "20260420_01_article_inspection.sql")
-	dropPath := filepath.Join("..", "..", "..", "migrations", "20260428_01_drop_category_code.sql")
+	path := filepath.Join("..", "..", "..", "..", "migrations", "20260420_01_article_inspection.sql")
+	dropPath := filepath.Join("..", "..", "..", "..", "migrations", "20260428_01_drop_category_code.sql")
 
 	content, err := os.ReadFile(path)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/dovetaill/article-sentinel/internal/identity"
 	"github.com/dovetaill/article-sentinel/internal/middleware"
 	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
 	"github.com/dovetaill/article-sentinel/pkg/config"
@@ -93,12 +94,12 @@ func newArticleInspectRoutes(rt *bootstrap.Runtime) articleinspectmodule.Routes 
 	routes := articleinspectmodule.NewRoutes(rt.Resources.DB, newArticleInspectDispatcher(rt))
 	routes.Logger = nilLogger(rt)
 	if rt.Config != nil {
-		routes.Outbox = articleinspectmodule.NewTaskOutboxSettings(rt.Config.Queue.Outbox)
+		routes.Outbox = outboxpkg.NewTaskOutboxSettings(rt.Config.Queue.Outbox)
 	}
 	return routes
 }
 
-func newArticleInspectDispatcher(rt *bootstrap.Runtime) articleinspectmodule.TaskDispatcher {
+func newArticleInspectDispatcher(rt *bootstrap.Runtime) outboxpkg.TaskDispatcher {
 	client, err := queueasynq.NewClient(rt)
 	if err != nil {
 		if logger := nilLogger(rt); logger != nil {

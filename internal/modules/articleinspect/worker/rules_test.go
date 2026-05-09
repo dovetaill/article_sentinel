@@ -1,8 +1,10 @@
-package articleinspect
+package worker
 
 import (
 	"encoding/json"
 	"testing"
+
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 )
 
 func TestDecodeTaskRulesFromLegacyKeywordSnapshotJSON(t *testing.T) {
@@ -26,28 +28,28 @@ func TestDecodeTaskRulesFromLegacyKeywordSnapshotJSON(t *testing.T) {
 			Name:          "svg",
 			CategoryID:    502,
 			CategoryName:  "高频违规",
-			MatchType:     MatchTypeContains,
-			RiskLevel:     RiskLevelHigh,
-			SuggestAction: SuggestActionOffline,
+			MatchType:     domainpkg.MatchTypeContains,
+			RiskLevel:     domainpkg.RiskLevelHigh,
+			SuggestAction: domainpkg.SuggestActionOffline,
 			Enabled:       true,
-			Scopes:        []string{KeywordScopeTitle},
+			Scopes:        []string{domainpkg.KeywordScopeTitle},
 		},
 	})
 	if err != nil {
 		t.Fatalf("json.Marshal() error = %v", err)
 	}
 
-	rules, err := decodeTaskRules(string(snapshot))
+	rules, err := DecodeTaskRules(string(snapshot))
 	if err != nil {
-		t.Fatalf("decodeTaskRules() error = %v", err)
+		t.Fatalf("DecodeTaskRules() error = %v", err)
 	}
 	if len(rules) != 1 {
-		t.Fatalf("decodeTaskRules() len = %d, want %d", len(rules), 1)
+		t.Fatalf("DecodeTaskRules() len = %d, want %d", len(rules), 1)
 	}
-	if rules[0].Name != "svg" || rules[0].MatchType != MatchTypeContains || rules[0].RiskLevel != RiskLevelHigh || rules[0].SuggestAction != SuggestActionOffline {
-		t.Fatalf("decodeTaskRules() rule = %+v, want populated match metadata", rules[0])
+	if rules[0].Name != "svg" || rules[0].MatchType != domainpkg.MatchTypeContains || rules[0].RiskLevel != domainpkg.RiskLevelHigh || rules[0].SuggestAction != domainpkg.SuggestActionOffline {
+		t.Fatalf("DecodeTaskRules() rule = %+v, want populated match metadata", rules[0])
 	}
-	if len(rules[0].Scopes) != 1 || rules[0].Scopes[0] != KeywordScopeTitle {
-		t.Fatalf("decodeTaskRules() scopes = %#v, want %#v", rules[0].Scopes, []string{KeywordScopeTitle})
+	if len(rules[0].Scopes) != 1 || rules[0].Scopes[0] != domainpkg.KeywordScopeTitle {
+		t.Fatalf("DecodeTaskRules() scopes = %#v, want %#v", rules[0].Scopes, []string{domainpkg.KeywordScopeTitle})
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/dovetaill/article-sentinel/internal/api/response"
 	"github.com/dovetaill/article-sentinel/internal/identity"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	"github.com/dovetaill/article-sentinel/internal/modules/articleinspect/testutil"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	"gorm.io/gorm"
@@ -72,7 +73,7 @@ func (s *articleInspectTaskDispatcherStub) DispatchArticleInspectTask(ctx contex
 	return s.err
 }
 
-func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher TaskDispatcher) http.Handler {
+func newArticleInspectHandler(t *testing.T, db *gorm.DB, dispatcher outboxpkg.TaskDispatcher) http.Handler {
 	t.Helper()
 
 	mux := http.NewServeMux()

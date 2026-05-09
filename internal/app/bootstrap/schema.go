@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 	postmodule "github.com/dovetaill/article-sentinel/internal/modules/post"
 )
 
@@ -16,16 +16,16 @@ func init() {
 	// 新增业务表后，记得把 model 注册到这里，migrate 入口才能自动同步结构。
 	RegisterBusinessModels(
 		postmodule.Post{},
-		articleinspectmodule.InspectionKeyword{},
-		articleinspectmodule.InspectionKeywordScope{},
-		articleinspectmodule.InspectionTask{},
-		articleinspectmodule.InspectionTaskKeyword{},
-		articleinspectmodule.InspectionTaskOutboxMessage{},
-		articleinspectmodule.InspectionResult{},
-		articleinspectmodule.InspectionResultHit{},
-		articleinspectmodule.InspectionAction{},
-		articleinspectmodule.InspectionOperationLog{},
-		articleinspectmodule.InspectionFieldChangeLog{},
+		domainpkg.InspectionKeyword{},
+		domainpkg.InspectionKeywordScope{},
+		domainpkg.InspectionTask{},
+		domainpkg.InspectionTaskKeyword{},
+		domainpkg.InspectionTaskOutboxMessage{},
+		domainpkg.InspectionResult{},
+		domainpkg.InspectionResultHit{},
+		domainpkg.InspectionAction{},
+		domainpkg.InspectionOperationLog{},
+		domainpkg.InspectionFieldChangeLog{},
 	)
 }
 

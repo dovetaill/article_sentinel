@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dovetaill/article-sentinel/internal/identity"
+	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 )
 
 func TestHandlerTenantScopedRoutesRequireSession(t *testing.T) {
@@ -50,7 +51,7 @@ func TestArticleInspectRoutesPreferSessionOrgIDOverRequestOrgID(t *testing.T) {
 	seedArticleCenterFixtures(t, db)
 	dispatcher := &articleInspectTaskDispatcherStub{}
 	handler := newArticleInspectHandler(t, db, dispatcher)
-	if err := db.Create(&InspectionResult{ID: 3001, OrgID: 100, TaskID: 501, ArticleID: 10, ArticleState: ArticleStateOnline, DispositionStatus: ResultDispositionPending}).Error; err != nil {
+	if err := db.Create(&domainpkg.InspectionResult{ID: 3001, OrgID: 100, TaskID: 501, ArticleID: 10, ArticleState: domainpkg.ArticleStateOnline, DispositionStatus: domainpkg.ResultDispositionPending}).Error; err != nil {
 		t.Fatalf("seed session-scoped batch result error = %v", err)
 	}
 
@@ -66,7 +67,7 @@ func TestArticleInspectRoutesPreferSessionOrgIDOverRequestOrgID(t *testing.T) {
 		t.Fatalf("created category orgid = %d, want session org %d", articleInspectUint64Field(t, categoryData, "orgid"), 29)
 	}
 
-	createdKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{"orgid": 200, "name": "session-keyword", "category_id": 1001, "match_type": MatchTypeContains, "risk_level": RiskLevelHigh, "suggest_action": SuggestActionOffline, "enabled": true, "scopes": []string{KeywordScopeTitle}}, session100)
+	createdKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{"orgid": 200, "name": "session-keyword", "category_id": 1001, "match_type": domainpkg.MatchTypeContains, "risk_level": domainpkg.RiskLevelHigh, "suggest_action": domainpkg.SuggestActionOffline, "enabled": true, "scopes": []string{domainpkg.KeywordScopeTitle}}, session100)
 	if createdKeyword.status != http.StatusCreated {
 		t.Fatalf("create keyword status = %d, want %d", createdKeyword.status, http.StatusCreated)
 	}
@@ -90,7 +91,7 @@ func TestArticleInspectRoutesPreferSessionOrgIDOverRequestOrgID(t *testing.T) {
 		t.Fatalf("listed keyword orgid = %d, want session org %d", articleInspectUint64Field(t, keywordItem, "orgid"), 100)
 	}
 
-	createdTask := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{"orgid": 200, "keyword_ids": []uint64{keywordID}, "include_body": true, "article_state": ArticleStateOnline}, session100)
+	createdTask := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{"orgid": 200, "keyword_ids": []uint64{keywordID}, "include_body": true, "article_state": domainpkg.ArticleStateOnline}, session100)
 	if createdTask.status != http.StatusCreated {
 		t.Fatalf("create task status = %d, want %d", createdTask.status, http.StatusCreated)
 	}
@@ -169,14 +170,14 @@ func TestArticleInspectRoutesAcceptSessionScopedMutationBodiesWithoutOrgID(t *te
 
 	session100 := articleInspectRequestOptions{Session: &identity.AdminSession{UserID: 7, OrgID: 100, OrgName: "测试组织A", Nickname: "alice", Priv: "admin", Status: "active"}}
 
-	createdKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{"name": "session-keyword-without-orgid", "category_id": 1001, "match_type": MatchTypeContains, "risk_level": RiskLevelHigh, "suggest_action": SuggestActionOffline, "enabled": true, "scopes": []string{KeywordScopeTitle}}, session100)
+	createdKeyword := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/keywords", map[string]any{"name": "session-keyword-without-orgid", "category_id": 1001, "match_type": domainpkg.MatchTypeContains, "risk_level": domainpkg.RiskLevelHigh, "suggest_action": domainpkg.SuggestActionOffline, "enabled": true, "scopes": []string{domainpkg.KeywordScopeTitle}}, session100)
 	if createdKeyword.status != http.StatusCreated {
 		t.Fatalf("create keyword status = %d, want %d", createdKeyword.status, http.StatusCreated)
 	}
 	createdKeywordData := articleInspectDataMap(t, createdKeyword.envelope.Data)
 	keywordID := articleInspectUint64Field(t, createdKeywordData, "id")
 
-	createdTask := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{"keyword_ids": []uint64{keywordID}, "include_body": true, "article_state": ArticleStateOnline}, session100)
+	createdTask := sendArticleInspectJSONRequestWithOptions(t, handler, http.MethodPost, "/api/v1/article-inspect/tasks", map[string]any{"keyword_ids": []uint64{keywordID}, "include_body": true, "article_state": domainpkg.ArticleStateOnline}, session100)
 	if createdTask.status != http.StatusCreated {
 		t.Fatalf("create task status = %d, want %d", createdTask.status, http.StatusCreated)
 	}
