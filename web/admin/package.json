@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "STRICT_PORT=5173 PORT=5173 HOST=0.0.0.0 max dev",
-    "build": "max build",
-    "prepare": "max setup",
-    "test": "vitest run"
+    "dev": "mkdir -p .tmp/umi && TMPDIR=$(pwd)/.tmp/umi node ./node_modules/@umijs/max/bin/max.js dev --port 5173 --host 0.0.0.0",
+    "build": "mkdir -p .tmp/umi && TMPDIR=$(pwd)/.tmp/umi node ./node_modules/@umijs/max/bin/max.js build",
+    "prepare": "node ./node_modules/@umijs/max/bin/max.js setup",
+    "test": "mkdir -p .tmp/vitest && TMPDIR=$(pwd)/.tmp/vitest vitest run"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",

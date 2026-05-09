@@ -3,6 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEV_SCRIPT="$ROOT_DIR/scripts/dev.sh"
+TEST_TMPDIR="$ROOT_DIR/.tmp/dev-test"
+
+mkdir -p "$TEST_TMPDIR"
+export TMPDIR="$TEST_TMPDIR"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -14,6 +18,14 @@ assert_contains() {
   local needle="$2"
   if [[ "$haystack" != *"$needle"* ]]; then
     fail "expected output to contain: $needle"
+  fi
+}
+
+assert_not_contains() {
+  local haystack="$1"
+  local needle="$2"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    fail "expected output to NOT contain: $needle"
   fi
 }
 
@@ -50,19 +62,45 @@ YAML
   rm -f "$temp_config"
 }
 
-test_admin_vite_dev_server_proxies_auth_routes() {
+test_readme_describes_umi_pro_admin_shell() {
   local content
-  content="$(cat "$ROOT_DIR/web/admin/vite.config.ts")"
+  content="$(cat "$ROOT_DIR/README.md")"
 
+  assert_contains "$content" "React + Umi Max + ant-design-pro"
+  assert_not_contains "$content" "React + Vite"
+}
+
+test_admin_uses_umi_max_dev_server_settings() {
+  local content
+  content="$(cat "$ROOT_DIR/web/admin/package.json")"
+
+  assert_contains "$content" "@umijs/max/bin/max.js dev --port 5173 --host 0.0.0.0"
+}
+
+test_admin_proxy_configuration_covers_auth_routes() {
+  local content
+  content="$(cat "$ROOT_DIR/web/admin/config/proxy.ts")"
+
+  assert_contains "$content" "ADMIN_API_BASE_URL"
+  assert_contains "$content" "'/api'"
   assert_contains "$content" "'/auth':"
 }
 
-test_admin_bootstraps_dependencies_when_vite_is_missing() {
-  local admin_node_modules="$ROOT_DIR/web/admin/node_modules"
+test_admin_dev_script_drops_vite_specific_wording() {
+  local content
+  content="$(cat "$ROOT_DIR/scripts/dev.sh")"
+
+  assert_not_contains "$content" "Vite dev server"
+  assert_contains "$content" "admin Umi Max dev server"
+}
+
+test_admin_bootstraps_dependencies_when_max_runtime_is_missing() {
+  local admin_max_runtime_dir="$ROOT_DIR/web/admin/node_modules/@umijs/max/bin"
+  local admin_max_runtime="$admin_max_runtime_dir/max.js"
   local backup_dir=""
-  if [[ -d "$admin_node_modules" ]]; then
+  if [[ -e "$admin_max_runtime" ]]; then
     backup_dir="$(mktemp -d)"
-    mv "$admin_node_modules" "$backup_dir/node_modules"
+    mv "$admin_max_runtime" "$backup_dir/max.js"
   fi
 
   local fake_bin
@@ -76,12 +114,12 @@ set -euo pipefail
 printf '%s\n' "$*" >>"$NPM_LOG"
 
 if [[ "${1:-}" == "ci" ]]; then
-  mkdir -p node_modules/.bin
-  cat >node_modules/.bin/vite <<'INNER'
+  mkdir -p node_modules/@umijs/max/bin
+  cat >node_modules/@umijs/max/bin/max.js <<'INNER'
 #!/usr/bin/env bash
 exit 0
 INNER
-  chmod +x node_modules/.bin/vite
+  chmod +x node_modules/@umijs/max/bin/max.js
   exit 0
 fi
 
@@ -95,10 +133,12 @@ EOF
   chmod +x "$fake_bin/npm"
 
   cleanup() {
-    rm -rf "$admin_node_modules" "$fake_bin"
+    rm -f "$admin_max_runtime"
+    rm -rf "$fake_bin"
     rm -f "$npm_log"
-    if [[ -n "$backup_dir" && -d "$backup_dir/node_modules" ]]; then
-      mv "$backup_dir/node_modules" "$admin_node_modules"
+    if [[ -n "$backup_dir" && -e "$backup_dir/max.js" ]]; then
+      mkdir -p "$admin_max_runtime_dir"
+      mv "$backup_dir/max.js" "$admin_max_runtime"
       rmdir "$backup_dir"
     fi
   }
@@ -224,8 +264,11 @@ test_stop_kills_stale_go_run_temp_server_without_session_file
 test_stop_kills_stale_go_run_cache_server_without_session_file
 test_make_dev_prints_backend_endpoints
 test_print_endpoints_reports_backend_and_jump_login_urls
-test_admin_vite_dev_server_proxies_auth_routes
-test_admin_bootstraps_dependencies_when_vite_is_missing
+test_readme_describes_umi_pro_admin_shell
+test_admin_uses_umi_max_dev_server_settings
+test_admin_proxy_configuration_covers_auth_routes
+test_admin_dev_script_drops_vite_specific_wording
+test_admin_bootstraps_dependencies_when_max_runtime_is_missing
 test_config_example_uses_insecure_cookie_for_http_local_dev
 
 echo "dev script tests passed"

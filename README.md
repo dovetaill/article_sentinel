@@ -117,29 +117,34 @@ HTTP 路由总装配仍在 `internal/api/register/router.go`，但这个文件�
 
 ### 前端主链路
 
-前端位于 `web/admin`，是一个独立的 React + Vite 管理台。
+前端位于 `web/admin`，是一个独立的 `React + Umi Max + ant-design-pro` 管理台，使用 `Ant Design` 与 `ProComponents` 承载企业后台壳层、表单与表格体验。
 
 当前页面：
 
+- `/inspection/tasks`: 巡检任务列表
+- `/inspection/tasks/create`: 新建巡检任务
+- `/inspection/tasks/:taskId`: 任务详情
+- `/inspection/results`: 风险结果工作台
 - `/rules/categories`: 规则分类
 - `/rules/keywords`: 规则管理
-- `/tasks`: 巡检任务列表
-- `/tasks/new`: 新建巡检任务（按规则执行）
-- `/tasks/:taskId/results`: 单任务结果工作台
-- `/results`: 全局风险结果列表（辅助入口）
-- `/articles`: 文稿中心（独立浏览真实文稿）
-- `/articles/:articleId`: 文稿详情
-- `/articles/:articleId/rectify`: 整改编辑页
-- `/logs`: 操作日志页
+- `/content/articles`: 文稿中心
+- `/content/articles/:articleId`: 文稿详情
+- `/content/articles/:articleId/rectify`: 整改编辑页
+- `/audit/logs`: 操作日志页
 
 典型使用顺序：
 
 1. 在 `/rules/categories` 建立规则分类
 2. 在 `/rules/keywords` 配置具体规则
-3. 在 `/tasks/new` 选择规则并发起巡检
-4. 在 `/tasks/:taskId/results` 查看单任务结果并做批量处置
-5. 在 `/articles` 直接浏览真实文稿，必要时进入详情或整改
-6. 在 `/logs` 回看操作链路
+3. 在 `/inspection/tasks/create` 选择规则并发起巡检
+4. 在 `/inspection/results` 或任务详情里查看风险结果并做批量处置
+5. 在 `/content/articles` 直接浏览真实文稿，必要时进入详情或整改
+6. 在 `/audit/logs` 回看操作链路
+
+兼容说明：
+
+- 旧入口 `/tasks`、`/tasks/new`、`/results`、`/articles`、`/logs` 仍会重定向到新信息架构
+- 菜单、面包屑与标签页工作台统一以新路由为准
 
 ## 目录结构
 
@@ -325,7 +330,8 @@ npm run dev
 
 补充说明：
 
-- `web/admin/vite.config.ts` 已默认将 Vite dev server 绑定到 `0.0.0.0:5173`，方便远程联调
+- `web/admin/package.json` 中的 `npm run dev` 会启动 `Umi Max` 开发服务器，并固定绑定到 `0.0.0.0:5173`
+- 前端 `/api` 与 `/auth` 代理规则统一定义在 `web/admin/config/proxy.ts`
 - 如果公网仍然访问不到，请检查服务器防火墙、云安全组是否放行 `5173/tcp`
 - `5173` 仅建议用于开发联调；生产环境请执行 `npm run build`，并用 Nginx 或其他静态文件服务托管 `web/admin/dist`
 
@@ -580,9 +586,9 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 7. 访问前端页面：
    - `/rules/categories`
    - `/rules/keywords`
-   - `/tasks`
-   - `/articles`
-   - `/logs`
+   - `/inspection/tasks`
+   - `/content/articles`
+   - `/audit/logs`
 
 说明：
 
@@ -593,9 +599,9 @@ go run ./cmd/scheduler -config configs/config.local.yaml
 
 1. 在 `/rules/categories` 新建或确认规则分类
 2. 在 `/rules/keywords` 新建规则，并确认规则已归属到正确分类
-3. 在 `/tasks/new` 选择规则发起任务，然后进入 `/tasks/:taskId/results`
-4. 从结果页或 `/articles` 打开真实文稿详情，确认富文本标题/正文可正常渲染
-5. 在整改页修改标题/摘要/正文并“保存并提交复核”，再到 `/logs` 检查链路
+3. 在 `/inspection/tasks/create` 选择规则发起任务，再进入 `/inspection/results?task_id=<taskId>`
+4. 从结果页或 `/content/articles` 打开真实文稿详情，确认富文本标题/正文可正常渲染
+5. 在整改页修改标题/摘要/正文并“保存并提交复核”，再到 `/audit/logs` 检查链路
 
 ## 常用命令
 
@@ -762,11 +768,10 @@ article-sentinel_<version>_linux_amd64/
 ### 前端
 
 - React `18`
-- TypeScript `6`
-- Vite `8`
-- React Router `7`
+- TypeScript `5`
+- Umi Max `4`
+- ant-design-pro / ProComponents `2`
 - Ant Design `5`
-- Ant Design Pro Components `2`
 
 ### 测试与开发工具
 

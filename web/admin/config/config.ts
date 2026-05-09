@@ -3,6 +3,8 @@ import { defineConfig } from '@umijs/max';
 import proxy from './proxy';
 import routes from './routes';
 
+const proxyEnv = (process.env.UMI_ENV || process.env.NODE_ENV || 'dev') as keyof typeof proxy;
+
 export default defineConfig({
   npmClient: 'npm',
   antd: {
@@ -24,5 +26,5 @@ export default defineConfig({
     chrome: 88,
     edge: 88
   },
-  proxy: proxy[(process.env.NODE_ENV || 'dev') as keyof typeof proxy] ?? proxy.dev
+  proxy: proxy[proxyEnv] ?? proxy.dev
 });
