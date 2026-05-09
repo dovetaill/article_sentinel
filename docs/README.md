@@ -15,11 +15,11 @@
    - 看日常维护、扩展配置、加路由、写 worker、写 scheduler 的标准流程
 4. `internal/api/register/router.go`
    - 看当前后端如何做顶层 wiring、依赖装配、dispatcher 初始化与日志收口
-5. `internal/modules/articleinspect/routes.go` / `internal/modules/articleinspect/*_routes.go`
-   - 看 articleinspect 的真实 route contract、参数解析与 envelope 契约
+5. `internal/modules/articleinspect/module.go` / `internal/modules/articleinspect/routes.go` / `internal/modules/articleinspect/{rules,tasks,results,actions,lifecycle,articles,audit}/`
+   - 看 articleinspect 的模块入口、route registration，以及 feature owner package 的真实 contract / transport / service
 6. `internal/api/register/router_test.go`
    - 看当前路由面回归测试，也是“接口是否真实存在”的快速佐证
-7. `internal/modules/articleinspect/task_outbox.go` / `internal/queue/asynq/handlers.go` / `internal/scheduler/`
+7. `internal/modules/articleinspect/outbox/` / `internal/modules/articleinspect/worker/` / `internal/queue/asynq/handlers.go` / `internal/scheduler/`
    - 看当前异步投递、claim / lease、dead-letter、cleanup 与 worker 消费的真实接线方式
 8. `scripts/articleinspect_outbox_requeue.sql`
    - 看当前 outbox 人工恢复模板，不要临场手写危险 SQL
@@ -70,9 +70,9 @@
 
 ## 4. 维护时的判断原则
 
-- 判断接口是否存在：先看 `internal/api/register/router.go` 的 wiring，再看 `internal/modules/articleinspect/*_routes.go` 和 `internal/api/register/router_test.go`
-- 判断 malformed numeric path/query 是否走项目 envelope：看 `internal/modules/articleinspect/articleinspect_test.go`
-- 判断任务是否真的会被消费：看 `internal/modules/articleinspect/task_outbox.go`、`internal/queue/asynq/handlers.go`
+- 判断接口是否存在：先看 `internal/api/register/router.go` 的 wiring，再看 `internal/modules/articleinspect/routes.go` 以及 owner package 的 `routes.go` / `transport.go`，最后看 `internal/api/register/router_test.go`
+- 判断 malformed numeric path/query 是否走项目 envelope：看 `internal/modules/articleinspect/http_routes_test.go`
+- 判断任务是否真的会被消费：看 `internal/modules/articleinspect/outbox/relay.go`、`internal/modules/articleinspect/worker/executor.go`、`internal/queue/asynq/handlers.go`
 - 判断定时任务 / outbox relay / cleanup 是否真的会执行：看 `scheduler.enabled`、`internal/scheduler/scheduler.go`、`internal/scheduler/jobs.go`
 - 判断某条 outbox 是否该人工恢复：先看 `xt_article_inspect_task_outbox` 当前状态，再看 `scripts/articleinspect_outbox_requeue.sql`
 - 判断迁移会做什么：看 `internal/app/bootstrap/migrate.go`、`internal/app/bootstrap/schema.go`

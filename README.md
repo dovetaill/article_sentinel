@@ -64,12 +64,16 @@ HTTP 路由总装配仍在 `internal/api/register/router.go`，但这个文件�
 - `post` 模块：starter 自带 demo
 - `articleinspect` 模块：一期巡检业务模块
 
-`articleinspect` 的真实 route contract 与参数收口位于：
+`articleinspect` 已收成 thin root：
 
 - `internal/modules/articleinspect/module.go`
 - `internal/modules/articleinspect/routes.go`
-- `internal/modules/articleinspect/routes_common.go`
-- `internal/modules/articleinspect/*_routes.go`
+
+其中：
+
+- feature 行为位于 `internal/modules/articleinspect/{rules,tasks,results,actions,lifecycle,articles,audit}`
+- runtime 行为位于 `internal/modules/articleinspect/{scan,worker,outbox}`
+- root 目录只负责模块装配和统一注册，不再承载 facade / alias 实现
 
 如果 server 启动时 queue dispatcher 初始化失败，`internal/api/register/router.go` 现在会明确记录 `article inspect dispatcher unavailable` 日志；任务创建接口仍可先把 task 与 outbox 落库，等待后续 retry。
 
