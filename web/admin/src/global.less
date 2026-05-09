@@ -1,6 +1,17 @@
+@admin-sider-bg: #191a23;
+@admin-page-bg: #f0f2f5;
+@admin-card-bg: #ffffff;
+@admin-border-color: #d8dee9;
+@admin-text-color: #1f2329;
+
 :root {
   color-scheme: light;
   font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  --admin-sider-bg: @admin-sider-bg;
+  --admin-page-bg: @admin-page-bg;
+  --admin-card-bg: @admin-card-bg;
+  --admin-border-color: @admin-border-color;
+  --admin-text-color: @admin-text-color;
 }
 
 html,
@@ -11,5 +22,36 @@ body,
 
 body {
   margin: 0;
-  background: #f5f7fa;
+  background: var(--admin-page-bg);
+  color: var(--admin-text-color);
+}
+
+.ant-app,
+.ant-layout {
+  min-height: 100%;
+}
+
+.ant-pro-layout {
+  min-height: 100vh;
+  background: var(--admin-page-bg);
+}
+
+.ant-pro-layout .ant-layout-sider,
+.ant-pro-sider.ant-pro-sider-fixed {
+  background: var(--admin-sider-bg) !important;
+}
+
+.ant-pro-layout .ant-pro-sider-logo {
+  background: rgba(25, 26, 35, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ant-pro-layout .ant-layout-content {
+  background: var(--admin-page-bg);
+}
+
+.ant-card {
+  background: var(--admin-card-bg);
+  border-color: var(--admin-border-color);
+  box-shadow: none;
 }
