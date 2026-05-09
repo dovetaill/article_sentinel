@@ -10,13 +10,15 @@ export interface HtmlArticleEditorProps {
   onChange?: (value: string) => void;
   disabled?: boolean;
   label?: string;
+  placeholder?: string;
 }
 
 export default function HtmlArticleEditor({
   value = '',
   onChange,
   disabled = false,
-  label = 'HTML正文'
+  label = 'HTML正文',
+  placeholder = '请填写整改正文'
 }: HtmlArticleEditorProps) {
   const [mode, setMode] = useState<EditorMode>('visual');
   const visualEditorRef = useRef<HTMLDivElement | null>(null);
@@ -59,7 +61,7 @@ export default function HtmlArticleEditor({
                   role="textbox"
                   aria-label={`${label} 可视化编辑`}
                   aria-multiline="true"
-                  data-placeholder="请填写整改正文"
+                  data-placeholder={placeholder}
                   onInput={(event) => emitChange(event.currentTarget.innerHTML)}
                   onBlur={(event) => emitChange(event.currentTarget.innerHTML)}
                 />
@@ -78,6 +80,7 @@ export default function HtmlArticleEditor({
                   aria-label={`${label} HTML源码`}
                   className="html-body-editor__source"
                   disabled={disabled}
+                  placeholder={placeholder}
                   rows={12}
                   value={value}
                   onChange={(event) => emitChange(event.target.value)}

@@ -147,6 +147,12 @@ export const workspaceRouteItems = [
         name: '文稿详情',
         component: './Content/ArticleDetail',
         hideInMenu: true
+      },
+      {
+        path: '/content/articles/:articleId/rectify',
+        name: '内容整改',
+        component: './Content/ArticleRectify',
+        hideInMenu: true
       }
     ]
   }
