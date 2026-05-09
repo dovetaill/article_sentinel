@@ -1,12 +1,13 @@
+import { workspaceRouteItems } from '../src/components/PageTabs/route-meta';
+
 export default [
   { path: '/user/login', layout: false, component: './User/LoginRedirect' },
   { path: '/', redirect: '/inspection/tasks' },
   {
     path: '/',
+    layout: false,
     component: '@/layouts/BasicLayout',
-    routes: [
-      { path: '/inspection/tasks', name: '检测任务', component: './Inspection/TaskList' }
-    ]
+    routes: workspaceRouteItems
   },
   { path: '/*', component: '404', layout: false }
 ];

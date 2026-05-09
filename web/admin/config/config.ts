@@ -16,6 +16,7 @@ export default defineConfig({
   layout: {},
   model: {},
   initialState: {},
+  request: {},
   routes,
   hash: true,
   targets: {

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "max dev --port 5173 --host 0.0.0.0",
+    "dev": "STRICT_PORT=5173 PORT=5173 HOST=0.0.0.0 max dev",
     "build": "max build",
     "test": "vitest run"
   },

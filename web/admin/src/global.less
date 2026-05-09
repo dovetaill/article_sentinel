@@ -55,3 +55,31 @@ body {
   border-color: var(--admin-border-color);
   box-shadow: none;
 }
+
+.admin-workspace-shell {
+  min-height: calc(100vh - 48px);
+}
+
+.admin-page-tabs {
+  margin: 0 0 16px;
+  padding: 0 12px;
+  background: var(--admin-card-bg);
+  border: 1px solid var(--admin-border-color);
+  border-radius: 10px;
+}
+
+.admin-page-tabs .ant-tabs-nav {
+  margin: 0;
+}
+
+.admin-page-tabs .ant-tabs-tab {
+  border-bottom: 0 !important;
+}
+
+.admin-page-tabs .ant-tabs-content-holder {
+  display: none;
+}
+
+.admin-workspace-body {
+  min-height: calc(100vh - 160px);
+}
