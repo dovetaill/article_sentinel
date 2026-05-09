@@ -81,4 +81,26 @@ describe('ResultListPage', () => {
       );
     });
   });
+
+  it('reads task_id from the URL when loading the result workspace', async () => {
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/inspection/results?task_id=208']}>
+          <ResultListPage />
+        </MemoryRouter>
+      </ConfigProvider>
+    );
+
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockedListResults).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          page: 1,
+          pageSize: 20,
+          task_id: 208
+        })
+      );
+    });
+  });
 });

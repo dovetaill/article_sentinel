@@ -1,13 +1,23 @@
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import { Button, Card, Modal, Space, Statistic, Tag, Typography, message } from 'antd';
 import { useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import HitPreview from '@/components/HitPreview';
 import StatusTag from '@/components/StatusTag';
 import { batchOfflineResults, listResults, type ResultRecord } from '@/services/results';
 
 const { Title, Paragraph, Text } = Typography;
+
+function normalizePage(value: string | null) {
+  const page = Number(value || 0);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function normalizeTaskId(value: string | null) {
+  const taskId = Number(value || 0);
+  return Number.isInteger(taskId) && taskId > 0 ? taskId : undefined;
+}
 
 function resolveSharedTaskId(resultIds: number[], rows: ResultRecord[]) {
   const selectedIds = new Set(resultIds);
@@ -27,11 +37,14 @@ export default function ResultListPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const actionRef = useRef<ActionType>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
   const [pageRows, setPageRows] = useState<ResultRecord[]>([]);
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
   const [confirmIds, setConfirmIds] = useState<number[]>([]);
   const currentHref = `${location.pathname}${location.search}`;
+  const currentPage = normalizePage(searchParams.get('page'));
+  const submittedTaskId = normalizeTaskId(searchParams.get('task_id'));
 
   const selectedCount = selectedResultIds.length;
   const confirmOpen = confirmIds.length > 0;
@@ -182,15 +195,39 @@ export default function ResultListPage() {
             cardBordered={false}
             headerTitle={false}
             toolBarRender={false}
+            params={{
+              taskId: submittedTaskId,
+              page: currentPage
+            }}
             rowSelection={{
               selectedRowKeys: selectedResultIds,
               onChange: (keys) => setSelectedResultIds(keys.map((item) => Number(item)))
             }}
+            pagination={{
+              current: currentPage,
+              pageSize: 20,
+              showSizeChanger: false,
+              onChange: (nextPage) => {
+                if (nextPage === currentPage) {
+                  return;
+                }
+
+                const nextSearchParams = new URLSearchParams(searchParams);
+                if (nextPage > 1) {
+                  nextSearchParams.set('page', String(nextPage));
+                } else {
+                  nextSearchParams.delete('page');
+                }
+
+                setSearchParams(nextSearchParams);
+              }
+            }}
             request={async (params) => {
               try {
                 const result = await listResults({
-                  page: Number(params.current ?? 1),
-                  pageSize: params.pageSize ?? 20
+                  page: Number(params.current ?? params.page ?? currentPage) || currentPage,
+                  pageSize: params.pageSize ?? 20,
+                  task_id: submittedTaskId
                 });
                 setPageRows(result.items ?? []);
                 return {

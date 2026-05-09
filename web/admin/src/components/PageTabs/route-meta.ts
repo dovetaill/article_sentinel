@@ -155,6 +155,17 @@ export const workspaceRouteItems = [
         hideInMenu: true
       }
     ]
+  },
+  {
+    path: '/audit',
+    name: '审计留痕',
+    routes: [
+      {
+        path: '/audit/logs',
+        name: '操作日志',
+        component: './Audit/OperationLogList'
+      }
+    ]
   }
 ];
 
