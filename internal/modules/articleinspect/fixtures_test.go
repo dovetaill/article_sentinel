@@ -10,14 +10,13 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/dovetaill/article-sentinel/internal/api/response"
 	"github.com/dovetaill/article-sentinel/internal/identity"
+	"github.com/dovetaill/article-sentinel/internal/modules/articleinspect/testutil"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,43 +26,16 @@ import (
 
 func newArticleInspectTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-
-	dbPath := filepath.Join(t.TempDir(), "articleinspect.db")
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open() error = %v", err)
-	}
-
-	if err := db.AutoMigrate(
-		&ChuangqiOrg{},
-		&InspectionCategory{},
-		&InspectionKeyword{},
-		&InspectionKeywordScope{},
-		&InspectionTask{},
-		&InspectionTaskKeyword{},
-		&InspectionTaskOutboxMessage{},
-		&InspectionResult{},
-		&InspectionResultHit{},
-		&InspectionAction{},
-		&InspectionOperationLog{},
-		&InspectionFieldChangeLog{},
-		&Article{},
-		&ArticleInfo{},
-	); err != nil {
-		t.Fatalf("AutoMigrate() error = %v", err)
-	}
-
-	return db
+	return testutil.NewArticleInspectTestDB(t)
 }
 
 func mustTime(t *testing.T, value string) time.Time {
 	t.Helper()
+	return testutil.MustTime(t, value)
+}
 
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		t.Fatalf("time.Parse(%q) error = %v", value, err)
-	}
-	return parsed
+func timePointer(value time.Time) *time.Time {
+	return &value
 }
 
 func sortedStrings(values []string) []string {
@@ -74,26 +46,7 @@ func sortedStrings(values []string) []string {
 
 func seedCandidateArticles(t *testing.T, db *gorm.DB) {
 	t.Helper()
-
-	articles := []Article{
-		{ID: 1, OrgID: 100, Title: "Alpha news", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T10:00:00Z").Unix()},
-		{ID: 2, OrgID: 100, Title: "Beta update", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T11:00:00Z").Unix()},
-		{ID: 3, OrgID: 100, Title: "Gamma draft", State: ArticleStateDraft, PublishAtUnix: mustTime(t, "2026-04-20T12:00:00Z").Unix()},
-		{ID: 4, OrgID: 200, Title: "Other org", State: ArticleStateOnline, PublishAtUnix: mustTime(t, "2026-04-20T10:30:00Z").Unix()},
-	}
-	if err := db.Create(&articles).Error; err != nil {
-		t.Fatalf("seed articles error = %v", err)
-	}
-
-	infos := []ArticleInfo{
-		{ID: 1, OrgID: 100, Body: "body one"},
-		{ID: 2, OrgID: 100, Body: "body two"},
-		{ID: 3, OrgID: 100, Body: "body three"},
-		{ID: 4, OrgID: 200, Body: "body four"},
-	}
-	if err := db.Create(&infos).Error; err != nil {
-		t.Fatalf("seed article infos error = %v", err)
-	}
+	testutil.SeedCandidateArticles(t, db)
 }
 
 type articleInspectHTTPResult struct {
@@ -427,38 +380,7 @@ func articleInspectOperationMap(t *testing.T, paths map[string]map[string]any, p
 
 func seedInspectionTaskForWorker(t *testing.T, db *gorm.DB, rules []KeywordRule) *InspectionTask {
 	t.Helper()
-
-	start := mustTime(t, "2026-04-20T09:00:00Z")
-	end := mustTime(t, "2026-04-20T13:00:00Z")
-	ruleSnapshot, err := marshalJSON(rules)
-	if err != nil {
-		t.Fatalf("marshal rule snapshot error = %v", err)
-	}
-	requestSnapshot, err := marshalJSON(map[string]any{
-		"orgid":              uint64(100),
-		"publish_time_start": start,
-		"publish_time_end":   end,
-		"include_body":       true,
-	})
-	if err != nil {
-		t.Fatalf("marshal request snapshot error = %v", err)
-	}
-
-	task := &InspectionTask{
-		OrgID:              100,
-		TaskNo:             "inspect-test",
-		Status:             TaskStatusPending,
-		ArticleStateFilter: "9",
-		PublishTimeStart:   timePointer(start),
-		PublishTimeEnd:     timePointer(end),
-		IncludeBody:        true,
-		RequestSnapshot:    requestSnapshot,
-		RuleSnapshot:       ruleSnapshot,
-	}
-	if err := db.Create(task).Error; err != nil {
-		t.Fatalf("create task error = %v", err)
-	}
-	return task
+	return testutil.SeedInspectionTaskForWorker(t, db, rules)
 }
 
 func seedTaskForDeletion(t *testing.T, db *gorm.DB, orgID, baseID uint64, status string) *InspectionTask {
