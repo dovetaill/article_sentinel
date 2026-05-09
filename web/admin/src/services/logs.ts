@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface OperationLogRecord {
   id: number;
@@ -60,7 +60,7 @@ export async function listOperationLogs(params: OperationLogListParams): Promise
   if (params.operator_name) query.set('operator_name', params.operator_name);
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: OperationLogRecord[] }>(
-    `/api/v1/article-inspect/logs/operations?${query.toString()}`,
+    `/api/v1/article-inspect/logs/operations?${query.toString()}`
   );
 
   return {
@@ -86,7 +86,7 @@ export async function listArticleOperationLogs(articleId: number, page = 1, page
   });
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: OperationLogRecord[] }>(
-    `/api/v1/article-inspect/articles/${articleId}/operation-logs?${query.toString()}`,
+    `/api/v1/article-inspect/articles/${articleId}/operation-logs?${query.toString()}`
   );
 
   return {
@@ -104,7 +104,7 @@ export async function listArticleFieldChanges(articleId: number, page = 1, pageS
   });
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: FieldChangeLogRecord[] }>(
-    `/api/v1/article-inspect/articles/${articleId}/change-logs?${query.toString()}`,
+    `/api/v1/article-inspect/articles/${articleId}/change-logs?${query.toString()}`
   );
 
   return {

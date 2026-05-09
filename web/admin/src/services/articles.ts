@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface ArticleListParams {
   page?: number;
@@ -71,7 +71,7 @@ export async function listArticles(params: ArticleListParams): Promise<ArticleLi
   if (params.title) query.set('title', params.title);
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: ArticleListItem[] }>(
-    `/api/v1/article-inspect/articles?${query.toString()}`,
+    `/api/v1/article-inspect/articles?${query.toString()}`
   );
 
   return {
@@ -102,12 +102,14 @@ export function republishArticle(articleId: number, input: ArticleLifecycleInput
 }
 
 export function rectifyArticle(articleId: number, input: ArticleRectifyInput) {
-  return apiRequest<Array<{
-    field_name: string;
-    before_value: string;
-    after_value: string;
-    diff_summary: string;
-  }>>(`/api/v1/article-inspect/articles/${articleId}/rectify`, {
+  return apiRequest<
+    Array<{
+      field_name: string;
+      before_value: string;
+      after_value: string;
+      diff_summary: string;
+    }>
+  >(`/api/v1/article-inspect/articles/${articleId}/rectify`, {
     method: 'PUT',
     body: JSON.stringify(input)
   });

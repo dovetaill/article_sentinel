@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface AuthSession {
   id: number;
@@ -13,11 +13,11 @@ export interface AuthSession {
   is_open_edu?: boolean;
 }
 
-export function getSession(): Promise<AuthSession> {
+export function getSession() {
   return apiRequest<AuthSession>('/api/v1/auth/session');
 }
 
-export async function logout(): Promise<void> {
+export async function logout() {
   await apiRequest<{ ok: boolean }>('/api/v1/auth/logout', {
     method: 'POST'
   });

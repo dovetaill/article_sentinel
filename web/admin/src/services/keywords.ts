@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface KeywordRecord {
   id: number;
@@ -49,7 +49,7 @@ export async function listKeywords(params: KeywordListParams): Promise<KeywordLi
   if (typeof params.enabled === 'boolean') query.set('enabled', String(params.enabled));
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: KeywordRecord[] }>(
-    `/api/v1/article-inspect/keywords?${query.toString()}`,
+    `/api/v1/article-inspect/keywords?${query.toString()}`
   );
 
   return {

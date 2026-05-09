@@ -16,7 +16,7 @@ Commands:
   api              Run the backend API server
   worker           Run the async worker
   scheduler        Run the scheduler
-  admin            Run the admin Vite dev server
+  admin            Run the admin Umi Max dev server
   print-endpoints  Print backend/admin dev URLs for the current config
   stop             Stop the current make dev stack
   print-plan       Print the expected make dev process layout
@@ -228,7 +228,7 @@ stale_process_matches() {
 
   if [[ "$process_cwd" == "$ADMIN_DIR" ]]; then
     case "$process_args" in
-      *vite*|*"npm run dev -- --host 0.0.0.0"*)
+      *"@umijs/max/bin/max.js dev"*|*"npm run dev -- --host 0.0.0.0"*)
         return 0
         ;;
     esac
@@ -351,7 +351,7 @@ run_scheduler() {
 }
 
 ensure_admin_deps() {
-  if [[ -x "$ADMIN_DIR/node_modules/.bin/vite" ]]; then
+  if [[ -f "$ADMIN_DIR/node_modules/@umijs/max/bin/max.js" ]]; then
     return 0
   fi
 

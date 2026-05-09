@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface CategoryRecord {
   id: number;
@@ -42,7 +42,7 @@ export async function listCategories(params: CategoryListParams): Promise<Catego
   if (typeof params.enabled === 'boolean') query.set('enabled', String(params.enabled));
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: CategoryRecord[] }>(
-    `/api/v1/article-inspect/categories?${query.toString()}`,
+    `/api/v1/article-inspect/categories?${query.toString()}`
   );
 
   return {

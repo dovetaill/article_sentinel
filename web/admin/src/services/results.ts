@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface ResultRecord {
   id: number;
@@ -120,7 +120,7 @@ export async function listResults(params: ResultListParams): Promise<ResultListR
   if (params.title) query.set('title', params.title);
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: ResultRecord[] }>(
-    `/api/v1/article-inspect/results?${query.toString()}`,
+    `/api/v1/article-inspect/results?${query.toString()}`
   );
 
   return {
@@ -133,12 +133,13 @@ export async function listResults(params: ResultListParams): Promise<ResultListR
 
 export function getResultDetail(id: number): Promise<ResultDetailRecord> {
   return apiRequest<
-    ResultDetailRecord | {
-      result: ResultRecord;
-      hits?: ResultHitRecord[];
-      operation_logs?: ResultOperationRecord[];
-      field_change_logs?: ResultFieldChangeRecord[];
-    }
+    | ResultDetailRecord
+    | {
+        result: ResultRecord;
+        hits?: ResultHitRecord[];
+        operation_logs?: ResultOperationRecord[];
+        field_change_logs?: ResultFieldChangeRecord[];
+      }
   >(`/api/v1/article-inspect/results/${id}`).then((data) => {
     if ('result' in data) {
       return {

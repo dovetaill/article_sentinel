@@ -1,4 +1,4 @@
-import { apiRequest } from '../lib/request';
+import { apiRequest } from './request';
 
 export interface TaskRecord {
   id: number;
@@ -44,7 +44,7 @@ export async function listTasks(params: TaskListParams): Promise<TaskListResult>
   if (params.task_no) query.set('task_no', params.task_no);
 
   const data = await apiRequest<{ page: number; page_size?: number; total: number; items: TaskRecord[] }>(
-    `/api/v1/article-inspect/tasks?${query.toString()}`,
+    `/api/v1/article-inspect/tasks?${query.toString()}`
   );
 
   return {
