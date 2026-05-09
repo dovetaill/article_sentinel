@@ -3,6 +3,7 @@ import { workspaceRouteItems } from '../src/components/PageTabs/route-meta';
 export default [
   { path: '/user/login', layout: false, component: './User/LoginRedirect' },
   { path: '/', redirect: '/inspection/tasks' },
+  { path: '/rules', redirect: '/rules/keywords' },
   {
     path: '/',
     layout: false,

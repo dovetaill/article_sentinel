@@ -19,6 +19,7 @@ export default defineConfig({
   request: {},
   routes,
   hash: true,
+  esbuildMinifyIIFE: true,
   targets: {
     chrome: 88,
     edge: 88

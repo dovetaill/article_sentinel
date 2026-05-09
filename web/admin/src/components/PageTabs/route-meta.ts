@@ -99,6 +99,22 @@ export const workspaceRouteItems = [
         component: './Inspection/TaskList'
       }
     ]
+  },
+  {
+    path: '/rules',
+    name: '规则中心',
+    routes: [
+      {
+        path: '/rules/categories',
+        name: '规则分类',
+        component: './Rules/CategoryList'
+      },
+      {
+        path: '/rules/keywords',
+        name: '规则管理',
+        component: './Rules/KeywordList'
+      }
+    ]
   }
 ];
 
