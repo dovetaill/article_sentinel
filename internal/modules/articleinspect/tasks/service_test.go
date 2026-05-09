@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -82,6 +83,14 @@ func newTaskHTTPHandler(t *testing.T, db *gorm.DB, dispatcher outboxpkg.TaskDisp
 	})
 	RegisterTaskRoutes(group, NewTaskService(db, rulespkg.NewKeywordRepository(db), articleRepositoryStub{}), dispatcher, nil, outboxpkg.TaskOutboxSettings{})
 	return mux
+}
+
+func TestRegisterTaskRoutesUsesOutboxDispatcher(t *testing.T) {
+	var register func(huma.API, *TaskService, outboxpkg.TaskDispatcher, *slog.Logger, outboxpkg.TaskOutboxSettings)
+	register = RegisterTaskRoutes
+	if register == nil {
+		t.Fatal("RegisterTaskRoutes signature adapter = nil")
+	}
 }
 
 func TestTaskCreation(t *testing.T) {

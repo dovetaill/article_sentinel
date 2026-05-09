@@ -2,6 +2,7 @@ package articleinspect
 
 import (
 	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
+	taskspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/tasks"
 	"gorm.io/gorm"
 )
 
@@ -13,18 +14,17 @@ func NewRoutes(db *gorm.DB, dispatcher TaskDispatcher) Routes {
 
 	categoryRepo := NewCategoryRepository(db)
 	keywordRepo := NewKeywordRepository(db)
-	articleRepo := NewArticleRepository(db)
-	articleReadRepo := articlespkg.NewArticleRepository(db)
+	articleRepo := articlespkg.NewArticleRepository(db)
 
 	return Routes{
 		Categories: NewCategoryService(categoryRepo),
 		Keywords:   NewKeywordService(keywordRepo),
-		Tasks:      NewTaskService(db, keywordRepo, articleRepo),
+		Tasks:      taskspkg.NewTaskService(db, keywordRepo, articleRepo),
 		Results:    NewResultService(db),
 		Actions:    NewActionService(db, NewActionRepository(db)),
 		Lifecycle:  NewLifecycleService(db),
 		Logs:       NewLogService(db),
-		Articles:   NewArticleService(articleReadRepo),
+		Articles:   NewArticleService(articleRepo),
 		Dispatcher: dispatcher,
 		Outbox:     defaultTaskOutboxSettings(),
 	}

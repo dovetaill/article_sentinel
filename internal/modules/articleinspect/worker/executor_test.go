@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 	scanpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/scan"
 	"github.com/dovetaill/article-sentinel/internal/modules/articleinspect/testutil"
@@ -27,7 +28,7 @@ func TestExecutorExecuteTask(t *testing.T) {
 			},
 		})
 
-		executor := NewWorker(db)
+		executor := NewExecutorWithDeps(db, scanpkg.NewKeywordScanner(), articlespkg.NewArticleRepository(db), 100)
 		err := executor.ExecuteTask(context.Background(), queuetasks.ArticleInspectTaskPayload{
 			TaskID: task.ID,
 			OrgID:  task.OrgID,
@@ -100,7 +101,7 @@ func TestExecutorExecuteTask(t *testing.T) {
 					Snippet:       "Alpha",
 				}}, nil
 			}),
-			articleRepo: newArticleRepository(db),
+			articleRepo: articlespkg.NewArticleRepository(db),
 		}
 
 		err := executor.ExecuteTask(context.Background(), queuetasks.ArticleInspectTaskPayload{

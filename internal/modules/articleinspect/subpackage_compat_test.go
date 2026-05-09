@@ -215,11 +215,9 @@ func TestRootAliasesMatchExtractedSubpackages(t *testing.T) {
 
 	dispatcher := compatTaskDispatcher{}
 	var rootDispatcher TaskDispatcher = dispatcher
-	var tasksDispatcher taskspkg.TaskDispatcher = rootDispatcher
 	var outboxDispatcher outboxpkg.TaskDispatcher = rootDispatcher
-	rootDispatcher = tasksDispatcher
 	rootDispatcher = outboxDispatcher
-	if rootDispatcher == nil || tasksDispatcher == nil || outboxDispatcher == nil {
+	if rootDispatcher == nil || outboxDispatcher == nil {
 		t.Fatal("task dispatcher compatibility contracts = nil")
 	}
 

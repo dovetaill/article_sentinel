@@ -8,12 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	sharedpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/shared"
-	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 )
-
-type TaskDispatcher interface {
-	DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error
-}
 
 type taskCreateRequest struct {
 	Body CreateInspectionTaskInput
@@ -32,7 +27,7 @@ type taskDetailRequest struct {
 	OrgID sharedpkg.Uint64Param `query:"orgid"`
 }
 
-func RegisterTaskRoutes(api huma.API, service *TaskService, dispatcher TaskDispatcher, logger *slog.Logger, outboxSettings outboxpkg.TaskOutboxSettings) {
+func RegisterTaskRoutes(api huma.API, service *TaskService, dispatcher outboxpkg.TaskDispatcher, logger *slog.Logger, outboxSettings outboxpkg.TaskOutboxSettings) {
 	huma.Register(api, huma.Operation{
 		OperationID:        "article-inspect-task-list",
 		Method:             http.MethodGet,

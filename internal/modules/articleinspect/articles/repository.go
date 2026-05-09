@@ -13,6 +13,8 @@ type ArticleRepository struct {
 	db *gorm.DB
 }
 
+type articleModel = domainpkg.Article
+
 func NewArticleRepository(db *gorm.DB) *ArticleRepository {
 	return &ArticleRepository{db: db}
 }
@@ -33,7 +35,7 @@ func (r *ArticleRepository) loadBodies(ctx context.Context, articleIDs []uint64)
 	return result, nil
 }
 
-func extractArticleIDsFromModels(items []domainpkg.Article) []uint64 {
+func extractArticleIDsFromModels(items []articleModel) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
 		ids = append(ids, item.ID)
