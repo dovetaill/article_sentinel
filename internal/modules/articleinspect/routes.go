@@ -1,29 +1,31 @@
 package articleinspect
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
-	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
+	actionspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/actions"
+	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
+	auditpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/audit"
+	lifecyclepkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/lifecycle"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
+	resultspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/results"
+	rulespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/rules"
+	taskspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/tasks"
 )
 
-type TaskDispatcher interface {
-	DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error
-}
-
 type Routes struct {
-	Categories *CategoryService
-	Keywords   *KeywordService
-	Tasks      *TaskService
-	Results    *ResultService
-	Actions    *ActionService
-	Lifecycle  *LifecycleService
-	Logs       *LogService
-	Articles   *ArticleService
-	Dispatcher TaskDispatcher
+	Categories *rulespkg.CategoryService
+	Keywords   *rulespkg.KeywordService
+	Tasks      *taskspkg.TaskService
+	Results    *resultspkg.ResultService
+	Actions    *actionspkg.ActionService
+	Lifecycle  *lifecyclepkg.LifecycleService
+	Logs       *auditpkg.LogService
+	Articles   *articlespkg.ArticleService
+	Dispatcher outboxpkg.TaskDispatcher
 	Logger     *slog.Logger
-	Outbox     TaskOutboxSettings
+	Outbox     outboxpkg.TaskOutboxSettings
 }
 
 func RegisterRoutes(api huma.API, routes Routes) {
@@ -37,27 +39,27 @@ func RegisterRoutes(api huma.API, routes Routes) {
 	})
 
 	if routes.Categories != nil {
-		registerCategoryRoutes(inspect, routes.Categories)
+		rulespkg.RegisterCategoryRoutes(inspect, routes.Categories)
 	}
 	if routes.Keywords != nil {
-		registerKeywordRoutes(inspect, routes.Keywords)
+		rulespkg.RegisterKeywordRoutes(inspect, routes.Keywords)
 	}
 	if routes.Tasks != nil {
-		registerTaskRoutes(inspect, routes.Tasks, routes.Dispatcher, routes.Logger, routes.Outbox)
+		taskspkg.RegisterTaskRoutes(inspect, routes.Tasks, routes.Dispatcher, routes.Logger, routes.Outbox)
 	}
 	if routes.Results != nil {
-		registerResultRoutes(inspect, routes.Results)
+		resultspkg.RegisterResultRoutes(inspect, routes.Results)
 	}
 	if routes.Actions != nil {
-		registerActionRoutes(inspect, routes.Actions)
+		actionspkg.RegisterActionRoutes(inspect, routes.Actions)
 	}
 	if routes.Lifecycle != nil {
-		registerLifecycleRoutes(inspect, routes.Lifecycle)
+		lifecyclepkg.RegisterLifecycleRoutes(inspect, routes.Lifecycle)
 	}
 	if routes.Logs != nil {
-		registerLogRoutes(inspect, routes.Logs)
+		auditpkg.RegisterLogRoutes(inspect, routes.Logs)
 	}
 	if routes.Articles != nil {
-		registerArticleRoutes(inspect, routes.Articles)
+		articlespkg.RegisterArticleRoutes(inspect, routes.Articles)
 	}
 }

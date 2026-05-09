@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
-	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	queueasynq "github.com/dovetaill/article-sentinel/internal/queue/asynq"
 	"github.com/dovetaill/article-sentinel/internal/scheduler"
 )
@@ -33,8 +33,8 @@ func main() {
 		log.Fatalf("build scheduler client: %v", err)
 	}
 	dispatcher := queueasynq.NewArticleInspectTaskDispatcher(client, rt.Config.Queue.Asynq.QueueName)
-	outboxRelay := articleinspectmodule.NewTaskOutboxRelay(rt.Resources.DB, dispatcher, rt.Logger).
-		WithSettings(articleinspectmodule.NewTaskOutboxSettings(rt.Config.Queue.Outbox))
+	outboxRelay := outboxpkg.NewTaskOutboxRelay(rt.Resources.DB, dispatcher, rt.Logger).
+		WithSettings(outboxpkg.NewTaskOutboxSettings(rt.Config.Queue.Outbox))
 
 	cronScheduler := scheduler.New()
 	if err := scheduler.RegisterJobs(

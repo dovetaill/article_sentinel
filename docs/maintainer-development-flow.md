@@ -14,7 +14,7 @@
   - 如果 server 启动时 dispatcher 初始化失败，`internal/api/register/router.go` 现在会直接打可观测日志，而不是静默退化。
   - `cmd/worker/main.go` 启动 Asynq worker。
   - `internal/queue/asynq/handlers.go` 已注册 `articleinspect:run-task` 的消费逻辑。
-  - `internal/modules/articleinspect/worker.go` 会真正分页扫描文稿、写入结果、更新任务状态。
+  - `internal/modules/articleinspect/worker/executor.go` 会真正分页扫描文稿、写入结果、更新任务状态。
 
 - `scheduler`：**入口存在，默认关闭；启用后承载轻量控制面任务**
   - `configs/config.local.yaml` 默认是 `scheduler.enabled: false`。
@@ -234,9 +234,9 @@ configs/*.yaml / 环境变量
 ### 标准步骤
 
 1. 先确认是扩展现有模块，还是新增模块
-   - 现有模块：直接改 `internal/modules/articleinspect/` 或对应模块
+   - 现有模块：直接改 `internal/modules/articleinspect/` 下的 owner package；root 目录只保留装配和注册，不要把实现塞回 root
    - 新模块：可先参考 `internal/modules/post/`，或者用 `bash scripts/new-module.sh <module_name>` 起骨架
-2. 在模块的 `routes_common.go`、`*_routes.go` 里增加请求结构、响应结构、`huma.Register(...)`
+2. 在 owner package 的 `routes.go` / `transport.go` / `dto.go` 里增加请求结构、响应结构、`huma.Register(...)`
 3. 把业务逻辑放进 service / repository，不要堆在 route handler 里
 4. 在 `internal/api/register/router.go` 里完成顶层 wiring，再由模块自己的 `RegisterRoutes(...)` 接管具体路由注册
 5. 如果新增了数据表，记得补：
@@ -248,7 +248,8 @@ configs/*.yaml / 环境变量
 
 - router 总装配：`internal/api/register/router.go`
 - 巡检模块注册入口：`internal/modules/articleinspect/module.go`、`internal/modules/articleinspect/routes.go`
-- 巡检模块 route contract：`internal/modules/articleinspect/routes_common.go`、`internal/modules/articleinspect/*_routes.go`
+- 巡检模块 feature owner：`internal/modules/articleinspect/{rules,tasks,results,actions,lifecycle,articles,audit}`
+- 巡检模块 runtime owner：`internal/modules/articleinspect/{scan,worker,outbox}`
 - starter 示例模块：`internal/modules/post/`
 - 新模块模板说明：`internal/modules/example/README.md`
 
@@ -333,7 +334,7 @@ HTTP / 业务入口
 - task 定义：`internal/queue/tasks/articleinspect.go`
 - enqueue helper：`internal/queue/asynq/client.go`
 - 消费注册：`internal/queue/asynq/handlers.go`
-- 真实执行器：`internal/modules/articleinspect/worker.go`
+- 真实执行器：`internal/modules/articleinspect/worker/executor.go`
 
 ## 9. 如何写新的 scheduler
 
@@ -478,7 +479,7 @@ make migrate
 - 路由注册：`internal/api/register/router_test.go`
 - scheduler：`internal/scheduler/scheduler_test.go`
 - queue glue：`internal/queue/asynq/asynq_test.go`
-- 巡检主业务：`internal/modules/articleinspect/articleinspect_test.go`
+- 巡检模块级回归：`internal/modules/articleinspect/http_routes_test.go`、`internal/modules/articleinspect/openapi_test.go`
 - 配置加载：`pkg/config/config_test.go`
 
 ## 15. 当前最容易踩的坑

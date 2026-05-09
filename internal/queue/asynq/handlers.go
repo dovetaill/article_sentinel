@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dovetaill/article-sentinel/internal/app/bootstrap"
-	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
+	workerpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/worker"
 	"github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	libasynq "github.com/hibiken/asynq"
 )
@@ -18,7 +18,7 @@ var newArticleInspectExecutorFn = func(rt *bootstrap.Runtime) articleInspectExec
 	if rt == nil || rt.Resources == nil || rt.Resources.DB == nil {
 		return nil
 	}
-	return articleinspectmodule.NewWorker(rt.Resources.DB)
+	return workerpkg.NewWorker(rt.Resources.DB)
 }
 
 // RegisterHandlers 注册当前 worker 支持的任务处理函数。

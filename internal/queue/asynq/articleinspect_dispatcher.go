@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	articleinspectmodule "github.com/dovetaill/article-sentinel/internal/modules/articleinspect"
+	outboxpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/outbox"
 	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	libasynq "github.com/hibiken/asynq"
 )
@@ -14,7 +14,7 @@ type articleInspectTaskDispatcher struct {
 	queueName string
 }
 
-func NewArticleInspectTaskDispatcher(client Enqueuer, queueName string) articleinspectmodule.TaskDispatcher {
+func NewArticleInspectTaskDispatcher(client Enqueuer, queueName string) outboxpkg.TaskDispatcher {
 	if client == nil {
 		return nil
 	}

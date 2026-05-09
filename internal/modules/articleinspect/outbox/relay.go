@@ -9,13 +9,8 @@ import (
 	"time"
 
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
-	queuetasks "github.com/dovetaill/article-sentinel/internal/queue/tasks"
 	"gorm.io/gorm"
 )
-
-type TaskDispatcher interface {
-	DispatchArticleInspectTask(ctx context.Context, payload queuetasks.ArticleInspectTaskPayload) error
-}
 
 type TaskOutboxRelay struct {
 	db         *gorm.DB

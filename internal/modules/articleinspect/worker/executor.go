@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	articlespkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/articles"
 	domainpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/domain"
 	scanpkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/scan"
 	taskspkg "github.com/dovetaill/article-sentinel/internal/modules/articleinspect/tasks"
@@ -25,7 +26,7 @@ type Executor struct {
 }
 
 func NewWorker(db *gorm.DB) *Executor {
-	return NewExecutorWithDeps(db, scanpkg.NewKeywordScanner(), newArticleRepository(db), 100)
+	return NewExecutorWithDeps(db, scanpkg.NewKeywordScanner(), articlespkg.NewArticleRepository(db), 100)
 }
 
 func NewExecutorWithDeps(db *gorm.DB, scanner scanpkg.Scanner, articleRepo CandidateRepository, batchSize int) *Executor {
@@ -41,7 +42,7 @@ func (w *Executor) ExecuteTask(ctx context.Context, payload queuetasks.ArticleIn
 		w.scanner = scanpkg.NewKeywordScanner()
 	}
 	if w.articleRepo == nil {
-		w.articleRepo = newArticleRepository(w.db)
+		w.articleRepo = articlespkg.NewArticleRepository(w.db)
 	}
 	if w.batchSize <= 0 {
 		w.batchSize = 100
