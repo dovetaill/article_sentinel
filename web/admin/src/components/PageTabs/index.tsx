@@ -1,5 +1,5 @@
-import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Tabs, type MenuProps } from 'antd';
+import { CloseOutlined, MoreOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Dropdown, type MenuProps } from 'antd';
 
 import type { TabState } from './store';
 
@@ -12,6 +12,12 @@ type PageTabsProps = {
   onRefresh: (key: string) => void;
 };
 
+function buildTabItemClassName(isActive: boolean) {
+  return ['admin-page-tabs__item', isActive ? 'admin-page-tabs__item--active' : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
 export default function PageTabs(props: PageTabsProps) {
   const { state, onActivate, onClose, onCloseOthers, onCloseAll, onRefresh } = props;
 
@@ -21,67 +27,95 @@ export default function PageTabs(props: PageTabsProps) {
     {
       key: 'refresh',
       label: '刷新当前',
-      icon: <ReloadOutlined />
+      icon: <ReloadOutlined />,
+      disabled: !activeTab
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'closeCurrent',
+      label: '关闭当前',
+      disabled: !activeTab
     },
     {
       key: 'closeOthers',
-      label: '关闭其他'
+      label: '关闭其他',
+      disabled: !activeTab
     },
     {
       key: 'closeAll',
-      label: '关闭全部'
+      label: '关闭全部',
+      disabled: state.tabs.length === 0
     }
   ];
 
   return (
-    <div className="admin-page-tabs admin-page-tabs--light admin-light-surface admin-surface-panel">
-      <Tabs
-        type="editable-card"
-        hideAdd
-        activeKey={state.activeKey}
-        onChange={onActivate}
-        onEdit={(targetKey, action) => {
-          if (action === 'remove' && typeof targetKey === 'string') {
-            onClose(targetKey);
+    <div className="admin-page-tabs admin-light-surface">
+      <div className="admin-page-tabs__scroll">
+        {state.tabs.map((tab) => {
+          const isActive = tab.key === state.activeKey;
+
+          return (
+            <div key={tab.key} className={buildTabItemClassName(isActive)}>
+              <button
+                type="button"
+                className="admin-page-tabs__tab"
+                onClick={() => onActivate(tab.key)}
+              >
+                <span className="admin-page-tabs__label">{tab.title}</span>
+              </button>
+              {tab.closable ? (
+                <button
+                  type="button"
+                  className="admin-page-tabs__close"
+                  aria-label={`关闭 ${tab.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onClose(tab.key);
+                  }}
+                >
+                  <CloseOutlined />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <Dropdown
+        trigger={['click']}
+        menu={{
+          items: menuItems,
+          onClick: ({ key }) => {
+            if (!activeTab && key !== 'closeAll') {
+              return;
+            }
+
+            if (key === 'refresh' && activeTab) {
+              onRefresh(activeTab.key);
+              return;
+            }
+
+            if (key === 'closeCurrent' && activeTab) {
+              onClose(activeTab.key);
+              return;
+            }
+
+            if (key === 'closeOthers' && activeTab) {
+              onCloseOthers(activeTab.key);
+              return;
+            }
+
+            if (key === 'closeAll') {
+              onCloseAll();
+            }
           }
         }}
-        tabBarExtraContent={{
-          right: (
-            <Dropdown
-              menu={{
-                items: menuItems,
-                onClick: ({ key }) => {
-                  if (!activeTab) {
-                    return;
-                  }
-
-                  if (key === 'refresh') {
-                    onRefresh(activeTab.key);
-                    return;
-                  }
-
-                  if (key === 'closeOthers') {
-                    onCloseOthers(activeTab.key);
-                    return;
-                  }
-
-                  if (key === 'closeAll') {
-                    onCloseAll();
-                  }
-                }
-              }}
-              trigger={['click']}
-            >
-              <Button type="text" icon={<MoreOutlined />} />
-            </Dropdown>
-          )
-        }}
-        items={state.tabs.map((tab) => ({
-          key: tab.key,
-          label: tab.title,
-          closable: tab.closable
-        }))}
-      />
+      >
+        <button type="button" className="admin-page-tabs__more" aria-label="更多标签操作">
+          <MoreOutlined />
+        </button>
+      </Dropdown>
     </div>
   );
 }
