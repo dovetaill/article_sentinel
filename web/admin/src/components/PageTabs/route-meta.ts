@@ -7,112 +7,82 @@ export type TabDescriptor = {
   menuKey: string;
 };
 
-type RouteResolver = {
-  pattern: string;
+export type WorkspaceRouteMeta = {
+  path: string;
+  name: string;
+  group: string;
+  breadcrumb: string[];
   menuKey: string;
-  title: (params: Record<string, string>, searchParams: URLSearchParams) => string;
-  key: (params: Record<string, string>, searchParams: URLSearchParams) => string;
+  tabTitle?: string | ((params: Record<string, string>, search: URLSearchParams) => string);
+  tabKey?: (params: Record<string, string>, search: URLSearchParams) => string;
+  closable?: boolean;
+  hiddenInMenu?: boolean;
+  opensTab?: boolean;
+  component?: string;
+  routes?: WorkspaceRouteMeta[];
 };
+
+export const WORKSPACE_EMPTY_PATH = '/workspace';
 
 const BASE_PATH = '/inspection/tasks';
 
-const routeResolvers: RouteResolver[] = [
+const workspaceRouteTree: WorkspaceRouteMeta[] = [
   {
-    pattern: '/inspection/tasks',
+    path: WORKSPACE_EMPTY_PATH,
+    name: '工作区',
+    group: '工作区',
+    breadcrumb: ['首页', '工作区'],
     menuKey: BASE_PATH,
-    title: () => '检测任务',
-    key: () => BASE_PATH
+    hiddenInMenu: true,
+    opensTab: false,
+    component: './Workspace/Empty'
   },
-  {
-    pattern: '/inspection/tasks/create',
-    menuKey: BASE_PATH,
-    title: () => '新建任务',
-    key: () => '/inspection/tasks/create'
-  },
-  {
-    pattern: '/inspection/tasks/:taskId',
-    menuKey: BASE_PATH,
-    title: ({ taskId }) => `任务#${taskId ?? ''}`,
-    key: ({ taskId }) => `task:${taskId ?? ''}`
-  },
-  {
-    pattern: '/inspection/results',
-    menuKey: '/inspection/results',
-    title: () => '风险结果',
-    key: () => '/inspection/results'
-  },
-  {
-    pattern: '/rules/categories',
-    menuKey: '/rules/categories',
-    title: () => '规则分类',
-    key: () => '/rules/categories'
-  },
-  {
-    pattern: '/rules/keywords',
-    menuKey: '/rules/keywords',
-    title: () => '规则管理',
-    key: () => '/rules/keywords'
-  },
-  {
-    pattern: '/content/articles',
-    menuKey: '/content/articles',
-    title: () => '文稿中心',
-    key: () => '/content/articles'
-  },
-  {
-    pattern: '/content/articles/:articleId/rectify',
-    menuKey: '/content/articles',
-    title: ({ articleId }) => `整改#${articleId ?? ''}`,
-    key: ({ articleId }, searchParams) => {
-      const taskId = searchParams.get('task_id');
-      const resultId = searchParams.get('result_id');
-
-      if (taskId && resultId) {
-        return `article:${articleId ?? ''}:rectify:task:${taskId}:result:${resultId}`;
-      }
-
-      return `article:${articleId ?? ''}:rectify`;
-    }
-  },
-  {
-    pattern: '/content/articles/:articleId',
-    menuKey: '/content/articles',
-    title: ({ articleId }) => `文稿#${articleId ?? ''}`,
-    key: ({ articleId }) => `article:${articleId ?? ''}`
-  },
-  {
-    pattern: '/audit/logs',
-    menuKey: '/audit/logs',
-    title: () => '操作日志',
-    key: () => '/audit/logs'
-  }
-];
-
-export const workspaceRouteItems = [
   {
     path: '/inspection',
     name: '巡检业务',
+    group: '巡检业务',
+    breadcrumb: ['首页', '巡检业务'],
+    menuKey: BASE_PATH,
+    opensTab: false,
     routes: [
       {
         path: '/inspection/tasks',
         name: '检测任务',
+        group: '巡检业务',
+        breadcrumb: ['首页', '巡检业务', '检测任务'],
+        menuKey: BASE_PATH,
+        tabTitle: '检测任务',
+        closable: false,
         component: './Inspection/TaskList'
       },
       {
         path: '/inspection/tasks/create',
         name: '新建任务',
-        component: './Inspection/TaskCreate',
-        hideInMenu: true
+        group: '巡检业务',
+        breadcrumb: ['首页', '巡检业务', '新建任务'],
+        menuKey: BASE_PATH,
+        tabTitle: '新建任务',
+        hiddenInMenu: true,
+        component: './Inspection/TaskCreate'
       },
       {
         path: '/inspection/tasks/:taskId',
         name: '任务详情',
-        component: './Inspection/TaskDetail',
-        hideInMenu: true
+        group: '巡检业务',
+        breadcrumb: ['首页', '巡检业务', '任务详情'],
+        menuKey: BASE_PATH,
+        tabTitle: '任务详情',
+        tabKey: ({ taskId }) => `task:${taskId ?? ''}`,
+        hiddenInMenu: true,
+        component: './Inspection/TaskDetail'
       },
       {
         path: '/inspection/results',
         name: '风险结果',
+        group: '巡检业务',
+        breadcrumb: ['首页', '巡检业务', '风险结果'],
+        menuKey: '/inspection/results',
+        tabTitle: '风险结果',
         component: './Inspection/ResultList'
       }
     ]
@@ -120,15 +90,27 @@ export const workspaceRouteItems = [
   {
     path: '/rules',
     name: '规则中心',
+    group: '规则中心',
+    breadcrumb: ['首页', '规则中心'],
+    menuKey: '/rules/keywords',
+    opensTab: false,
     routes: [
       {
         path: '/rules/categories',
         name: '规则分类',
+        group: '规则中心',
+        breadcrumb: ['首页', '规则中心', '规则分类'],
+        menuKey: '/rules/categories',
+        tabTitle: '规则分类',
         component: './Rules/CategoryList'
       },
       {
         path: '/rules/keywords',
-        name: '规则管理',
+        name: '关键词规则',
+        group: '规则中心',
+        breadcrumb: ['首页', '规则中心', '关键词规则'],
+        menuKey: '/rules/keywords',
+        tabTitle: '关键词规则',
         component: './Rules/KeywordList'
       }
     ]
@@ -136,33 +118,68 @@ export const workspaceRouteItems = [
   {
     path: '/content',
     name: '内容中心',
+    group: '内容中心',
+    breadcrumb: ['首页', '内容中心'],
+    menuKey: '/content/articles',
+    opensTab: false,
     routes: [
       {
         path: '/content/articles',
-        name: '文稿中心',
+        name: '文稿列表',
+        group: '内容中心',
+        breadcrumb: ['首页', '内容中心', '文稿列表'],
+        menuKey: '/content/articles',
+        tabTitle: '文稿列表',
         component: './Content/ArticleList'
       },
       {
         path: '/content/articles/:articleId',
-        name: '文稿详情',
-        component: './Content/ArticleDetail',
-        hideInMenu: true
+        name: '文章详情',
+        group: '内容中心',
+        breadcrumb: ['首页', '内容中心', '文章详情'],
+        menuKey: '/content/articles',
+        tabTitle: '文章详情',
+        tabKey: ({ articleId }) => `article:${articleId ?? ''}`,
+        hiddenInMenu: true,
+        component: './Content/ArticleDetail'
       },
       {
         path: '/content/articles/:articleId/rectify',
         name: '内容整改',
-        component: './Content/ArticleRectify',
-        hideInMenu: true
+        group: '内容中心',
+        breadcrumb: ['首页', '内容中心', '内容整改'],
+        menuKey: '/content/articles',
+        tabTitle: '内容整改',
+        tabKey: ({ articleId }, searchParams) => {
+          const taskId = searchParams.get('task_id');
+          const resultId = searchParams.get('result_id');
+
+          if (taskId && resultId) {
+            return `article:${articleId ?? ''}:rectify:task:${taskId}:result:${resultId}`;
+          }
+
+          return `article:${articleId ?? ''}:rectify`;
+        },
+        hiddenInMenu: true,
+        component: './Content/ArticleRectify'
       }
     ]
   },
   {
     path: '/audit',
     name: '审计留痕',
+    group: '审计留痕',
+    breadcrumb: ['首页', '审计留痕'],
+    menuKey: '/audit/logs',
+    opensTab: false,
     routes: [
       {
         path: '/audit/logs',
         name: '操作日志',
+        group: '审计留痕',
+        breadcrumb: ['首页', '审计留痕', '操作日志'],
+        menuKey: '/audit/logs',
+        tabTitle: '操作日志',
         component: './Audit/OperationLogList'
       }
     ]
@@ -220,38 +237,113 @@ function matchPattern(pattern: string, pathname: string) {
   return params;
 }
 
-export function resolveTabDescriptor(href: string): TabDescriptor {
-  const { pathname, search, searchParams } = parseHref(href);
-
-  for (const resolver of routeResolvers) {
-    const params = matchPattern(resolver.pattern, pathname);
-
-    if (!params) {
-      continue;
+function flattenRouteMetas(routes: WorkspaceRouteMeta[]) {
+  return routes.flatMap((route) => {
+    if (!route.routes?.length) {
+      return [route];
     }
 
+    return flattenRouteMetas(route.routes);
+  });
+}
+
+const workspaceRouteMetas = flattenRouteMetas(workspaceRouteTree);
+const fallbackRouteMeta = workspaceRouteMetas.find((route) => route.path === BASE_PATH)!;
+
+type MatchedWorkspaceRouteMeta = {
+  meta: WorkspaceRouteMeta;
+  params: Record<string, string>;
+};
+
+function matchWorkspaceRouteMeta(pathname: string): MatchedWorkspaceRouteMeta {
+  const normalizedPathname = normalizePathname(pathname);
+
+  for (const meta of workspaceRouteMetas) {
+    const params = matchPattern(meta.path, normalizedPathname);
+
+    if (params) {
+      return {
+        meta,
+        params
+      };
+    }
+  }
+
+  return {
+    meta: fallbackRouteMeta,
+    params: {}
+  };
+}
+
+function resolveTabTitle(
+  meta: WorkspaceRouteMeta,
+  params: Record<string, string>,
+  searchParams: URLSearchParams
+) {
+  if (typeof meta.tabTitle === 'function') {
+    return meta.tabTitle(params, searchParams);
+  }
+
+  if (meta.tabTitle) {
+    return meta.tabTitle;
+  }
+
+  return meta.name;
+}
+
+export const workspaceRouteItems = workspaceRouteTree.map((route) => {
+  if (!route.routes?.length) {
     return {
-      key: resolver.key(params, searchParams),
-      pathname,
-      search,
-      title: resolver.title(params, searchParams),
-      closable: pathname !== BASE_PATH,
-      menuKey: resolver.menuKey
+      path: route.path,
+      name: route.name,
+      component: route.component,
+      hideInMenu: route.hiddenInMenu
     };
   }
 
   return {
-    key: pathname,
+    path: route.path,
+    name: route.name,
+    routes: route.routes.map((childRoute) => ({
+      path: childRoute.path,
+      name: childRoute.name,
+      component: childRoute.component,
+      hideInMenu: childRoute.hiddenInMenu
+    }))
+  };
+});
+
+export function resolveRouteMeta(pathname: string): WorkspaceRouteMeta {
+  return matchWorkspaceRouteMeta(pathname).meta;
+}
+
+export function resolveBreadcrumb(pathname: string) {
+  return resolveRouteMeta(pathname).breadcrumb;
+}
+
+export function resolveBreadcrumbItems(pathname: string) {
+  return resolveBreadcrumb(pathname).map((title, index) => ({
+    key: `${index}-${title}`,
+    title
+  }));
+}
+
+export function resolveTabDescriptor(href: string): TabDescriptor {
+  const { pathname, search, searchParams } = parseHref(href);
+  const { meta, params } = matchWorkspaceRouteMeta(pathname);
+
+  return {
+    key: meta.tabKey?.(params, searchParams) ?? pathname,
     pathname,
     search,
-    title: '检测任务',
-    closable: pathname !== BASE_PATH,
-    menuKey: BASE_PATH
+    title: resolveTabTitle(meta, params, searchParams),
+    closable: meta.closable ?? pathname !== BASE_PATH,
+    menuKey: meta.menuKey
   };
 }
 
 export function resolveMenuKey(pathname: string) {
-  return resolveTabDescriptor(pathname).menuKey;
+  return resolveRouteMeta(pathname).menuKey;
 }
 
 export function getBasePath() {
