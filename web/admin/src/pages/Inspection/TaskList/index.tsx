@@ -122,7 +122,7 @@ export default function TaskListPage() {
     <PageContainer title={false}>
       {contextHolder}
       <div className="admin-domain-page">
-        <div className="admin-domain-page__head">
+        <div className="admin-domain-page__head admin-light-surface">
           <div>
             <Title level={3} className="admin-domain-page__title">
               检测任务
@@ -137,21 +137,21 @@ export default function TaskListPage() {
         </div>
 
         <Space size={16} wrap className="admin-summary-strip">
-          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel admin-light-surface" variant="borderless">
             <Statistic title="本页任务数" value={summary.total} />
           </Card>
-          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel admin-light-surface" variant="borderless">
             <Statistic title="执行中" value={summary.running} />
           </Card>
-          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel admin-light-surface" variant="borderless">
             <Statistic title="已完成" value={summary.success} />
           </Card>
-          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel admin-light-surface" variant="borderless">
             <Statistic title="命中总量" value={summary.hits} />
           </Card>
         </Space>
 
-        <Card className="admin-filter-card admin-surface-panel" variant="borderless">
+        <Card className="admin-filter-card admin-surface-panel admin-light-surface" variant="borderless">
           <div className="admin-filter-bar">
             <div className="admin-filter-bar__controls">
               <Input
@@ -209,7 +209,7 @@ export default function TaskListPage() {
             </Space>
           </div>
 
-          <div className="admin-table-shell admin-surface-panel">
+          <div className="admin-table-shell admin-surface-panel admin-light-surface">
             <ProTable<TaskRecord>
               rowKey="id"
               actionRef={actionRef}
