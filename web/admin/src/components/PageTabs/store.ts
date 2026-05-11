@@ -1,4 +1,4 @@
-import { getBasePath, resolveTabDescriptor, type TabDescriptor } from './route-meta';
+import { resolveRouteMeta, resolveTabDescriptor, type TabDescriptor } from './route-meta';
 
 export type TabState = {
   orgId: number;
@@ -17,35 +17,41 @@ export type TabAction =
 
 const STORAGE_PREFIX = 'article-sentinel:page-tabs';
 
-function createBaseTab(): TabDescriptor {
-  return resolveTabDescriptor(getBasePath());
+function resolveHrefPathname(href: string) {
+  return new URL(href, 'http://admin.local').pathname;
 }
 
-function ensureBaseTab(tabs: TabDescriptor[]) {
-  const basePath = getBasePath();
-  const baseTab = tabs.find((tab) => tab.pathname === basePath) ?? createBaseTab();
-  const otherTabs = tabs.filter((tab) => tab.pathname !== basePath);
+function resolveRestoredActiveKey(tabs: TabDescriptor[], activeKey: string) {
+  if (tabs.some((tab) => tab.key === activeKey)) {
+    return activeKey;
+  }
 
-  return [baseTab, ...otherTabs];
+  return tabs[0]?.key ?? '';
 }
 
 function findNextActiveKey(tabs: TabDescriptor[], closingKey: string) {
   const currentIndex = tabs.findIndex((tab) => tab.key === closingKey);
 
   if (currentIndex === -1) {
-    return getBasePath();
+    return '';
   }
 
-  return tabs[currentIndex + 1]?.key ?? tabs[currentIndex - 1]?.key ?? getBasePath();
+  return tabs[currentIndex - 1]?.key ?? tabs[currentIndex + 1]?.key ?? '';
+}
+
+function shouldOpenTab(href: string) {
+  return resolveRouteMeta(resolveHrefPathname(href)).opensTab !== false;
+}
+
+function sanitizeRestoredTabs(tabs: TabDescriptor[]) {
+  return tabs.filter((tab) => resolveRouteMeta(tab.pathname).opensTab !== false);
 }
 
 export function restoreDefaultTabs(orgId: number): TabState {
-  const baseTab = createBaseTab();
-
   return {
     orgId,
-    activeKey: baseTab.key,
-    tabs: [baseTab]
+    activeKey: '',
+    tabs: []
   };
 }
 
@@ -53,6 +59,11 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
   switch (action.type) {
     case 'open': {
       const nextState = state.orgId === action.orgId ? state : restoreDefaultTabs(action.orgId);
+
+      if (!shouldOpenTab(action.href)) {
+        return nextState;
+      }
+
       const nextTab = resolveTabDescriptor(action.href);
       const existingIndex = nextState.tabs.findIndex((tab) => tab.key === nextTab.key);
 
@@ -63,6 +74,7 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
           pathname: nextTab.pathname,
           search: nextTab.search || existingTab.search,
           title: nextTab.title,
+          closable: nextTab.closable,
           menuKey: nextTab.menuKey
         };
 
@@ -70,6 +82,7 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
           mergedTab.pathname === existingTab.pathname &&
           mergedTab.search === existingTab.search &&
           mergedTab.title === existingTab.title &&
+          mergedTab.closable === existingTab.closable &&
           nextState.activeKey === mergedTab.key
         ) {
           return nextState;
@@ -84,7 +97,7 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
 
       return {
         orgId: action.orgId,
-        tabs: ensureBaseTab([...nextState.tabs, nextTab]),
+        tabs: [...nextState.tabs, nextTab],
         activeKey: nextTab.key
       };
     }
@@ -106,7 +119,7 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
         return state;
       }
 
-      const tabs = ensureBaseTab(state.tabs.filter((tab) => tab.key !== action.key));
+      const tabs = state.tabs.filter((tab) => tab.key !== action.key);
       const activeKey = state.activeKey === action.key ? findNextActiveKey(state.tabs, action.key) : state.activeKey;
 
       return {
@@ -117,25 +130,21 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
     }
 
     case 'closeOthers': {
-      const tabs = ensureBaseTab(state.tabs.filter((tab) => tab.key === action.key || !tab.closable));
-      const activeKey = tabs.some((tab) => tab.key === action.key) ? action.key : getBasePath();
+      const tabs = state.tabs.filter((tab) => tab.key === action.key);
 
       return {
         ...state,
         tabs,
-        activeKey
+        activeKey: tabs[0]?.key ?? ''
       };
     }
 
-    case 'closeAll': {
-      const baseTab = createBaseTab();
-
+    case 'closeAll':
       return {
         ...state,
-        activeKey: baseTab.key,
-        tabs: [baseTab]
+        activeKey: '',
+        tabs: []
       };
-    }
 
     case 'refresh':
       return {
@@ -143,12 +152,15 @@ export function reduceTabs(state: TabState, action: TabAction): TabState {
         activeKey: action.key
       };
 
-    case 'restore':
+    case 'restore': {
+      const tabs = sanitizeRestoredTabs(action.state.tabs);
+
       return {
         orgId: action.state.orgId,
-        activeKey: action.state.activeKey,
-        tabs: ensureBaseTab(action.state.tabs)
+        activeKey: resolveRestoredActiveKey(tabs, action.state.activeKey),
+        tabs
       };
+    }
 
     default:
       return state;
