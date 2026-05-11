@@ -1,9 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import BasicLayout from './BasicLayout';
 
-const { mockedNavigate, mockedProLayout } = vi.hoisted(() => ({
+const { mockedLogout, mockedNavigate, mockedProLayout } = vi.hoisted(() => ({
+  mockedLogout: vi.fn(),
   mockedNavigate: vi.fn(),
   mockedProLayout: vi.fn()
 }));
@@ -31,7 +33,8 @@ vi.mock('@umijs/max', () => ({
     initialState: {
       currentUser: {
         orgid: 29,
-        orgname: '示例机构'
+        orgname: '示例机构',
+        nickname: '测试用户'
       },
       currentOrgId: 29,
       currentOrgName: '示例机构'
@@ -40,22 +43,38 @@ vi.mock('@umijs/max', () => ({
   useNavigate: () => mockedNavigate
 }));
 
+vi.mock('@/services/auth', () => ({
+  logout: mockedLogout
+}));
+
 describe('BasicLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedLogout.mockResolvedValue(undefined);
     window.localStorage.clear();
   });
 
-  it('keeps a dark sidebar while rendering a light workspace shell', () => {
+  it('renders the admin header, breadcrumb, user menu, and page tabs on light surfaces', async () => {
+    const user = userEvent.setup();
     const { container } = render(<BasicLayout />);
 
-    expect(screen.getByTestId('pro-layout')).toHaveAttribute('data-layout', 'side');
-    expect(screen.getByTestId('pro-layout')).toHaveAttribute('data-nav-theme', 'light');
-    expect(screen.getByTestId('pro-layout')).not.toHaveAttribute('data-nav-theme', 'realDark');
+    expect(container.querySelector('.admin-header.admin-light-surface')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '收缩侧边栏' })).toBeInTheDocument();
+    expect(screen.getByText('首页')).toBeInTheDocument();
+    expect(screen.getByText('巡检业务')).toBeInTheDocument();
+    const pageTabs = container.querySelector('.admin-page-tabs.admin-light-surface');
+    expect(pageTabs).toBeInTheDocument();
+    expect(within(pageTabs as HTMLElement).getByText('检测任务')).toBeInTheDocument();
 
-    expect(container.querySelector('.admin-workspace-shell')).toHaveClass('admin-workspace-shell--light');
-    expect(container.querySelector('.admin-workspace-body')).toHaveClass('admin-workspace-body--light');
-    expect(container.querySelector('.admin-page-tabs')).toHaveClass('admin-page-tabs--light');
-    expect(screen.getByTestId('layout-outlet')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '用户菜单' }));
+    expect(screen.getByText('个人中心')).toBeInTheDocument();
+    expect(screen.getByText('退出登录')).toBeInTheDocument();
+
+    await user.click(screen.getByText('退出登录'));
+
+    await waitFor(() => {
+      expect(mockedLogout).toHaveBeenCalledTimes(1);
+      expect(mockedNavigate).toHaveBeenCalledWith('/user/login', { replace: true });
+    });
   });
 });
