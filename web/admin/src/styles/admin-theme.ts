@@ -2,8 +2,8 @@ import type { ThemeConfig } from 'antd';
 import { theme } from 'antd';
 
 export const adminVisualTokens = {
-  colorPrimary: '#1677ff',
-  sidebarBg: '#001529',
+  colorPrimary: '#2d8cf0',
+  sidebarBg: '#191a23',
   pageBg: '#f0f2f5',
   contentBg: '#f5f7f9',
   headerBg: '#ffffff',

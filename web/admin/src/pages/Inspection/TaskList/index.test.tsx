@@ -41,4 +41,21 @@ describe('TaskListPage', () => {
     expect(container.querySelector('.admin-filter-card.admin-surface-panel')).toBeInTheDocument();
     expect(container.querySelector('.admin-table-shell.admin-surface-panel')).toBeInTheDocument();
   });
+
+  it('keeps the task list page on light surfaces after the shell refactor', async () => {
+    const { container } = render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/inspection/tasks']}>
+          <TaskListPage />
+        </MemoryRouter>
+      </ConfigProvider>
+    );
+
+    await screen.findByLabelText('任务编号');
+
+    expect(container.querySelector('.admin-domain-page__head.admin-light-surface')).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-light-surface')).toHaveLength(4);
+    expect(container.querySelector('.admin-filter-card.admin-light-surface')).toBeInTheDocument();
+    expect(container.querySelector('.admin-table-shell.admin-light-surface')).toBeInTheDocument();
+  });
 });
