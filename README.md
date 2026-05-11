@@ -329,15 +329,16 @@ npm run dev
 
 默认访问：
 
-- 本机：`http://127.0.0.1:5173`
-- 远程联调：`http://<server-ip>:5173`
+- 默认本机：`http://127.0.0.1:5173`
+- 默认远程联调：`http://<server-ip>:5173`
 
 补充说明：
 
-- `web/admin/package.json` 中的 `npm run dev` 会启动 `Umi Max` 开发服务器，并固定绑定到 `0.0.0.0:5173`
+- `web/admin/package.json` 中的 `npm run dev` 会优先尝试 `0.0.0.0:5173`；如果端口已被占用，Umi 会自动切换到下一个可用端口
+- 使用 `make dev` 时，请以前端启动日志或 `scripts/dev.sh print-endpoints` 打印出的实际地址为准
 - 前端 `/api` 与 `/auth` 代理规则统一定义在 `web/admin/config/proxy.ts`
-- 如果公网仍然访问不到，请检查服务器防火墙、云安全组是否放行 `5173/tcp`
-- `5173` 仅建议用于开发联调；生产环境请执行 `npm run build`，并用 Nginx 或其他静态文件服务托管 `web/admin/dist`
+- 如果公网仍然访问不到，请检查服务器防火墙、云安全组是否放行实际监听端口（默认优先 `5173/tcp`）
+- 前端开发端口仅建议用于开发联调；生产环境请执行 `npm run build`，并用 Nginx 或其他静态文件服务托管 `web/admin/dist`
 
 ### 8. 导入真实文稿数据（推荐）
 

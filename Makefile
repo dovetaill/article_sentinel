@@ -1,4 +1,7 @@
-export GOCACHE ?= /tmp/article-sentinel-go-cache
+DEV_TMPDIR ?= $(CURDIR)/.tmp/dev
+DEV_GOTMPDIR ?= $(CURDIR)/.tmp/go-build
+DEV_GOCACHE ?= $(CURDIR)/.tmp/go-cache
+export GOCACHE ?= $(DEV_GOCACHE)
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -16,7 +19,8 @@ RELEASE_TARBALL_SHA256 = $(RELEASE_TARBALL).sha256
 CONFIG ?= configs/config.local.yaml
 COMPOSE ?= docker compose
 DEV_SCRIPT := bash scripts/dev.sh
-DEV_GO_ENV := CONFIG=$(CONFIG) GOCACHE=$(GOCACHE)
+DEV_ENV := CONFIG=$(CONFIG) TMPDIR=$(DEV_TMPDIR) GOTMPDIR=$(DEV_GOTMPDIR) GOCACHE=$(DEV_GOCACHE)
+DEV_GO_ENV := $(DEV_ENV)
 
 .PHONY: up down stop dev dev-api dev-worker dev-scheduler dev-admin dev-check test verify smoke migrate print-version clean build-server build-worker build-scheduler build-migrate build-go build-admin build package release
 
@@ -30,35 +34,35 @@ stop:
 	$(DEV_SCRIPT) stop
 
 dev:
-	$(DEV_SCRIPT) stop; \
-	$(DEV_SCRIPT) print-endpoints; \
-	session_id="$$($(DEV_SCRIPT) start-session)"; \
-	trap '$(DEV_SCRIPT) stop-session "$$session_id"' INT TERM EXIT; \
+	$(DEV_ENV) $(DEV_SCRIPT) stop; \
+	session_id="$$($(DEV_ENV) $(DEV_SCRIPT) start-session)"; \
+	trap '$(DEV_ENV) $(DEV_SCRIPT) stop-session "$$session_id"' INT TERM EXIT; \
 	$(DEV_GO_ENV) setsid $(DEV_SCRIPT) api & \
 	api_pid=$$!; \
-	$(DEV_SCRIPT) register-dev-pid "$$session_id" api "$$api_pid"; \
+	$(DEV_ENV) $(DEV_SCRIPT) register-dev-pid "$$session_id" api "$$api_pid"; \
 	$(DEV_GO_ENV) setsid $(DEV_SCRIPT) worker & \
 	worker_pid=$$!; \
-	$(DEV_SCRIPT) register-dev-pid "$$session_id" worker "$$worker_pid"; \
+	$(DEV_ENV) $(DEV_SCRIPT) register-dev-pid "$$session_id" worker "$$worker_pid"; \
 	$(DEV_GO_ENV) setsid $(DEV_SCRIPT) scheduler & \
 	scheduler_pid=$$!; \
-	$(DEV_SCRIPT) register-dev-pid "$$session_id" scheduler "$$scheduler_pid"; \
-	setsid $(DEV_SCRIPT) admin & \
+	$(DEV_ENV) $(DEV_SCRIPT) register-dev-pid "$$session_id" scheduler "$$scheduler_pid"; \
+	$(DEV_ENV) setsid $(DEV_SCRIPT) admin & \
 	admin_pid=$$!; \
-	$(DEV_SCRIPT) register-dev-pid "$$session_id" admin "$$admin_pid"; \
+	$(DEV_ENV) $(DEV_SCRIPT) register-dev-pid "$$session_id" admin "$$admin_pid"; \
+	$(DEV_ENV) $(DEV_SCRIPT) print-endpoints; \
 	wait $$api_pid $$worker_pid $$scheduler_pid $$admin_pid
 
 dev-api:
-	$(DEV_GO_ENV) $(DEV_SCRIPT) api
+	$(DEV_ENV) $(DEV_SCRIPT) api
 
 dev-worker:
-	$(DEV_GO_ENV) $(DEV_SCRIPT) worker
+	$(DEV_ENV) $(DEV_SCRIPT) worker
 
 dev-scheduler:
-	$(DEV_GO_ENV) $(DEV_SCRIPT) scheduler
+	$(DEV_ENV) $(DEV_SCRIPT) scheduler
 
 dev-admin:
-	$(DEV_SCRIPT) admin
+	$(DEV_ENV) $(DEV_SCRIPT) admin
 
 dev-check:
 	$(DEV_SCRIPT) print-plan

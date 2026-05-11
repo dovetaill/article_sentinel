@@ -50,6 +50,7 @@ coverage.out
 # Cursor / Superpowers 产生可能产生的临时设计文件或对话历史
 .cursor/
 .codex/history/
+.tmp/
 .worktree/
 .worktrees/
 

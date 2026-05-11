@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEV_SCRIPT="$ROOT_DIR/scripts/dev.sh"
+ADMIN_DIR="$ROOT_DIR/web/admin"
 TEST_TMPDIR="$ROOT_DIR/.tmp/dev-test"
 
 mkdir -p "$TEST_TMPDIR"
@@ -60,6 +61,60 @@ YAML
   assert_contains "$output" "Jump login: http://127.0.0.1:18080/auth/login?jwt=<legacy-jwt>"
 
   rm -f "$temp_config"
+}
+
+test_print_endpoints_prefers_running_admin_port() {
+  local temp_config
+  temp_config="$(mktemp)"
+  cat >"$temp_config" <<'YAML'
+app:
+  host: 0.0.0.0
+  port: 18080
+YAML
+
+  local admin_port
+  admin_port="$(
+    python - <<'PY'
+import socket
+
+sock = socket.socket()
+sock.bind(("127.0.0.1", 0))
+print(sock.getsockname()[1])
+sock.close()
+PY
+  )"
+
+  (
+    cd "$ADMIN_DIR"
+    exec bash -c "exec -a '$ADMIN_DIR/node_modules/@umijs/max/bin/max.js dev --port 5173 --host 0.0.0.0' python -m http.server $admin_port --bind 127.0.0.1 >/dev/null 2>&1"
+  ) &
+  local admin_pid=$!
+
+  cleanup() {
+    kill "$admin_pid" >/dev/null 2>&1 || true
+    wait "$admin_pid" >/dev/null 2>&1 || true
+    rm -f "$temp_config"
+  }
+  trap cleanup EXIT
+
+  local tries=50
+  while (( tries > 0 )); do
+    if ss -ltnp | rg -q ":${admin_port}\\b"; then
+      break
+    fi
+    tries=$((tries - 1))
+    sleep 0.1
+  done
+
+  local output
+  output="$(CONFIG="$temp_config" "$DEV_SCRIPT" print-endpoints)"
+
+  assert_contains "$output" "Admin UI: http://127.0.0.1:${admin_port}"
+  assert_contains "$output" "Admin jump login: http://127.0.0.1:${admin_port}/auth/login?jwt=<legacy-jwt>"
+  assert_contains "$output" "Backend API: http://127.0.0.1:18080"
+
+  trap - EXIT
+  cleanup
 }
 
 test_readme_describes_umi_pro_admin_shell() {
@@ -168,7 +223,7 @@ test_stop_kills_registered_processes() {
   local session_id
   session_id="$("$DEV_SCRIPT" start-session)"
 
-  sleep 30 &
+  setsid bash -c 'exec sleep 30' &
   local sleeper_pid=$!
 
   cleanup() {
@@ -188,10 +243,38 @@ test_stop_kills_registered_processes() {
   trap - EXIT
 }
 
+test_stop_kills_registered_processes_when_tmpdir_changes() {
+  mkdir -p "$TEST_TMPDIR/a" "$TEST_TMPDIR/b"
+  TMPDIR="$TEST_TMPDIR/a" "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+
+  local session_id
+  session_id="$(TMPDIR="$TEST_TMPDIR/a" "$DEV_SCRIPT" start-session)"
+
+  setsid bash -c 'exec sleep 30' &
+  local sleeper_pid=$!
+
+  cleanup() {
+    kill "$sleeper_pid" >/dev/null 2>&1 || true
+    wait "$sleeper_pid" >/dev/null 2>&1 || true
+    TMPDIR="$TEST_TMPDIR/a" "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+    TMPDIR="$TEST_TMPDIR/b" "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+  }
+  trap cleanup EXIT
+
+  TMPDIR="$TEST_TMPDIR/a" "$DEV_SCRIPT" register-dev-pid "$session_id" test "$sleeper_pid"
+  TMPDIR="$TEST_TMPDIR/b" "$DEV_SCRIPT" stop
+
+  if kill -0 "$sleeper_pid" >/dev/null 2>&1; then
+    fail "expected stop to terminate pid $sleeper_pid even if TMPDIR changed"
+  fi
+
+  trap - EXIT
+}
+
 test_stop_kills_stale_server_process_without_session_file() {
   "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
 
-  bash -c 'exec -a article-sentinel-server sleep 30' &
+  setsid bash -c 'exec -a article-sentinel-server sleep 30' &
   local stale_pid=$!
 
   cleanup() {
@@ -214,7 +297,7 @@ test_stop_kills_stale_go_run_temp_server_without_session_file() {
 
   (
     cd "$ROOT_DIR"
-    exec bash -c 'exec -a /tmp/go-build123/b001/exe/server sleep 30'
+    exec setsid bash -c 'exec -a /tmp/go-build123/b001/exe/server sleep 30'
   ) &
   local stale_pid=$!
 
@@ -238,7 +321,7 @@ test_stop_kills_stale_go_run_cache_server_without_session_file() {
 
   (
     cd "$ROOT_DIR"
-    exec bash -c 'exec -a /tmp/article-sentinel-go-cache/fakehash/server sleep 30'
+    exec setsid bash -c 'exec -a /tmp/article-sentinel-go-cache/fakehash/server sleep 30'
   ) &
   local stale_pid=$!
 
@@ -257,13 +340,67 @@ test_stop_kills_stale_go_run_cache_server_without_session_file() {
   trap - EXIT
 }
 
+test_stop_kills_orphaned_admin_child_process_without_session_file() {
+  "$DEV_SCRIPT" stop >/dev/null 2>&1 || true
+
+  local child_pid_file
+  child_pid_file="$(mktemp)"
+
+  (
+    cd "$ADMIN_DIR"
+    CHILD_PID_FILE="$child_pid_file" setsid bash -c '
+      bash -c '"'"'
+        trap "" TERM
+        sleep 30 &
+        echo $! >"$CHILD_PID_FILE"
+        wait
+      '"'"' "@umijs/max/bin/max.js dev --port 5173 --host 0.0.0.0" &
+    ' >/dev/null 2>&1
+  ) || true
+
+  local child_pid=""
+  local tries=50
+  while (( tries > 0 )); do
+    if [[ -s "$child_pid_file" ]]; then
+      child_pid="$(<"$child_pid_file")"
+      break
+    fi
+    tries=$((tries - 1))
+    sleep 0.1
+  done
+
+  if [[ -z "$child_pid" ]]; then
+    rm -f "$child_pid_file"
+    fail "expected orphaned admin child pid to be recorded"
+  fi
+
+  cleanup() {
+    kill "$child_pid" >/dev/null 2>&1 || true
+    wait "$child_pid" >/dev/null 2>&1 || true
+    rm -f "$child_pid_file"
+  }
+  trap cleanup EXIT
+
+  "$DEV_SCRIPT" stop
+
+  if kill -0 "$child_pid" >/dev/null 2>&1; then
+    fail "expected stop to terminate orphaned admin child pid $child_pid"
+  fi
+
+  trap - EXIT
+  cleanup
+}
+
 test_make_dev_stops_previous_stack_first
 test_stop_kills_registered_processes
+test_stop_kills_registered_processes_when_tmpdir_changes
 test_stop_kills_stale_server_process_without_session_file
 test_stop_kills_stale_go_run_temp_server_without_session_file
 test_stop_kills_stale_go_run_cache_server_without_session_file
+test_stop_kills_orphaned_admin_child_process_without_session_file
 test_make_dev_prints_backend_endpoints
 test_print_endpoints_reports_backend_and_jump_login_urls
+test_print_endpoints_prefers_running_admin_port
 test_readme_describes_umi_pro_admin_shell
 test_admin_uses_umi_max_dev_server_settings
 test_admin_proxy_configuration_covers_auth_routes

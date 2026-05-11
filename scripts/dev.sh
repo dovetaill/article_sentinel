@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_PATH="${CONFIG:-configs/config.local.yaml}"
 ADMIN_DIR="$ROOT_DIR/web/admin"
+LOCAL_TMP_ROOT="${ROOT_DIR}/.tmp"
 # 用仓库路径做哈希，避免同一台机器上多个 worktree 互相抢占 dev 状态目录。
-DEV_STATE_DIR="${TMPDIR:-/tmp}/article-sentinel-dev-$(printf '%s' "$ROOT_DIR" | cksum | awk '{print $1}')"
+DEV_STATE_DIR="${ARTICLE_SENTINEL_DEV_STATE_DIR:-${LOCAL_TMP_ROOT}/article-sentinel-dev-$(printf '%s' "$ROOT_DIR" | cksum | awk '{print $1}')}"
 CURRENT_SESSION_FILE="$DEV_STATE_DIR/current-session"
 
 usage() {
@@ -112,12 +113,124 @@ backend_network_host() {
   esac
 }
 
+admin_default_port() {
+  printf '%s\n' "5173"
+}
+
+admin_process_matches() {
+  local process_args="$1"
+  case "$process_args" in
+    *"@umijs/max/bin/max.js dev"*|*"npm run dev -- --host 0.0.0.0"*|*"forkedDev.js dev"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+listener_port_for_pid() {
+  local process_pid="$1"
+
+  ss -ltnpH 2>/dev/null | awk -v pid="$process_pid" '
+    $0 ~ ("pid=" pid ",") {
+      n = split($4, parts, ":")
+      port = parts[n]
+      gsub(/^\[/, "", port)
+      gsub(/\]$/, "", port)
+      print port
+      exit
+    }
+  '
+}
+
+detect_admin_port() {
+  local line process_pid process_args process_cwd port
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    read -r process_pid process_args <<<"$line"
+
+    [[ "$process_pid" =~ ^[0-9]+$ ]] || continue
+
+    process_cwd=""
+    if [[ -L "/proc/$process_pid/cwd" ]]; then
+      process_cwd="$(readlink -f "/proc/$process_pid/cwd" 2>/dev/null || true)"
+    fi
+
+    if [[ "$process_cwd" != "$ADMIN_DIR" ]]; then
+      continue
+    fi
+
+    if ! admin_process_matches "$process_args"; then
+      continue
+    fi
+
+    port="$(listener_port_for_pid "$process_pid")"
+    if [[ -n "$port" ]]; then
+      printf '%s\n' "$port"
+      return 0
+    fi
+  done < <(ps -eo pid=,args=)
+
+  return 1
+}
+
+admin_process_running() {
+  local line process_pid process_args process_cwd
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    read -r process_pid process_args <<<"$line"
+
+    [[ "$process_pid" =~ ^[0-9]+$ ]] || continue
+
+    process_cwd=""
+    if [[ -L "/proc/$process_pid/cwd" ]]; then
+      process_cwd="$(readlink -f "/proc/$process_pid/cwd" 2>/dev/null || true)"
+    fi
+
+    if [[ "$process_cwd" == "$ADMIN_DIR" ]] && admin_process_matches "$process_args"; then
+      return 0
+    fi
+  done < <(ps -eo pid=,args=)
+
+  return 1
+}
+
+resolve_admin_port() {
+  local admin_port=""
+  local retries=50
+
+  admin_port="$(detect_admin_port || true)"
+  if [[ -n "$admin_port" ]]; then
+    printf '%s\n' "$admin_port"
+    return 0
+  fi
+
+  if ! admin_process_running; then
+    admin_default_port
+    return 0
+  fi
+
+  while (( retries > 0 )); do
+    admin_port="$(detect_admin_port || true)"
+    if [[ -n "$admin_port" ]]; then
+      printf '%s\n' "$admin_port"
+      return 0
+    fi
+
+    retries=$((retries - 1))
+    sleep 0.1
+  done
+
+  admin_default_port
+}
+
 print_endpoints() {
-  local port backend_host backend_base admin_base admin_jump_login network_host
+  local port backend_host backend_base admin_port admin_base admin_jump_login network_host
   port="$(backend_port)"
   backend_host="$(backend_display_host)"
   backend_base="http://${backend_host}:${port}"
-  admin_base="http://127.0.0.1:5173"
+  admin_port="$(resolve_admin_port)"
+  admin_base="http://127.0.0.1:${admin_port}"
   admin_jump_login="${admin_base}/auth/login?jwt=<legacy-jwt>"
 
   echo "Admin UI: ${admin_base}"
@@ -128,8 +241,8 @@ print_endpoints() {
 
   network_host="$(backend_network_host)"
   if [[ -n "$network_host" && "$network_host" != "$backend_host" ]]; then
-    echo "Admin UI (network): http://${network_host}:5173"
-    echo "Admin jump login (network): http://${network_host}:5173/auth/login?jwt=<legacy-jwt>"
+    echo "Admin UI (network): http://${network_host}:${admin_port}"
+    echo "Admin jump login (network): http://${network_host}:${admin_port}/auth/login?jwt=<legacy-jwt>"
     echo "Backend API (network): http://${network_host}:${port}"
     echo "Jump login (network): http://${network_host}:${port}/auth/login?jwt=<legacy-jwt>"
   fi
@@ -180,12 +293,16 @@ register_dev_pid() {
 
 stop_pid() {
   local process_pid="$1"
+  local process_pgid=""
 
   if ! kill -0 "$process_pid" >/dev/null 2>&1; then
     return 0
   fi
 
-  kill -TERM -- "-$process_pid" >/dev/null 2>&1 || true
+  process_pgid="$(ps -o pgid= -p "$process_pid" 2>/dev/null | tr -d '[:space:]')"
+  if [[ "$process_pgid" =~ ^[0-9]+$ ]]; then
+    kill -TERM -- "-$process_pgid" >/dev/null 2>&1 || true
+  fi
   kill -TERM "$process_pid" >/dev/null 2>&1 || true
 
   local retries=20
@@ -197,7 +314,9 @@ stop_pid() {
     sleep 0.25
   done
 
-  kill -KILL -- "-$process_pid" >/dev/null 2>&1 || true
+  if [[ "$process_pgid" =~ ^[0-9]+$ ]]; then
+    kill -KILL -- "-$process_pgid" >/dev/null 2>&1 || true
+  fi
   kill -KILL "$process_pid" >/dev/null 2>&1 || true
 }
 
@@ -227,11 +346,9 @@ stale_process_matches() {
   fi
 
   if [[ "$process_cwd" == "$ADMIN_DIR" ]]; then
-    case "$process_args" in
-      *"@umijs/max/bin/max.js dev"*|*"npm run dev -- --host 0.0.0.0"*)
-        return 0
-        ;;
-    esac
+    if admin_process_matches "$process_args"; then
+      return 0
+    fi
   fi
 
   return 1
@@ -289,20 +406,22 @@ stop_current_session() {
 }
 
 prepare_go_env() {
-  # 把 go build 缓存固定到稳定目录，便于 stop 逻辑识别临时编译产物。
-  export GOCACHE="${GOCACHE:-/tmp/article-sentinel-go-cache}"
-  mkdir -p "$GOCACHE"
+  # 默认落到仓库内 .tmp，避免系统 /tmp inode 被打爆时影响 make dev。
+  export TMPDIR="${TMPDIR:-${LOCAL_TMP_ROOT}/dev}"
+  export GOTMPDIR="${GOTMPDIR:-${LOCAL_TMP_ROOT}/go-build}"
+  export GOCACHE="${GOCACHE:-${LOCAL_TMP_ROOT}/go-cache}"
+  mkdir -p "$TMPDIR" "$GOTMPDIR" "$GOCACHE"
 }
 
 print_plan() {
   cat <<PLAN
 make dev must start:
 - stop the previous dev stack first: bash scripts/dev.sh stop
-- print backend/admin endpoints first: bash scripts/dev.sh print-endpoints
 - backend server: bash scripts/dev.sh api
 - worker: bash scripts/dev.sh worker
 - scheduler: bash scripts/dev.sh scheduler
 - admin dev server: bash scripts/dev.sh admin
+- print backend/admin endpoints after admin boot: bash scripts/dev.sh print-endpoints
 PLAN
 }
 
