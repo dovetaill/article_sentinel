@@ -158,22 +158,22 @@ export default function OperationLogListPage() {
           </div>
         </div>
 
-        <Space size={16} wrap>
-          <Card variant="borderless">
+        <Space size={16} wrap className="admin-summary-strip">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="本页日志数" value={summary.total} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="关联文章数" value={summary.articleCount} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="关联任务数" value={summary.taskCount} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="含快照记录" value={summary.snapshotCount} />
           </Card>
         </Space>
 
-        <Card className="admin-filter-card" variant="borderless">
+        <Card className="admin-filter-card admin-surface-panel" variant="borderless">
           <div className="admin-filter-bar">
             <div className="admin-filter-bar__controls">
               <input
@@ -251,67 +251,70 @@ export default function OperationLogListPage() {
             </Space>
           </div>
 
-          <ProTable<OperationLogRecord>
-            rowKey="id"
-            actionRef={actionRef}
-            columns={columns}
-            params={requestParams}
-            search={false}
-            options={false}
-            cardBordered={false}
-            headerTitle={false}
-            toolBarRender={false}
-            pagination={{
-              current: currentPage,
-              pageSize: 20,
-              showSizeChanger: false,
-              onChange: (nextPage) => {
-                if (nextPage === currentPage) {
-                  return;
+          <div className="admin-table-shell admin-surface-panel">
+            <ProTable<OperationLogRecord>
+              rowKey="id"
+              actionRef={actionRef}
+              columns={columns}
+              params={requestParams}
+              search={false}
+              options={false}
+              cardBordered={false}
+              headerTitle={false}
+              toolBarRender={false}
+              pagination={{
+                current: currentPage,
+                pageSize: 20,
+                showSizeChanger: false,
+                onChange: (nextPage) => {
+                  if (nextPage === currentPage) {
+                    return;
+                  }
+
+                  const nextSearchParams = new URLSearchParams(searchParams);
+                  if (nextPage > 1) {
+                    nextSearchParams.set('page', String(nextPage));
+                  } else {
+                    nextSearchParams.delete('page');
+                  }
+
+                  setSearchParams(nextSearchParams);
                 }
+              }}
+              request={async (params) => {
+                try {
+                  const result = await listOperationLogs({
+                    page: Number(params.current ?? currentPage) || currentPage,
+                    pageSize: params.pageSize ?? 20,
+                    article_id: submittedArticleId,
+                    task_id: submittedTaskId,
+                    operator_name: submittedOperatorName || undefined
+                  });
+                  setPageRows(result.items ?? []);
 
-                const nextSearchParams = new URLSearchParams(searchParams);
-                if (nextPage > 1) {
-                  nextSearchParams.set('page', String(nextPage));
-                } else {
-                  nextSearchParams.delete('page');
+                  return {
+                    data: result.items ?? [],
+                    success: true,
+                    total: result.total
+                  };
+                } catch (error) {
+                  setPageRows([]);
+                  messageApi.error(error instanceof Error ? error.message : '操作日志加载失败');
+                  return {
+                    data: [],
+                    success: true,
+                    total: 0
+                  };
                 }
-
-                setSearchParams(nextSearchParams);
-              }
-            }}
-            request={async (params) => {
-              try {
-                const result = await listOperationLogs({
-                  page: Number(params.current ?? currentPage) || currentPage,
-                  pageSize: params.pageSize ?? 20,
-                  article_id: submittedArticleId,
-                  task_id: submittedTaskId,
-                  operator_name: submittedOperatorName || undefined
-                });
-                setPageRows(result.items ?? []);
-
-                return {
-                  data: result.items ?? [],
-                  success: true,
-                  total: result.total
-                };
-              } catch (error) {
-                setPageRows([]);
-                messageApi.error(error instanceof Error ? error.message : '操作日志加载失败');
-                return {
-                  data: [],
-                  success: true,
-                  total: 0
-                };
-              }
-            }}
-          />
+              }}
+            />
+          </div>
         </Card>
       </div>
 
       <Modal
         open={Boolean(activeSnapshot)}
+        rootClassName="admin-light-modal admin-operation-log-modal"
         footer={null}
         title="请求快照"
         onCancel={() => setActiveSnapshot(null)}

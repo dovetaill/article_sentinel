@@ -197,7 +197,7 @@ export default function TaskDetailPage() {
         </div>
 
         {loading ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
               <Spin />
             </div>
@@ -205,25 +205,25 @@ export default function TaskDetailPage() {
         ) : null}
 
         {!loading && !task ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <Empty description="未查询到该任务的详细记录。" />
           </Card>
         ) : null}
 
         {!loading && task ? (
           <>
-            <Space size={16} wrap>
+            <Space size={16} wrap className="admin-summary-strip">
               {summary.map((item) => (
-                <Card key={item.label} variant="borderless">
+                <Card key={item.label} className="admin-summary-card admin-surface-panel" variant="borderless">
                   <Statistic title={item.label} value={item.value} />
                 </Card>
               ))}
             </Space>
 
             <div className="admin-detail-layout">
-              <Card className="admin-filter-card admin-detail-layout__main" variant="borderless">
+              <Card className="admin-filter-card admin-detail-layout__main admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  <Space wrap>
+                  <Space wrap className="admin-status-strip">
                     <StatusTag kind="task" value={task.status} />
                     <Tag bordered={false}>{task.hit_articles ?? 0} 篇命中文稿</Tag>
                   </Space>
@@ -243,7 +243,7 @@ export default function TaskDetailPage() {
                 </Space>
               </Card>
 
-              <Card className="admin-filter-card admin-detail-layout__side" variant="borderless">
+              <Card className="admin-filter-card admin-detail-layout__side admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
                   <Text>执行状态：{taskStatusLabel(task.status)}</Text>
                   <Text>命中文稿：{task.hit_articles ?? 0} 篇</Text>
@@ -253,7 +253,7 @@ export default function TaskDetailPage() {
               </Card>
             </div>
 
-            <Card className="admin-filter-card" variant="borderless">
+            <Card className="admin-filter-card admin-detail-tabs admin-surface-panel" variant="borderless">
               <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key as TaskTabKey)} items={tabItems} />
             </Card>
           </>

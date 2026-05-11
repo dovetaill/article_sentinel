@@ -73,12 +73,15 @@ describe('ArticleRectifyPage', () => {
   });
 
   it('renders the rectify form and original article panel', async () => {
-    renderPage();
+    const { container } = renderPage();
 
     expect(await screen.findByLabelText('整改标题')).toBeInTheDocument();
     expect(screen.getByLabelText('整改摘要')).toBeInTheDocument();
     expect(screen.getByText('原稿对照')).toBeInTheDocument();
     expect(screen.getByText('Old title')).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.rectify-layout__main.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.rectify-layout__side.admin-surface-panel')).toBeInTheDocument();
   });
 
   it('keeps a local draft while editing', async () => {

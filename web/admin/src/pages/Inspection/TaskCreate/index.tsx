@@ -78,7 +78,7 @@ export default function TaskCreatePage() {
           <Button onClick={() => navigate('/inspection/tasks')}>返回任务列表</Button>
         </div>
 
-        <Card className="admin-filter-card" variant="borderless">
+        <Card className="admin-filter-card admin-surface-panel" variant="borderless">
           <ProForm<TaskCreateValues>
             formRef={formRef}
             submitter={{

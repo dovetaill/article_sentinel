@@ -93,7 +93,7 @@ export default function CategoryListPage() {
       dataIndex: 'enabled',
       width: 120,
       render: (_, record) => (
-        <Tag color={record.enabled ? 'success' : 'default'} bordered={false}>
+        <Tag className="admin-category-status-tag" color={record.enabled ? 'success' : 'default'} bordered={false}>
           {record.enabled ? '启用' : '停用'}
         </Tag>
       )
@@ -139,6 +139,7 @@ export default function CategoryListPage() {
         </Button>,
         <Popconfirm
           key="delete"
+          rootClassName="admin-light-popconfirm admin-category-popconfirm"
           title="删除分类"
           description="删除后该分类将不可恢复。"
           okText="确认删除"
@@ -184,7 +185,7 @@ export default function CategoryListPage() {
         </Button>
       </div>
 
-      <Card className="admin-filter-card" variant="borderless">
+      <Card className="admin-filter-card admin-surface-panel" variant="borderless">
         <div className="admin-filter-bar">
           <div className="admin-filter-bar__controls">
             <Input
@@ -246,63 +247,65 @@ export default function CategoryListPage() {
           </Space>
         </div>
 
-        <ProTable<CategoryRecord>
-          rowKey="id"
-          actionRef={actionRef}
-          columns={columns}
-          search={false}
-          options={false}
-          cardBordered={false}
-          headerTitle={false}
-          toolBarRender={false}
-          params={{
-            name: submittedName,
-            enabled: submittedEnabled,
-            page: currentPage
-          }}
-          pagination={{
-            current: currentPage,
-            pageSize: 20,
-            showSizeChanger: false,
-            onChange: (nextPage) => {
-              if (nextPage === currentPage) {
-                return;
+        <div className="admin-table-shell admin-surface-panel">
+          <ProTable<CategoryRecord>
+            rowKey="id"
+            actionRef={actionRef}
+            columns={columns}
+            search={false}
+            options={false}
+            cardBordered={false}
+            headerTitle={false}
+            toolBarRender={false}
+            params={{
+              name: submittedName,
+              enabled: submittedEnabled,
+              page: currentPage
+            }}
+            pagination={{
+              current: currentPage,
+              pageSize: 20,
+              showSizeChanger: false,
+              onChange: (nextPage) => {
+                if (nextPage === currentPage) {
+                  return;
+                }
+
+                const nextSearchParams = new URLSearchParams(searchParams);
+                if (nextPage > 1) {
+                  nextSearchParams.set('page', String(nextPage));
+                } else {
+                  nextSearchParams.delete('page');
+                }
+
+                setSearchParams(nextSearchParams);
               }
+            }}
+            request={async (params) => {
+              try {
+                const result = await listCategories({
+                  page: Number(params.current ?? params.page ?? currentPage) || currentPage,
+                  pageSize: params.pageSize ?? 20,
+                  name: submittedName || undefined,
+                  enabled: submittedEnabled === 'true' ? true : submittedEnabled === 'false' ? false : undefined
+                });
 
-              const nextSearchParams = new URLSearchParams(searchParams);
-              if (nextPage > 1) {
-                nextSearchParams.set('page', String(nextPage));
-              } else {
-                nextSearchParams.delete('page');
+                return {
+                  data: result.items,
+                  success: true,
+                  total: result.total
+                };
+              } catch (error) {
+                messageApi.error(error instanceof Error ? error.message : '规则分类加载失败');
+                return {
+                  data: [],
+                  success: true,
+                  total: 0
+                };
               }
-
-              setSearchParams(nextSearchParams);
-            }
-          }}
-          request={async (params) => {
-            try {
-              const result = await listCategories({
-                page: Number(params.current ?? params.page ?? currentPage) || currentPage,
-                pageSize: params.pageSize ?? 20,
-                name: submittedName || undefined,
-                enabled: submittedEnabled === 'true' ? true : submittedEnabled === 'false' ? false : undefined
-              });
-
-              return {
-                data: result.items,
-                success: true,
-                total: result.total
-              };
-            } catch (error) {
-              messageApi.error(error instanceof Error ? error.message : '规则分类加载失败');
-              return {
-                data: [],
-                success: true,
-                total: 0
-              };
-            }
-          }}
-        />
+            }}
+          />
+        </div>
       </Card>
 
       <ModalForm<CategoryFormValues>
@@ -310,6 +313,7 @@ export default function CategoryListPage() {
         title={editingCategory ? '编辑分类' : '新增分类'}
         initialValues={initialValues}
         modalProps={{
+          rootClassName: 'admin-light-modal admin-category-modal',
           destroyOnHidden: true,
           onCancel: () => {
             setModalOpen(false);

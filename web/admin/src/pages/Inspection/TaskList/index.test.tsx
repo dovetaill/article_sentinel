@@ -1,13 +1,33 @@
 import { ConfigProvider } from 'antd';
 import { render, screen } from '@testing-library/react';
+import { beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import TaskListPage from './index';
 
+const { mockedListTasks } = vi.hoisted(() => ({
+  mockedListTasks: vi.fn()
+}));
+
+vi.mock('@/services/tasks', () => ({
+  listTasks: mockedListTasks,
+  deleteTask: vi.fn()
+}));
+
 describe('TaskListPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedListTasks.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 0,
+      items: []
+    });
+  });
+
   it('shows the task list filters and create button', async () => {
-    render(
+    const { container } = render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/inspection/tasks']}>
           <TaskListPage />
@@ -17,5 +37,8 @@ describe('TaskListPage', () => {
 
     expect(await screen.findByLabelText('任务编号')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新建任务' })).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.admin-filter-card.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-table-shell.admin-surface-panel')).toBeInTheDocument();
   });
 });

@@ -117,4 +117,36 @@ describe('ArticleListPage', () => {
       );
     });
   });
+
+  it('keeps the article workspace surfaces light when rows contain inspection status tags', async () => {
+    mockedListArticles.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      items: [
+        {
+          id: 501,
+          orgid: 29,
+          title: '县域融媒今日要闻',
+          state: 9,
+          latest_task_id: 208,
+          latest_risk_level: 'high'
+        }
+      ]
+    });
+
+    const { container } = render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/content/articles']}>
+          <ArticleListPage />
+        </MemoryRouter>
+      </ConfigProvider>
+    );
+
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.admin-filter-card.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-table-shell.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-table-shell .ant-tag')).toBeInTheDocument();
+  });
 });

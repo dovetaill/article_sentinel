@@ -1,5 +1,5 @@
 import { ConfigProvider } from 'antd';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,7 +48,7 @@ describe('OperationLogListPage', () => {
   });
 
   it('renders log filters and the snapshot action', async () => {
-    render(
+    const { container } = render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/audit/logs']}>
           <OperationLogListPage />
@@ -61,6 +61,9 @@ describe('OperationLogListPage', () => {
     expect(screen.getByLabelText('操作人')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '查询日志' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '查看快照' })).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.admin-filter-card.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-table-shell.admin-surface-panel')).toBeInTheDocument();
   });
 
   it('hydrates URL filters and opens the request snapshot modal', async () => {
@@ -93,9 +96,12 @@ describe('OperationLogListPage', () => {
     });
 
     await user.click(screen.getByRole('button', { name: '查看快照' }));
-    expect(screen.getByRole('dialog', { name: '请求快照' })).toBeInTheDocument();
-    expect(screen.getByText(/reason/i)).toBeInTheDocument();
-    expect(screen.getByText(/spam/i)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: '请求快照' });
+    expect(dialog).toBeInTheDocument();
+    expect(document.querySelector('.admin-light-modal.admin-operation-log-modal')).toBeInTheDocument();
+    expect(document.querySelector('.snapshot-viewer.admin-surface-inline')).toBeInTheDocument();
+    expect(within(dialog).getByText(/reason/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/spam/i)).toBeInTheDocument();
   });
 
   it('updates the audit URL filters and routes record links into the new workspaces', async () => {

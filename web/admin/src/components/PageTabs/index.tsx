@@ -34,7 +34,7 @@ export default function PageTabs(props: PageTabsProps) {
   ];
 
   return (
-    <div className="admin-page-tabs">
+    <div className="admin-page-tabs admin-page-tabs--light admin-surface-panel">
       <Tabs
         type="editable-card"
         hideAdd

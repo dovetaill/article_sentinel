@@ -96,7 +96,7 @@ describe('ArticleDetailPage', () => {
   });
 
   it('renders article detail actions and tabs', async () => {
-    render(
+    const { container } = render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/content/articles/501']}>
           <Routes>
@@ -108,6 +108,10 @@ describe('ArticleDetailPage', () => {
 
     expect(await screen.findByRole('button', { name: '进入整改' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '命中记录' })).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.admin-detail-layout__main.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-detail-layout__side.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-detail-tabs.admin-surface-panel')).toBeInTheDocument();
   });
 
   it('keeps the article detail visible when audit side requests fail', async () => {

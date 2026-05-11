@@ -159,7 +159,7 @@ export default function KeywordListPage() {
       dataIndex: 'enabled',
       width: 120,
       render: (_, record) => (
-        <Tag color={record.enabled ? 'success' : 'default'} bordered={false}>
+        <Tag className="admin-keyword-status-tag" color={record.enabled ? 'success' : 'default'} bordered={false}>
           {record.enabled ? '启用' : '停用'}
         </Tag>
       )
@@ -196,6 +196,7 @@ export default function KeywordListPage() {
         </Button>,
         <Popconfirm
           key="delete"
+          rootClassName="admin-light-popconfirm admin-keyword-popconfirm"
           title="删除规则"
           description="删除后将移除该规则及其扫描范围配置。"
           okText="确认删除"
@@ -241,7 +242,7 @@ export default function KeywordListPage() {
         </Button>
       </div>
 
-      <Card className="admin-filter-card" variant="borderless">
+      <Card className="admin-filter-card admin-surface-panel" variant="borderless">
         <div className="admin-filter-bar">
           <div className="admin-filter-bar__controls">
             <Input
@@ -302,63 +303,65 @@ export default function KeywordListPage() {
           </Space>
         </div>
 
-        <ProTable<KeywordRecord>
-          rowKey="id"
-          actionRef={actionRef}
-          columns={columns}
-          search={false}
-          options={false}
-          cardBordered={false}
-          headerTitle={false}
-          toolBarRender={false}
-          params={{
-            name: submittedKeyword,
-            category_id: categoryIdFromSearch,
-            page: currentPage
-          }}
-          pagination={{
-            current: currentPage,
-            pageSize: 20,
-            showSizeChanger: false,
-            onChange: (nextPage) => {
-              if (nextPage === currentPage) {
-                return;
+        <div className="admin-table-shell admin-surface-panel">
+          <ProTable<KeywordRecord>
+            rowKey="id"
+            actionRef={actionRef}
+            columns={columns}
+            search={false}
+            options={false}
+            cardBordered={false}
+            headerTitle={false}
+            toolBarRender={false}
+            params={{
+              name: submittedKeyword,
+              category_id: categoryIdFromSearch,
+              page: currentPage
+            }}
+            pagination={{
+              current: currentPage,
+              pageSize: 20,
+              showSizeChanger: false,
+              onChange: (nextPage) => {
+                if (nextPage === currentPage) {
+                  return;
+                }
+
+                const nextSearchParams = new URLSearchParams(searchParams);
+                if (nextPage > 1) {
+                  nextSearchParams.set('page', String(nextPage));
+                } else {
+                  nextSearchParams.delete('page');
+                }
+
+                setSearchParams(nextSearchParams);
               }
+            }}
+            request={async (params) => {
+              try {
+                const result = await listKeywords({
+                  page: Number(params.current ?? params.page ?? currentPage) || currentPage,
+                  pageSize: params.pageSize ?? 20,
+                  keyword: submittedKeyword || undefined,
+                  categoryId: categoryIdFromSearch
+                });
 
-              const nextSearchParams = new URLSearchParams(searchParams);
-              if (nextPage > 1) {
-                nextSearchParams.set('page', String(nextPage));
-              } else {
-                nextSearchParams.delete('page');
+                return {
+                  data: result.items,
+                  success: true,
+                  total: result.total
+                };
+              } catch (error) {
+                messageApi.error(error instanceof Error ? error.message : '规则列表加载失败');
+                return {
+                  data: [],
+                  success: true,
+                  total: 0
+                };
               }
-
-              setSearchParams(nextSearchParams);
-            }
-          }}
-          request={async (params) => {
-            try {
-              const result = await listKeywords({
-                page: Number(params.current ?? params.page ?? currentPage) || currentPage,
-                pageSize: params.pageSize ?? 20,
-                keyword: submittedKeyword || undefined,
-                categoryId: categoryIdFromSearch
-              });
-
-              return {
-                data: result.items,
-                success: true,
-                total: result.total
-              };
-            } catch (error) {
-              messageApi.error(error instanceof Error ? error.message : '规则列表加载失败');
-              return {
-                data: [],
-                success: true,
-                total: 0
-              };
-            }
-          }}
-        />
+            }}
+          />
+        </div>
       </Card>
 
       <ModalForm<KeywordFormValues>
@@ -366,6 +369,7 @@ export default function KeywordListPage() {
         title={editingKeyword ? '编辑规则' : '新增规则'}
         initialValues={initialValues}
         modalProps={{
+          rootClassName: 'admin-light-modal admin-keyword-modal',
           destroyOnHidden: true,
           onCancel: () => {
             setModalOpen(false);

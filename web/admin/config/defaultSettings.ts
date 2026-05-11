@@ -6,9 +6,9 @@ const settings: LayoutSettings & {
   siderWidth?: number;
 } = {
   title: '文章哨兵管理台',
-  navTheme: 'realDark',
-  layout: 'mix',
-  colorPrimary: '#2d8cf0',
+  navTheme: 'light',
+  layout: 'side',
+  colorPrimary: '#1677ff',
   contentWidth: 'Fluid',
   fixSiderbar: true,
   fixedHeader: true,

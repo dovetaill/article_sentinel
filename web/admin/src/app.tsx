@@ -1,9 +1,13 @@
+import type { ReactNode } from 'react';
+
+import { App as AntdApp, ConfigProvider } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history } from '@umijs/max';
 
 import defaultSettings from '../config/defaultSettings';
 import { getSession, type AuthSession } from './services/auth';
 import { ApiRequestError } from './services/request';
+import { adminAntdTheme } from './styles/admin-theme';
 import { redirectToFixedLogin } from './utils/auth';
 
 export interface AppInitialState {
@@ -36,6 +40,14 @@ export async function getInitialState() {
     currentOrgName: currentUser?.orgname ?? null,
     fetchSession
   } satisfies AppInitialState;
+}
+
+export function rootContainer(container: ReactNode) {
+  return (
+    <ConfigProvider theme={adminAntdTheme}>
+      <AntdApp>{container}</AntdApp>
+    </ConfigProvider>
+  );
 }
 
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {

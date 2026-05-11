@@ -154,22 +154,22 @@ export default function ArticleListPage() {
           </div>
         </div>
 
-        <Space size={16} wrap>
-          <Card variant="borderless">
+        <Space size={16} wrap className="admin-summary-strip">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="本页文稿数" value={summary.total} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="已发布" value={summary.published} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="已下线" value={summary.offline} />
           </Card>
-          <Card variant="borderless">
+          <Card className="admin-summary-card admin-surface-panel" variant="borderless">
             <Statistic title="含巡检记录" value={summary.inspected} />
           </Card>
         </Space>
 
-        <Card className="admin-filter-card" variant="borderless">
+        <Card className="admin-filter-card admin-surface-panel" variant="borderless">
           <div className="admin-filter-bar">
             <div className="admin-filter-bar__controls">
               <Input
@@ -234,56 +234,58 @@ export default function ArticleListPage() {
             </Space>
           </div>
 
-          <ProTable<ArticleListItem>
-            rowKey="id"
-            actionRef={actionRef}
-            columns={columns}
-            params={requestParams}
-            search={false}
-            options={false}
-            cardBordered={false}
-            headerTitle={false}
-            toolBarRender={false}
-            pagination={{
-              current: currentPage,
-              pageSize: 20,
-              showSizeChanger: false,
-              onChange: (nextPage) => {
-                if (nextPage === currentPage) {
-                  return;
+          <div className="admin-table-shell admin-surface-panel">
+            <ProTable<ArticleListItem>
+              rowKey="id"
+              actionRef={actionRef}
+              columns={columns}
+              params={requestParams}
+              search={false}
+              options={false}
+              cardBordered={false}
+              headerTitle={false}
+              toolBarRender={false}
+              pagination={{
+                current: currentPage,
+                pageSize: 20,
+                showSizeChanger: false,
+                onChange: (nextPage) => {
+                  if (nextPage === currentPage) {
+                    return;
+                  }
+
+                  const nextSearchParams = new URLSearchParams(searchParams);
+                  if (nextPage > 1) {
+                    nextSearchParams.set('page', String(nextPage));
+                  } else {
+                    nextSearchParams.delete('page');
+                  }
+
+                  setSearchParams(nextSearchParams);
                 }
+              }}
+              request={async (params) => {
+                try {
+                  const result = await listArticles({
+                    page: Number(params.current ?? currentPage) || currentPage,
+                    pageSize: params.pageSize ?? 20,
+                    article_id: submittedArticleId,
+                    title: submittedTitle || undefined
+                  });
+                  setPageRows(result.items ?? []);
 
-                const nextSearchParams = new URLSearchParams(searchParams);
-                if (nextPage > 1) {
-                  nextSearchParams.set('page', String(nextPage));
-                } else {
-                  nextSearchParams.delete('page');
+                  return {
+                    data: result.items ?? [],
+                    success: true,
+                    total: result.total
+                  };
+                } catch (error) {
+                  setPageRows([]);
+                  throw error;
                 }
-
-                setSearchParams(nextSearchParams);
-              }
-            }}
-            request={async (params) => {
-              try {
-                const result = await listArticles({
-                  page: Number(params.current ?? currentPage) || currentPage,
-                  pageSize: params.pageSize ?? 20,
-                  article_id: submittedArticleId,
-                  title: submittedTitle || undefined
-                });
-                setPageRows(result.items ?? []);
-
-                return {
-                  data: result.items ?? [],
-                  success: true,
-                  total: result.total
-                };
-              } catch (error) {
-                setPageRows([]);
-                throw error;
-              }
-            }}
-          />
+              }}
+            />
+          </div>
         </Card>
       </div>
     </PageContainer>

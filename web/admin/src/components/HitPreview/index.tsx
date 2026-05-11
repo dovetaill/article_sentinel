@@ -57,11 +57,13 @@ export default function HitPreview({
   const content = snippet?.trim() || '-';
 
   return (
-    <div className="hit-preview">
+    <div className="hit-preview admin-surface-inline">
       <div className="hit-preview__meta">
-        <Tag bordered={false}>{fieldLabel(fieldName)}</Tag>
+        <Tag className="hit-preview__field-tag" bordered={false}>
+          {fieldLabel(fieldName)}
+        </Tag>
         {keywordText ? (
-          <Tag color="warning" bordered={false}>
+          <Tag className="hit-preview__keyword-tag" color="warning" bordered={false}>
             {keywordText}
           </Tag>
         ) : null}

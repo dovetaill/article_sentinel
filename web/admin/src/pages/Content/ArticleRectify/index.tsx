@@ -241,7 +241,7 @@ export default function ArticleRectifyPage() {
         </div>
 
         {loading ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
               <Spin />
             </div>
@@ -249,16 +249,16 @@ export default function ArticleRectifyPage() {
         ) : null}
 
         {!loading && !record ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <Empty description="当前文章暂无可用整改内容，请返回文稿详情或风险结果重新进入。" />
           </Card>
         ) : null}
 
         {!loading && record ? (
           <>
-            <Space size={16} wrap>
+            <Space size={16} wrap className="admin-summary-strip">
               {summaryItems.map((item) => (
-                <Card key={item.label} variant="borderless">
+                <Card key={item.label} className="admin-summary-card admin-surface-panel" variant="borderless">
                   <div className="admin-stat-card">
                     <div className="admin-stat-card__label">{item.label}</div>
                     <div className="admin-stat-card__value">{item.value}</div>
@@ -268,7 +268,7 @@ export default function ArticleRectifyPage() {
             </Space>
 
             <div className="rectify-layout">
-              <Card className="admin-filter-card rectify-layout__main" variant="borderless">
+              <Card className="admin-filter-card rectify-layout__main admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <div>
                     <Title level={4} style={{ margin: 0 }}>
@@ -333,7 +333,7 @@ export default function ArticleRectifyPage() {
                 </Space>
               </Card>
 
-              <Card className="admin-filter-card rectify-layout__side" variant="borderless">
+              <Card className="admin-filter-card rectify-layout__side admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <Title level={4} style={{ margin: 0 }}>
                     原稿对照

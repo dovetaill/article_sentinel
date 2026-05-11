@@ -227,7 +227,7 @@ export default function ArticleDetailPage() {
         </div>
 
         {loading ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
               <Spin />
             </div>
@@ -235,16 +235,16 @@ export default function ArticleDetailPage() {
         ) : null}
 
         {!loading && !detail ? (
-          <Card className="admin-filter-card" variant="borderless">
+          <Card className="admin-filter-card admin-surface-panel" variant="borderless">
             <Empty description="未查询到该文章的中心数据。" />
           </Card>
         ) : null}
 
         {!loading && detail ? (
           <>
-            <Space size={16} wrap>
+            <Space size={16} wrap className="admin-summary-strip">
               {metrics.map((item) => (
-                <Card key={item.label} variant="borderless">
+                <Card key={item.label} className="admin-summary-card admin-surface-panel" variant="borderless">
                   <div className="admin-stat-card">
                     <div className="admin-stat-card__label">{item.label}</div>
                     <div className="admin-stat-card__value">{item.value}</div>
@@ -254,9 +254,9 @@ export default function ArticleDetailPage() {
             </Space>
 
             <div className="admin-detail-layout">
-              <Card className="admin-filter-card admin-detail-layout__main" variant="borderless">
+              <Card className="admin-filter-card admin-detail-layout__main admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  <Space wrap>
+                  <Space wrap className="admin-status-strip">
                     <Tag bordered={false}>{renderArticleState(detail.state)}</Tag>
                     {detail.latest_risk_level ? <StatusTag kind="risk" value={detail.latest_risk_level} /> : null}
                     {detail.latest_disposition_status ? (
@@ -312,7 +312,7 @@ export default function ArticleDetailPage() {
                 </Space>
               </Card>
 
-              <Card className="admin-filter-card admin-detail-layout__side" variant="borderless">
+              <Card className="admin-filter-card admin-detail-layout__side admin-surface-panel" variant="borderless">
                 <Space direction="vertical" size={10} style={{ width: '100%' }}>
                   <Text>最新任务：{detail.latest_task_id ? `#${detail.latest_task_id}` : '-'}</Text>
                   <Text>最新风险：{detail.latest_risk_level || '-'}</Text>
@@ -324,7 +324,7 @@ export default function ArticleDetailPage() {
               </Card>
             </div>
 
-            <Card className="admin-filter-card" variant="borderless">
+            <Card className="admin-filter-card admin-detail-tabs admin-surface-panel" variant="borderless">
               <Tabs activeKey={activeTabKey} onChange={(key) => setActiveTabKey(key as ArticleTabKey)} items={tabItems} />
             </Card>
           </>

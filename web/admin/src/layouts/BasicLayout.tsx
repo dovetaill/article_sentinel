@@ -68,6 +68,7 @@ export default function BasicLayout() {
 
   return (
     <ProLayout
+      className="admin-pro-layout"
       {...defaultSettings}
       route={menuRoute}
       location={{ pathname: resolveMenuKey(location.pathname) }}
@@ -90,7 +91,7 @@ export default function BasicLayout() {
         );
       }}
     >
-      <div className="admin-workspace-shell">
+      <div className="admin-workspace-shell admin-workspace-shell--light">
         <PageTabs
           state={tabState}
           onActivate={(key) => {
@@ -120,7 +121,7 @@ export default function BasicLayout() {
             navigateToKey(key, tabState);
           }}
         />
-        <div className="admin-workspace-body">
+        <div className="admin-workspace-body admin-workspace-body--light">
           <Outlet />
         </div>
       </div>

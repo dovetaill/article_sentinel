@@ -52,5 +52,5 @@ export default function SnapshotViewer({
     return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} />;
   }
 
-  return <pre className="detail-code-block snapshot-viewer">{formatted}</pre>;
+  return <pre className="detail-code-block snapshot-viewer admin-surface-inline">{formatted}</pre>;
 }

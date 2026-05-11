@@ -78,7 +78,7 @@ describe('TaskDetailPage', () => {
   });
 
   it('renders task detail tabs for hit results and snapshots', async () => {
-    render(
+    const { container } = render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/inspection/tasks/77']}>
           <Routes>
@@ -90,6 +90,10 @@ describe('TaskDetailPage', () => {
 
     expect(await screen.findByRole('tab', { name: '命中结果' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
+    expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
+    expect(container.querySelector('.admin-detail-layout__main.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-detail-layout__side.admin-surface-panel')).toBeInTheDocument();
+    expect(container.querySelector('.admin-detail-tabs.admin-surface-panel')).toBeInTheDocument();
   });
 
   it('keeps the task detail as return_to when drilling into an article', async () => {
