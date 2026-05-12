@@ -150,7 +150,7 @@ export default function ResultListPage() {
   ];
 
   return (
-    <PageContainer title={false}>
+    <PageContainer title={false} pageHeaderRender={false}>
       {contextHolder}
       <div className="admin-domain-page">
         <div className="admin-domain-page__head">

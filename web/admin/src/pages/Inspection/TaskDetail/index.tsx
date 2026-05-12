@@ -326,7 +326,7 @@ export default function TaskDetailPage() {
   ];
 
   return (
-    <PageContainer title={false}>
+    <PageContainer title={false} pageHeaderRender={false}>
       {contextHolder}
       <div className="admin-domain-page">
         <div className="admin-domain-page__head">

@@ -141,7 +141,7 @@ export default function ArticleListPage() {
   ];
 
   return (
-    <PageContainer title={false}>
+    <PageContainer title={false} pageHeaderRender={false}>
       <div className="admin-domain-page">
         <div className="admin-domain-page__head">
           <div>

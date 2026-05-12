@@ -7,9 +7,23 @@ import { describe, expect, it } from 'vitest';
 
 import TaskListPage from './index';
 
-const { mockedListTasks } = vi.hoisted(() => ({
-  mockedListTasks: vi.fn()
+const { mockedListTasks, mockedPageContainer } = vi.hoisted(() => ({
+  mockedListTasks: vi.fn(),
+  mockedPageContainer: vi.fn()
 }));
+
+vi.mock('@ant-design/pro-components', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@ant-design/pro-components')>();
+
+  return {
+    ...actual,
+    PageContainer: (props: Record<string, unknown> & { children?: React.ReactNode }) => {
+      mockedPageContainer(props);
+
+      return <div data-testid="page-container">{props.children}</div>;
+    }
+  };
+});
 
 vi.mock('@/services/tasks', () => ({
   listTasks: mockedListTasks,
@@ -64,6 +78,25 @@ describe('TaskListPage', () => {
     expect(container.querySelectorAll('.admin-summary-card.admin-light-surface')).toHaveLength(4);
     expect(container.querySelector('.admin-filter-card.admin-light-surface')).toBeInTheDocument();
     expect(container.querySelector('.admin-table-shell.admin-light-surface')).toBeInTheDocument();
+  });
+
+  it('disables the residual Pro page header wrapper on the task list page', async () => {
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/inspection/tasks']}>
+          <TaskListPage />
+        </MemoryRouter>
+      </ConfigProvider>
+    );
+
+    await screen.findByLabelText('任务编号');
+
+    expect(
+      mockedPageContainer.mock.calls.some(
+        ([props]) => (props as { title?: unknown; pageHeaderRender?: unknown }).title === false &&
+          (props as { pageHeaderRender?: unknown }).pageHeaderRender === false
+      )
+    ).toBe(true);
   });
 
   it('restores task detail entry points from task number and row actions', async () => {
