@@ -97,7 +97,7 @@ export default function OperationLogListPage() {
       width: 120,
       render: (_, record) =>
         record.task_id ? (
-          <Button type="link" onClick={() => navigate(`/inspection/results?task_id=${record.task_id}`)}>
+          <Button type="link" onClick={() => navigate(`/inspection/tasks/${record.task_id}?tab=results`)}>
             #{record.task_id}
           </Button>
         ) : (

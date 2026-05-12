@@ -104,7 +104,7 @@ describe('OperationLogListPage', () => {
     expect(within(dialog).getByText(/spam/i)).toBeInTheDocument();
   });
 
-  it('updates the audit URL filters and routes record links into the new workspaces', async () => {
+  it('updates the audit URL filters and routes task links into the task result workspace', async () => {
     const user = userEvent.setup();
 
     render(
@@ -132,10 +132,10 @@ describe('OperationLogListPage', () => {
       );
     });
 
-    await user.click(screen.getByRole('button', { name: '#501' }));
+    await user.click(screen.getByRole('button', { name: '#77' }));
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent(
-        '/content/articles/501?return_to=%2Faudit%2Flogs%3Farticle_id%3D808%26task_id%3D99%26operator_name%3Dbob'
+        '/inspection/tasks/77?tab=results'
       );
     });
   });

@@ -138,10 +138,14 @@ describe('ArticleDetailPage', () => {
 
     render(
       <ConfigProvider>
-        <MemoryRouter initialEntries={['/content/articles/501?return_to=%2Finspection%2Fresults%3Fpage%3D2']}>
+        <MemoryRouter
+          initialEntries={[
+            '/content/articles/501?return_to=%2Finspection%2Ftasks%2F77%3Ftab%3Dresults%26page%3D2'
+          ]}
+        >
           <Routes>
             <Route path="/content/articles/:articleId" element={<ArticleDetailPage />} />
-            <Route path="/inspection/results" element={<div>结果页探针</div>} />
+            <Route path="/inspection/tasks/:taskId" element={<div>任务结果探针</div>} />
           </Routes>
           <LocationProbe />
         </MemoryRouter>
@@ -152,7 +156,7 @@ describe('ArticleDetailPage', () => {
     await user.click(screen.getByRole('button', { name: '返回上一页' }));
 
     await waitFor(() => {
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/inspection/results?page=2');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/inspection/tasks/77?tab=results&page=2');
     });
   });
 });
