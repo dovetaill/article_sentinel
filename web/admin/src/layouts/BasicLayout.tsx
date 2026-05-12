@@ -1,25 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-  BellOutlined,
   DownOutlined,
-  FullscreenExitOutlined,
-  FullscreenOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SearchOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import ProLayout from '@ant-design/pro-layout';
 import { Outlet, useLocation, useModel, useNavigate } from '@umijs/max';
-import { Avatar, Badge, Breadcrumb, Button, Dropdown, Input, Space, Typography, type MenuProps } from 'antd';
+import { Avatar, Button, Dropdown, Space, Typography, type MenuProps } from 'antd';
 
 import defaultSettings from '../../config/defaultSettings';
 import type { AppInitialState } from '@/app';
 import PageTabs from '@/components/PageTabs';
 import {
   WORKSPACE_EMPTY_PATH,
-  resolveBreadcrumbItems,
+  resolveRouteMeta,
   resolveMenuKey,
   workspaceRouteItems
 } from '@/components/PageTabs/route-meta';
@@ -34,7 +28,6 @@ export default function BasicLayout() {
   const currentUser = initialState?.currentUser;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [tabState, setTabState] = useState<TabState>(() => restoreDefaultTabs(currentOrgId));
 
   useEffect(() => {
@@ -69,7 +62,7 @@ export default function BasicLayout() {
     saveStoredTabs(tabState);
   }, [tabState]);
 
-  const breadcrumbItems = useMemo(() => resolveBreadcrumbItems(location.pathname), [location.pathname]);
+  const routeTitle = useMemo(() => resolveRouteMeta(location.pathname).name, [location.pathname]);
   const menuRoute = useMemo(
     () => ({
       path: '/',
@@ -79,13 +72,6 @@ export default function BasicLayout() {
   );
   const userMenuItems: MenuProps['items'] = useMemo(
     () => [
-      {
-        key: 'profile',
-        label: '个人中心'
-      },
-      {
-        type: 'divider'
-      },
       {
         key: 'logout',
         label: '退出登录'
@@ -118,25 +104,6 @@ export default function BasicLayout() {
     }
   };
 
-  const handleFullscreen = async () => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen?.();
-        setIsFullscreen(false);
-        return;
-      }
-
-      await document.documentElement.requestFullscreen?.();
-      setIsFullscreen(true);
-    } catch {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-    }
-  };
-
   return (
     <ProLayout
       className="admin-pro-layout"
@@ -147,6 +114,7 @@ export default function BasicLayout() {
       location={{ pathname: resolveMenuKey(location.pathname) }}
       menu={{ defaultOpenAll: true }}
       headerRender={false}
+      collapsedButtonRender={false}
       menuItemRender={(item, dom) => {
         const path = item.path;
         if (!path) {
@@ -168,40 +136,11 @@ export default function BasicLayout() {
       <div className="admin-pro-shell">
         <header className="admin-header admin-light-surface" data-testid="admin-header">
           <div className="admin-header__left">
-            <Button
-              type="text"
-              className="admin-header__collapse"
-              aria-label={collapsed ? '展开侧边栏' : '收缩侧边栏'}
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed((previousState) => !previousState)}
-            />
-            <Breadcrumb className="admin-header__breadcrumb" items={breadcrumbItems} />
+            <Typography.Title level={5} className="admin-header__title">
+              {routeTitle}
+            </Typography.Title>
           </div>
           <div className="admin-header__right">
-            <Input
-              readOnly
-              className="admin-header__search"
-              prefix={<SearchOutlined />}
-              value="搜索页面与功能"
-              aria-label="搜索入口"
-            />
-            <Button
-              type="text"
-              className="admin-header__action"
-              aria-label="切换全屏"
-              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-              onClick={() => {
-                void handleFullscreen();
-              }}
-            />
-            <Badge dot>
-              <Button
-                type="text"
-                className="admin-header__action"
-                aria-label="通知中心"
-                icon={<BellOutlined />}
-              />
-            </Badge>
             <Dropdown
               trigger={['click']}
               menu={{

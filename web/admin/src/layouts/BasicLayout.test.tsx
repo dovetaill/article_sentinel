@@ -54,20 +54,27 @@ describe('BasicLayout', () => {
     window.localStorage.clear();
   });
 
-  it('renders the admin header, breadcrumb, user menu, and page tabs on light surfaces', async () => {
+  it('renders the cleaned admin header, user menu, and page tabs on light surfaces', async () => {
     const user = userEvent.setup();
     const { container } = render(<BasicLayout />);
 
+    expect(mockedProLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collapsedButtonRender: false
+      })
+    );
     expect(container.querySelector('.admin-header.admin-light-surface')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '收缩侧边栏' })).toBeInTheDocument();
-    expect(screen.getByText('首页')).toBeInTheDocument();
-    expect(screen.getByText('巡检业务')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '检测任务' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '收缩侧边栏' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('搜索入口')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '切换全屏' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '通知中心' })).not.toBeInTheDocument();
     const pageTabs = container.querySelector('.admin-page-tabs.admin-light-surface');
     expect(pageTabs).toBeInTheDocument();
     expect(within(pageTabs as HTMLElement).getByText('检测任务')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '用户菜单' }));
-    expect(screen.getByText('个人中心')).toBeInTheDocument();
+    expect(screen.queryByText('个人中心')).not.toBeInTheDocument();
     expect(screen.getByText('退出登录')).toBeInTheDocument();
 
     await user.click(screen.getByText('退出登录'));
