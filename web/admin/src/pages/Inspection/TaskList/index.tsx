@@ -33,6 +33,10 @@ export default function TaskListPage() {
   const submittedTaskNo = searchParams.get('task_no')?.trim() ?? '';
   const submittedStatus = searchParams.get('status') || undefined;
 
+  const navigateToTaskDetail = (taskId: number) => {
+    navigate(`/inspection/tasks/${taskId}`);
+  };
+
   useEffect(() => {
     setDraftFilters({
       taskNo: searchParams.get('task_no') ?? '',
@@ -56,7 +60,12 @@ export default function TaskListPage() {
   const columns: ProColumns<TaskRecord>[] = [
     {
       title: '任务编号',
-      dataIndex: 'task_no'
+      dataIndex: 'task_no',
+      render: (_, record) => (
+        <Button type="link" onClick={() => navigateToTaskDetail(record.id)}>
+          {record.task_no}
+        </Button>
+      )
     },
     {
       title: '执行状态',
@@ -84,8 +93,14 @@ export default function TaskListPage() {
       valueType: 'option',
       width: 220,
       render: (_, record) => {
+        const actions = [
+          <Button key="view" type="link" onClick={() => navigateToTaskDetail(record.id)}>
+            查看任务
+          </Button>
+        ];
+
         if (record.status === 'pending' || record.status === 'failed') {
-          return [
+          actions.push(
             <Popconfirm
               key="delete"
               title="删除任务"
@@ -106,14 +121,18 @@ export default function TaskListPage() {
                 删除任务
               </Button>
             </Popconfirm>
-          ];
+          );
+
+          return actions;
         }
 
-        return [
+        actions.push(
           <Tag key="protected" bordered={false}>
             已执行不可删
           </Tag>
-        ];
+        );
+
+        return actions;
       }
     }
   ];
