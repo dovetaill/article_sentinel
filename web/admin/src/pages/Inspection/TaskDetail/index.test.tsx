@@ -77,7 +77,7 @@ describe('TaskDetailPage', () => {
     });
   });
 
-  it('renders task detail tabs for hit results and snapshots', async () => {
+  it('renders the task result workspace inside task detail', async () => {
     const { container } = render(
       <ConfigProvider>
         <MemoryRouter initialEntries={['/inspection/tasks/77']}>
@@ -90,13 +90,41 @@ describe('TaskDetailPage', () => {
 
     expect(await screen.findByRole('tab', { name: '命中结果' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '规则快照' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '批量下线处置' })).toBeInTheDocument();
+    expect(screen.getByText('已选 0 项')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '查看详情' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '进入整改' })).toBeInTheDocument();
     expect(container.querySelectorAll('.admin-summary-card.admin-surface-panel')).toHaveLength(4);
     expect(container.querySelector('.admin-detail-layout__main.admin-surface-panel')).toBeInTheDocument();
     expect(container.querySelector('.admin-detail-layout__side.admin-surface-panel')).toBeInTheDocument();
     expect(container.querySelector('.admin-detail-tabs.admin-surface-panel')).toBeInTheDocument();
   });
 
-  it('keeps the task detail as return_to when drilling into an article', async () => {
+  it('reads results tab and page state from the URL', async () => {
+    render(
+      <ConfigProvider>
+        <MemoryRouter initialEntries={['/inspection/tasks/77?tab=results&page=2']}>
+          <Routes>
+            <Route path="/inspection/tasks/:taskId" element={<TaskDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ConfigProvider>
+    );
+
+    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockedListResults).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          task_id: 77,
+          page: 2,
+          pageSize: 20
+        })
+      );
+    });
+  });
+
+  it('keeps the task result workspace as return_to when drilling into an article', async () => {
     const user = userEvent.setup();
 
     render(
@@ -110,13 +138,13 @@ describe('TaskDetailPage', () => {
       </ConfigProvider>
     );
 
-    expect(await screen.findByText('县域融媒今日要闻')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '查看详情' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '县域融媒今日要闻' }));
+    await user.click(screen.getByRole('button', { name: '查看详情' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent(
-        '/content/articles/501?return_to=%2Finspection%2Ftasks%2F77'
+        '/content/articles/501?return_to=%2Finspection%2Ftasks%2F77%3Ftab%3Dresults'
       );
     });
   });
