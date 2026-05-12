@@ -5,6 +5,23 @@ function appendSearch(pathname: string, search: string) {
   return search ? `${pathname}${search}` : pathname;
 }
 
+function buildTaskResultPath(taskId: string, search: string) {
+  const searchParams = new URLSearchParams(search);
+  const nextSearchParams = new URLSearchParams();
+
+  nextSearchParams.set('tab', 'results');
+
+  for (const [key, value] of searchParams.entries()) {
+    if (key === 'task_id' || key === 'tab') {
+      continue;
+    }
+
+    nextSearchParams.append(key, value);
+  }
+
+  return `/inspection/tasks/${taskId}?${nextSearchParams.toString()}`;
+}
+
 export function resolveLegacyPath(href: string) {
   const url = new URL(href, 'http://legacy.local');
   const pathname = url.pathname;
@@ -13,7 +30,6 @@ export function resolveLegacyPath(href: string) {
   const staticMap: Record<string, string> = {
     '/tasks': '/inspection/tasks',
     '/tasks/new': '/inspection/tasks/create',
-    '/results': '/inspection/results',
     '/articles': '/content/articles',
     '/logs': '/audit/logs',
     '/keywords': '/rules/keywords'
@@ -24,11 +40,18 @@ export function resolveLegacyPath(href: string) {
     return appendSearch(staticTarget, search);
   }
 
+  if (pathname === '/results' || pathname === '/inspection/results') {
+    const taskId = url.searchParams.get('task_id');
+    if (taskId) {
+      return buildTaskResultPath(taskId, search);
+    }
+
+    return '/inspection/tasks';
+  }
+
   const taskResultMatch = pathname.match(/^\/tasks\/(\d+)\/results$/);
   if (taskResultMatch) {
-    const nextSearchParams = new URLSearchParams(search);
-    nextSearchParams.set('task_id', taskResultMatch[1]);
-    return `/inspection/results?${nextSearchParams.toString()}`;
+    return buildTaskResultPath(taskResultMatch[1], search);
   }
 
   const taskDetailMatch = pathname.match(/^\/tasks\/(\d+)$/);

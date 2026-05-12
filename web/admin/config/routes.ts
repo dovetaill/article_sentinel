@@ -6,6 +6,7 @@ const legacyRedirectPaths = [
   '/tasks/new',
   '/tasks/:taskId',
   '/tasks/:taskId/results',
+  '/inspection/results',
   '/results',
   '/articles',
   '/articles/:articleId',

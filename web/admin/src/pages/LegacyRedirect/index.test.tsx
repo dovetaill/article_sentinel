@@ -15,8 +15,16 @@ describe('LegacyRedirect', () => {
     expect(resolveLegacyPath('/tasks')).toBe('/inspection/tasks');
   });
 
-  it('maps legacy task result routes into the new result workspace', () => {
-    expect(resolveLegacyPath('/tasks/77/results')).toBe('/inspection/results?task_id=77');
+  it('maps legacy task result routes into task detail results', () => {
+    expect(resolveLegacyPath('/tasks/77/results')).toBe('/inspection/tasks/77?tab=results');
+  });
+
+  it('maps result workspace links into task detail results when task context exists', () => {
+    expect(resolveLegacyPath('/results?task_id=77&page=2')).toBe('/inspection/tasks/77?tab=results&page=2');
+  });
+
+  it('falls back to the task list when a result workspace link has no task context', () => {
+    expect(resolveLegacyPath('/results')).toBe('/inspection/tasks');
   });
 
   it('preserves query filters when redirecting legacy log links', () => {
