@@ -27,12 +27,12 @@ describe('PageTabs', () => {
               menuKey: '/inspection/tasks'
             },
             {
-              key: '/inspection/results',
-              pathname: '/inspection/results',
+              key: '/rules/keywords',
+              pathname: '/rules/keywords',
               search: '',
-              title: '风险结果',
+              title: '关键词规则',
               closable: true,
-              menuKey: '/inspection/results'
+              menuKey: '/rules/keywords'
             }
           ]
         }}
@@ -47,11 +47,14 @@ describe('PageTabs', () => {
     expect(container.querySelector('.admin-page-tabs__scroll')).toBeInTheDocument();
     expect(container.querySelector('.admin-page-tabs__item--active')).toHaveTextContent('检测任务');
 
-    await user.click(screen.getByRole('button', { name: '风险结果' }));
-    expect(onActivate).toHaveBeenCalledWith('/inspection/results');
+    await user.click(screen.getByRole('button', { name: '关键词规则' }));
+    expect(onActivate).toHaveBeenCalledWith('/rules/keywords');
 
-    await user.click(screen.getByLabelText('关闭 风险结果'));
-    expect(onClose).toHaveBeenCalledWith('/inspection/results');
+    await user.click(screen.getByLabelText('关闭 检测任务'));
+    expect(onClose).toHaveBeenCalledWith('/inspection/tasks');
+
+    await user.click(screen.getByLabelText('关闭 关键词规则'));
+    expect(onClose).toHaveBeenCalledWith('/rules/keywords');
 
     await user.click(screen.getByRole('button', { name: '更多标签操作' }));
     expect(screen.getByText('关闭当前')).toBeInTheDocument();

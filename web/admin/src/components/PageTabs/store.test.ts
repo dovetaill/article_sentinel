@@ -28,19 +28,22 @@ describe('reduceTabs', () => {
   });
 
   it('falls back to the left tab and then to the empty workspace when closing the active tab', () => {
-    const withThreeTabs = ['/inspection/tasks', '/inspection/results', '/rules/keywords'].reduce(
+    const withThreeTabs = ['/inspection/tasks', '/rules/keywords', '/audit/logs'].reduce(
       (state, href) => reduceTabs(state, { type: 'open', href, orgId: 29 }),
       restoreDefaultTabs(29)
     );
 
-    const closedActive = reduceTabs(withThreeTabs, { type: 'close', key: '/rules/keywords' });
-    expect(closedActive.activeKey).toBe('/inspection/results');
+    const closedActive = reduceTabs(withThreeTabs, { type: 'close', key: '/audit/logs' });
+    expect(closedActive.activeKey).toBe('/rules/keywords');
 
-    const closedAll = reduceTabs(closedActive, { type: 'closeAll' });
-    expect(closedAll.tabs).toEqual([]);
-    expect(closedAll.activeKey).toBe('');
+    const closedMiddle = reduceTabs(closedActive, { type: 'close', key: '/rules/keywords' });
+    expect(closedMiddle.activeKey).toBe('/inspection/tasks');
 
-    const openedWorkspace = reduceTabs(closedAll, {
+    const closedTasks = reduceTabs(closedMiddle, { type: 'close', key: '/inspection/tasks' });
+    expect(closedTasks.tabs).toEqual([]);
+    expect(closedTasks.activeKey).toBe('');
+
+    const openedWorkspace = reduceTabs(closedTasks, {
       type: 'open',
       href: WORKSPACE_EMPTY_PATH,
       orgId: 29
@@ -50,19 +53,19 @@ describe('reduceTabs', () => {
   });
 
   it('keeps only the requested tab when closing others', () => {
-    const withThreeTabs = ['/inspection/tasks', '/inspection/results', '/rules/keywords'].reduce(
+    const withThreeTabs = ['/inspection/tasks', '/rules/keywords', '/audit/logs'].reduce(
       (state, href) => reduceTabs(state, { type: 'open', href, orgId: 29 }),
       restoreDefaultTabs(29)
     );
 
     const closedOthers = reduceTabs(withThreeTabs, {
       type: 'closeOthers',
-      key: '/inspection/results'
+      key: '/rules/keywords'
     });
 
     expect(closedOthers.tabs).toHaveLength(1);
-    expect(closedOthers.tabs[0].key).toBe('/inspection/results');
-    expect(closedOthers.activeKey).toBe('/inspection/results');
+    expect(closedOthers.tabs[0].key).toBe('/rules/keywords');
+    expect(closedOthers.activeKey).toBe('/rules/keywords');
   });
 
   it('keeps detail titles friendly', () => {

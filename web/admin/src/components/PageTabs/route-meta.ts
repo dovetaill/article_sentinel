@@ -52,7 +52,7 @@ const workspaceRouteTree: WorkspaceRouteMeta[] = [
         breadcrumb: ['首页', '巡检业务', '检测任务'],
         menuKey: BASE_PATH,
         tabTitle: '检测任务',
-        closable: false,
+        closable: true,
         component: './Inspection/TaskList'
       },
       {
@@ -81,8 +81,10 @@ const workspaceRouteTree: WorkspaceRouteMeta[] = [
         name: '风险结果',
         group: '巡检业务',
         breadcrumb: ['首页', '巡检业务', '风险结果'],
-        menuKey: '/inspection/results',
+        menuKey: BASE_PATH,
         tabTitle: '风险结果',
+        hiddenInMenu: true,
+        opensTab: false,
         component: './Inspection/ResultList'
       }
     ]
